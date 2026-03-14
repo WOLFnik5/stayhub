@@ -9,4 +9,8 @@ import com.bookingapp.domain.model.User;
 public interface PaymentProviderPort {
 
     PaymentSession createPaymentSession(Payment payment, Booking booking, Accommodation accommodation, User user);
+
+    boolean isPaymentSuccessful(String sessionId);
+
+    boolean isPaymentSessionActive(String sessionId);
 }

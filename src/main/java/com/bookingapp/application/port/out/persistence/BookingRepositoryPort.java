@@ -17,7 +17,7 @@ public interface BookingRepositoryPort {
 
     List<Booking> findAllByUserId(Long userId);
 
-    boolean existsActiveBookingOverlap(Long accommodationId, LocalDate checkInDate, LocalDate checkOutDate);
+    boolean existsActiveBookingOverlap(Long accommodationId, LocalDate checkInDate, LocalDate checkOutDate, Long excludedBookingId);
 
     List<Booking> findBookingsToExpire(LocalDate businessDate);
 }

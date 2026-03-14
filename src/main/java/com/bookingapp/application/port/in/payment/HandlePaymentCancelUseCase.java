@@ -1,8 +1,8 @@
 package com.bookingapp.application.port.in.payment;
 
-import com.bookingapp.domain.model.Payment;
+import com.bookingapp.application.model.PaymentCancelResult;
 
 public interface HandlePaymentCancelUseCase {
 
-    Payment handlePaymentCancel(String sessionId);
+    PaymentCancelResult handlePaymentCancel(String sessionId);
 }
