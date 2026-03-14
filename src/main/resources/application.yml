@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: booking-app
+  profiles:
+    default: dev
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:booking_app}
+    username: ${DB_USERNAME:booking_user}
+    password: ${DB_PASSWORD:booking_password}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:booking-app}
+      auto-offset-reset: earliest
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:replace-with-a-strong-base64-secret}
+      expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
+  kafka:
+    topics:
+      booking-created: ${KAFKA_TOPIC_BOOKING_CREATED:booking.created}
+      booking-canceled: ${KAFKA_TOPIC_BOOKING_CANCELED:booking.canceled}
+      booking-expired: ${KAFKA_TOPIC_BOOKING_EXPIRED:booking.expired}
+      accommodation-created: ${KAFKA_TOPIC_ACCOMMODATION_CREATED:accommodation.created}
+      payment-succeeded: ${KAFKA_TOPIC_PAYMENT_SUCCEEDED:payment.succeeded}
+  stripe:
+    secret-key: ${STRIPE_SECRET_KEY:sk_test_replace_me}
+    success-url: ${STRIPE_SUCCESS_URL:http://localhost:8080/payments/success}
+    cancel-url: ${STRIPE_CANCEL_URL:http://localhost:8080/payments/cancel}
+  telegram:
+    bot-token: ${TELEGRAM_BOT_TOKEN:replace-with-bot-token}
+    chat-id: ${TELEGRAM_CHAT_ID:replace-with-chat-id}
