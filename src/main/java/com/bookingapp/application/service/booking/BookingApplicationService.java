@@ -16,6 +16,7 @@ import com.bookingapp.application.port.out.persistence.AccommodationRepositoryPo
 import com.bookingapp.application.port.out.persistence.BookingRepositoryPort;
 import com.bookingapp.application.port.out.persistence.PaymentRepositoryPort;
 import com.bookingapp.application.port.out.security.CurrentUserProviderPort;
+import com.bookingapp.common.exception.ForbiddenOperationException;
 import com.bookingapp.domain.enums.BookingStatus;
 import com.bookingapp.domain.enums.PaymentStatus;
 import com.bookingapp.domain.enums.UserRole;
@@ -189,7 +190,7 @@ public class BookingApplicationService implements
         }
 
         if (!currentUser.id().equals(booking.getUserId())) {
-            throw new BusinessValidationException("Access denied for booking id '" + booking.getId() + "'");
+            throw new ForbiddenOperationException("Access denied for booking id '" + booking.getId() + "'");
         }
     }
 
