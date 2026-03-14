@@ -6,7 +6,6 @@ import com.bookingapp.application.model.event.BookingCreatedEvent;
 import com.bookingapp.application.model.event.BookingExpiredEvent;
 import com.bookingapp.application.model.event.PaymentSucceededEvent;
 import com.bookingapp.application.port.in.notification.SendNotificationUseCase;
-import com.bookingapp.infrastructure.config.KafkaTopicsProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -22,8 +21,7 @@ public class TelegramEventConsumer {
     public TelegramEventConsumer(
             ObjectMapper objectMapper,
             TelegramKafkaMessageFormatter telegramKafkaMessageFormatter,
-            SendNotificationUseCase sendNotificationUseCase,
-            KafkaTopicsProperties kafkaTopicsProperties
+            SendNotificationUseCase sendNotificationUseCase
     ) {
         this.objectMapper = objectMapper;
         this.telegramKafkaMessageFormatter = telegramKafkaMessageFormatter;
