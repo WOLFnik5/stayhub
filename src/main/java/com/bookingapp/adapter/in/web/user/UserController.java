@@ -4,6 +4,9 @@ import com.bookingapp.application.port.in.user.GetCurrentUserProfileUseCase;
 import com.bookingapp.application.port.in.user.UpdateCurrentUserProfileUseCase;
 import com.bookingapp.application.port.in.user.UpdateUserRoleUseCase;
 import com.bookingapp.domain.model.User;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/users")
+@Tag(name = "Users", description = "User profile and role management")
 public class UserController {
 
     private final GetCurrentUserProfileUseCase getCurrentUserProfileUseCase;
@@ -35,6 +39,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}/role")
+    @Operation(summary = "Update user role", security = @SecurityRequirement(name = "bearerAuth"))
     public UserProfileResponse updateUserRole(
             @PathVariable Long id,
             @Valid @RequestBody UpdateUserRoleRequest request
@@ -46,11 +51,13 @@ public class UserController {
     }
 
     @GetMapping("/me")
+    @Operation(summary = "Get current user profile", security = @SecurityRequirement(name = "bearerAuth"))
     public UserProfileResponse getCurrentUserProfile() {
         return userWebMapper.toResponse(getCurrentUserProfileUseCase.getCurrentUserProfile());
     }
 
     @PutMapping("/me")
+    @Operation(summary = "Replace current user profile", security = @SecurityRequirement(name = "bearerAuth"))
     public UserProfileResponse updateCurrentUserProfile(
             @Valid @RequestBody UpdateCurrentUserRequest request
     ) {
@@ -65,6 +72,7 @@ public class UserController {
     }
 
     @PatchMapping("/me")
+    @Operation(summary = "Partially update current user profile", security = @SecurityRequirement(name = "bearerAuth"))
     public UserProfileResponse patchCurrentUserProfile(
             @Valid @RequestBody PatchCurrentUserRequest request
     ) {

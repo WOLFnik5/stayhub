@@ -6,6 +6,9 @@ import com.bookingapp.application.port.in.accommodation.GetAccommodationByIdUseC
 import com.bookingapp.application.port.in.accommodation.ListAccommodationsUseCase;
 import com.bookingapp.application.port.in.accommodation.UpdateAccommodationUseCase;
 import com.bookingapp.domain.model.Accommodation;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -23,6 +26,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/accommodations")
+@Tag(name = "Accommodations", description = "Accommodation catalog management")
 public class AccommodationController {
 
     private final CreateAccommodationUseCase createAccommodationUseCase;
@@ -50,6 +54,7 @@ public class AccommodationController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create accommodation", security = @SecurityRequirement(name = "bearerAuth"))
     public AccommodationDetailResponse createAccommodation(@Valid @RequestBody CreateAccommodationRequest request) {
         Accommodation createdAccommodation = createAccommodationUseCase.createAccommodation(
                 accommodationWebMapper.toCreateCommand(request)
@@ -58,6 +63,7 @@ public class AccommodationController {
     }
 
     @GetMapping
+    @Operation(summary = "List available accommodations")
     public List<AccommodationListResponse> listAccommodations() {
         return listAccommodationsUseCase.listAccommodations().stream()
                 .map(accommodationWebMapper::toListResponse)
@@ -65,11 +71,13 @@ public class AccommodationController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Get accommodation by id")
     public AccommodationDetailResponse getAccommodationById(@PathVariable Long id) {
         return accommodationWebMapper.toDetailResponse(getAccommodationByIdUseCase.getAccommodationById(id));
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Replace accommodation", security = @SecurityRequirement(name = "bearerAuth"))
     public AccommodationDetailResponse updateAccommodation(
             @PathVariable Long id,
             @Valid @RequestBody UpdateAccommodationRequest request
@@ -81,6 +89,7 @@ public class AccommodationController {
     }
 
     @PatchMapping("/{id}")
+    @Operation(summary = "Partially update accommodation", security = @SecurityRequirement(name = "bearerAuth"))
     public AccommodationDetailResponse patchAccommodation(
             @PathVariable Long id,
             @Valid @RequestBody PatchAccommodationRequest request
@@ -94,6 +103,7 @@ public class AccommodationController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Delete accommodation", security = @SecurityRequirement(name = "bearerAuth"))
     public void deleteAccommodation(@PathVariable Long id) {
         deleteAccommodationUseCase.deleteAccommodation(id);
     }

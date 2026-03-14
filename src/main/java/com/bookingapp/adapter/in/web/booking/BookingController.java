@@ -10,6 +10,9 @@ import com.bookingapp.application.port.in.booking.UpdateBookingUseCase;
 import com.bookingapp.domain.enums.BookingStatus;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,6 +30,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/bookings")
+@Tag(name = "Bookings", description = "Booking operations for customers and admins")
 public class BookingController {
 
     private final CreateBookingUseCase createBookingUseCase;
@@ -59,6 +63,7 @@ public class BookingController {
     }
 
     @PostMapping
+    @Operation(summary = "Create booking", security = @SecurityRequirement(name = "bearerAuth"))
     public BookingResponse createBooking(@Valid @RequestBody CreateBookingRequest request) {
         Booking createdBooking = createBookingUseCase.createBooking(bookingWebMapper.toCreateCommand(request));
         return bookingWebMapper.toResponse(createdBooking);
@@ -66,6 +71,7 @@ public class BookingController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "List bookings with admin filters", security = @SecurityRequirement(name = "bearerAuth"))
     public List<BookingResponse> listBookings(
             @RequestParam(name = "user_id", required = false) Long userId,
             @RequestParam(name = "status", required = false) BookingStatus status
@@ -76,6 +82,7 @@ public class BookingController {
     }
 
     @GetMapping("/my")
+    @Operation(summary = "List current user's bookings", security = @SecurityRequirement(name = "bearerAuth"))
     public List<BookingResponse> listMyBookings() {
         return listMyBookingsUseCase.listMyBookings().stream()
                 .map(bookingWebMapper::toResponse)
@@ -83,6 +90,7 @@ public class BookingController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Get booking by id", security = @SecurityRequirement(name = "bearerAuth"))
     public BookingDetailResponse getBookingById(@PathVariable Long id) {
         Booking booking = getBookingByIdUseCase.getBookingById(id);
         Accommodation accommodation = getAccommodationByIdUseCase.getAccommodationById(booking.getAccommodationId());
@@ -90,6 +98,7 @@ public class BookingController {
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Replace booking dates", security = @SecurityRequirement(name = "bearerAuth"))
     public BookingResponse updateBooking(
             @PathVariable Long id,
             @Valid @RequestBody UpdateBookingRequest request
@@ -101,6 +110,7 @@ public class BookingController {
     }
 
     @PatchMapping("/{id}")
+    @Operation(summary = "Partially update booking dates", security = @SecurityRequirement(name = "bearerAuth"))
     public BookingResponse patchBooking(
             @PathVariable Long id,
             @Valid @RequestBody PatchBookingRequest request
@@ -113,6 +123,7 @@ public class BookingController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Cancel booking", security = @SecurityRequirement(name = "bearerAuth"))
     public BookingResponse cancelBooking(@PathVariable Long id) {
         Booking canceledBooking = cancelBookingUseCase.cancelBooking(id);
         return bookingWebMapper.toResponse(canceledBooking);
