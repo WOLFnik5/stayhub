@@ -4,7 +4,7 @@ spring:
   profiles:
     default: dev
   datasource:
-    url: ${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:booking_app}}
+    url: ${DB_URL:jdbc:postgresql://postgres:5432/booking_app}
     username: ${DB_USERNAME:booking_user}
     password: ${DB_PASSWORD:booking_password}
     driver-class-name: org.postgresql.Driver

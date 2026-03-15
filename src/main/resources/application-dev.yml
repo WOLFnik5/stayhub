@@ -1,8 +1,5 @@
 spring:
-  datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:booking_app_dev}
-    username: ${DB_USERNAME:booking_user}
-    password: ${DB_PASSWORD:booking_password}
+
   jpa:
     show-sql: true
     properties:

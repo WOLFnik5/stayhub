@@ -1,13 +1,13 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: booking-app-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-booking_app}
       POSTGRES_USER: ${DB_USERNAME:-booking_user}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-booking_password}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -15,18 +15,20 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
 
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.7.1
+    image: confluentinc/cp-zookeeper:7.8.7
     container_name: booking-app-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
+    restart: unless-stopped
 
   kafka:
-    image: confluentinc/cp-kafka:7.7.1
+    image: confluentinc/cp-kafka:7.8.7
     container_name: booking-app-kafka
     depends_on:
       - zookeeper
@@ -48,6 +50,7 @@ services:
       interval: 15s
       timeout: 10s
       retries: 10
+    restart: unless-stopped
 
   kafka-ui:
     image: provectuslabs/kafka-ui:v0.7.2
@@ -84,7 +87,7 @@ services:
       STRIPE_CANCEL_URL: ${STRIPE_CANCEL_URL:-http://localhost:8080/payments/cancel}
     ports:
       - "8080:8080"
-    restart: unless-stopped
+#    restart: unless-stopped
 
 volumes:
   postgres_data:
