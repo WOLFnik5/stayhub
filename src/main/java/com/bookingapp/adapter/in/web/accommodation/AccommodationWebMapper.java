@@ -6,7 +6,6 @@ import com.bookingapp.domain.exception.BusinessValidationException;
 import com.bookingapp.domain.model.Accommodation;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @Component
@@ -87,11 +86,9 @@ public class AccommodationWebMapper {
             return currentAmenities;
         }
 
-        List<String> sanitizedAmenities = amenities.stream()
+        return amenities.stream()
                 .map(this::sanitizeAmenity)
                 .toList();
-
-        return sanitizedAmenities;
     }
 
     private String sanitizeAmenity(String amenity) {
