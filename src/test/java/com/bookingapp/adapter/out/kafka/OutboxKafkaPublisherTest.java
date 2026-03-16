@@ -1,8 +1,10 @@
 package com.bookingapp.adapter.out.kafka;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -12,16 +14,16 @@ import com.bookingapp.adapter.out.persistence.outbox.OutboxStatus;
 import com.bookingapp.infrastructure.config.OutboxProperties;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class OutboxKafkaPublisherTest {
+
     @Mock
     private OutboxEventJpaRepository outboxEventJpaRepository;
 
@@ -30,65 +32,54 @@ class OutboxKafkaPublisherTest {
 
     @Test
     void publishPendingEvents_shouldMarkEventAsSent_whenKafkaSendSucceeds() {
-        OutboxProperties outboxProperties = new OutboxProperties(
-                5,
-                7,
-                5000L,
-                "0 0 3 * * *"
-        );
-
         OutboxKafkaPublisher publisher = new OutboxKafkaPublisher(
                 outboxEventJpaRepository,
                 kafkaTemplate,
-                outboxProperties
+                new OutboxProperties(5, 7, 5000L, "0 0 3 * * *")
         );
 
         OutboxEventEntity event = OutboxEventEntity.newEvent(
                 "Accommodation",
-                10L,
+                1L,
                 "AccommodationCreatedEvent",
                 "accommodation-created",
-                "10",
-                "{\"id\":10}"
+                "1",
+                "{\"id\":1}"
         );
 
         when(outboxEventJpaRepository.findTop100ByStatusInOrderByCreatedAtAsc(
                 List.of(OutboxStatus.NEW, OutboxStatus.FAILED)
         )).thenReturn(List.of(event));
 
-        CompletableFuture<SendResult<String, String>> future = CompletableFuture.completedFuture(null);
+        CompletableFuture<SendResult<String, String>> successFuture =
+                CompletableFuture.completedFuture(null);
+
         when(kafkaTemplate.send(event.getTopic(), event.getEventKey(), event.getPayload()))
-                .thenReturn(future);
+                .thenReturn(successFuture);
 
         publisher.publishPendingEvents();
 
         assertEquals(OutboxStatus.SENT, event.getStatus());
         assertEquals(0, event.getAttempts());
         assertNull(event.getLastError());
+        assertNotNull(event.getPublishedAt());
     }
 
     @Test
     void publishPendingEvents_shouldMarkEventAsFailed_whenKafkaSendFailsAndAttemptsBelowLimit() {
-        OutboxProperties outboxProperties = new OutboxProperties(
-                5,
-                7,
-                5000L,
-                "0 0 3 * * *"
-        );
-
         OutboxKafkaPublisher publisher = new OutboxKafkaPublisher(
                 outboxEventJpaRepository,
                 kafkaTemplate,
-                outboxProperties
+                new OutboxProperties(5, 7, 5000L, "0 0 3 * * *")
         );
 
         OutboxEventEntity event = OutboxEventEntity.newEvent(
                 "Booking",
-                20L,
+                10L,
                 "BookingCreatedEvent",
                 "booking-created",
-                "20",
-                "{\"id\":20}"
+                "10",
+                "{\"id\":10}"
         );
 
         when(outboxEventJpaRepository.findTop100ByStatusInOrderByCreatedAtAsc(
@@ -106,30 +97,24 @@ class OutboxKafkaPublisherTest {
         assertEquals(OutboxStatus.FAILED, event.getStatus());
         assertEquals(1, event.getAttempts());
         assertEquals("Kafka unavailable", event.getLastError());
+        assertNull(event.getPublishedAt());
     }
 
     @Test
-    void publishPendingEvents_shouldMarkEventAsDead_whenKafkaSendFailsAndMaxAttemptsReached() {
-        OutboxProperties outboxProperties = new OutboxProperties(
-                3,
-                7,
-                5000L,
-                "0 0 3 * * *"
-        );
-
+    void publishPendingEvents_shouldMarkEventAsDead_whenMaxAttemptsReached() {
         OutboxKafkaPublisher publisher = new OutboxKafkaPublisher(
                 outboxEventJpaRepository,
                 kafkaTemplate,
-                outboxProperties
+                new OutboxProperties(3, 7, 5000L, "0 0 3 * * *")
         );
 
         OutboxEventEntity event = OutboxEventEntity.newEvent(
                 "Payment",
-                30L,
+                20L,
                 "PaymentSucceededEvent",
                 "payment-succeeded",
-                "30",
-                "{\"id\":30}"
+                "20",
+                "{\"id\":20}"
         );
 
         event.incrementAttempts();
@@ -140,7 +125,7 @@ class OutboxKafkaPublisherTest {
         )).thenReturn(List.of(event));
 
         CompletableFuture<SendResult<String, String>> failedFuture = new CompletableFuture<>();
-        failedFuture.completeExceptionally(new RuntimeException("Permanent serialization error"));
+        failedFuture.completeExceptionally(new RuntimeException("Permanent failure"));
 
         when(kafkaTemplate.send(event.getTopic(), event.getEventKey(), event.getPayload()))
                 .thenReturn(failedFuture);
@@ -149,33 +134,22 @@ class OutboxKafkaPublisherTest {
 
         assertEquals(OutboxStatus.DEAD, event.getStatus());
         assertEquals(3, event.getAttempts());
-        assertEquals("Permanent serialization error", event.getLastError());
+        assertEquals("Permanent failure", event.getLastError());
     }
 
     @Test
     void cleanupSentEvents_shouldDeleteOldSentEvents() {
-        OutboxProperties outboxProperties = new OutboxProperties(
-                5,
-                7,
-                5000L,
-                "0 0 3 * * *"
-        );
-
         OutboxKafkaPublisher publisher = new OutboxKafkaPublisher(
                 outboxEventJpaRepository,
                 kafkaTemplate,
-                outboxProperties
+                new OutboxProperties(5, 7, 5000L, "0 0 3 * * *")
         );
 
         publisher.cleanupSentEvents();
 
         verify(outboxEventJpaRepository).deleteByStatusAndPublishedAtBefore(
-                eqStatusSent(),
+                eq(OutboxStatus.SENT),
                 any()
         );
-    }
-
-    private OutboxStatus eqStatusSent() {
-        return OutboxStatus.SENT;
     }
 }
