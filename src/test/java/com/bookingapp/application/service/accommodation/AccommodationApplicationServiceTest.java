@@ -1,25 +1,26 @@
 package com.bookingapp.application.service.accommodation;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 import com.bookingapp.application.model.CreateAccommodationCommand;
 import com.bookingapp.application.model.UpdateAccommodationCommand;
 import com.bookingapp.application.port.out.integration.EventPublisherPort;
 import com.bookingapp.application.port.out.persistence.AccommodationRepositoryPort;
 import com.bookingapp.domain.enums.AccommodationType;
+import com.bookingapp.domain.exception.BusinessValidationException;
+import com.bookingapp.domain.exception.EntityNotFoundDomainException;
 import com.bookingapp.domain.model.Accommodation;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class AccommodationApplicationServiceTest {
@@ -34,67 +35,182 @@ class AccommodationApplicationServiceTest {
     private AccommodationApplicationService accommodationApplicationService;
 
     @Test
-    void createAccommodationShouldPersistAndPublishEvent() {
+    void createAccommodation_shouldSaveAndPublishEvent() {
+
         CreateAccommodationCommand command = new CreateAccommodationCommand(
-                AccommodationType.HOUSE,
-                "Warsaw",
-                "2 rooms",
-                List.of("wifi", "parking"),
-                BigDecimal.valueOf(125),
+                AccommodationType.APARTMENT,
+                "Kyiv",
+                "55m2",
+                List.of("WiFi"),
+                new BigDecimal("100"),
                 3
         );
 
-        when(accommodationRepositoryPort.save(any(Accommodation.class))).thenAnswer(invocation -> {
-            Accommodation accommodation = invocation.getArgument(0);
-            return new Accommodation(
-                    1L,
-                    accommodation.getType(),
-                    accommodation.getLocation(),
-                    accommodation.getSize(),
-                    accommodation.getAmenities(),
-                    accommodation.getDailyRate(),
-                    accommodation.getAvailability()
-            );
-        });
+        Accommodation savedAccommodation =
+                new Accommodation(
+                        1L,
+                        AccommodationType.APARTMENT,
+                        "Kyiv",
+                        "55m2",
+                        List.of("WiFi"),
+                        new BigDecimal("100"),
+                        3
+                );
+
+        when(accommodationRepositoryPort.save(any())).thenReturn(savedAccommodation);
 
         Accommodation result = accommodationApplicationService.createAccommodation(command);
 
-        assertThat(result.getId()).isEqualTo(1L);
-        assertThat(result.getLocation()).isEqualTo("Warsaw");
-        assertThat(result.getAmenities()).containsExactly("wifi", "parking");
-        verify(eventPublisherPort).publishAccommodationCreated(result);
+        assertEquals(savedAccommodation, result);
+
+        verify(accommodationRepositoryPort).save(any());
+        verify(eventPublisherPort).publishAccommodationCreated(savedAccommodation);
     }
 
     @Test
-    void updateAccommodationShouldReplaceExistingDetails() {
-        Accommodation existingAccommodation = new Accommodation(
-                7L,
-                AccommodationType.APARTMENT,
-                "Gdansk",
-                "Studio",
-                List.of("wifi"),
-                BigDecimal.valueOf(90),
-                1
+    void createAccommodation_shouldThrowException_whenCommandNull() {
+
+        assertThrows(
+                BusinessValidationException.class,
+                () -> accommodationApplicationService.createAccommodation(null)
         );
+    }
+
+    @Test
+    void getAccommodationById_shouldReturnAccommodation() {
+
+        Accommodation accommodation =
+                new Accommodation(
+                        1L,
+                        AccommodationType.HOUSE,
+                        "Lviv",
+                        "80m2",
+                        List.of("Parking"),
+                        new BigDecimal("200"),
+                        2
+                );
+
+        when(accommodationRepositoryPort.findById(1L))
+                .thenReturn(Optional.of(accommodation));
+
+        Accommodation result = accommodationApplicationService.getAccommodationById(1L);
+
+        assertEquals(accommodation, result);
+    }
+
+    @Test
+    void getAccommodationById_shouldThrow_whenNotFound() {
+
+        when(accommodationRepositoryPort.findById(1L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                EntityNotFoundDomainException.class,
+                () -> accommodationApplicationService.getAccommodationById(1L)
+        );
+    }
+
+    @Test
+    void listAccommodations_shouldReturnOnlyAvailable() {
+
+        Accommodation available =
+                new Accommodation(
+                        1L,
+                        AccommodationType.APARTMENT,
+                        "Kyiv",
+                        "55m2",
+                        List.of("WiFi"),
+                        new BigDecimal("100"),
+                        2
+                );
+
+        Accommodation unavailable =
+                new Accommodation(
+                        2L,
+                        AccommodationType.HOUSE,
+                        "Lviv",
+                        "100m2",
+                        List.of("Parking"),
+                        new BigDecimal("200"),
+                        0
+                );
+
+        when(accommodationRepositoryPort.findAll())
+                .thenReturn(List.of(available, unavailable));
+
+        List<Accommodation> result = accommodationApplicationService.listAccommodations();
+
+        assertEquals(1, result.size());
+        assertEquals(available, result.get(0));
+    }
+
+    @Test
+    void updateAccommodation_shouldSaveUpdatedAccommodation() {
+
         UpdateAccommodationCommand command = new UpdateAccommodationCommand(
-                7L,
-                AccommodationType.CONDO,
+                1L,
+                AccommodationType.HOUSE,
                 "Krakow",
-                "3 rooms",
-                List.of("wifi", "sauna"),
-                BigDecimal.valueOf(175),
-                4
+                "80m2",
+                List.of("WiFi"),
+                new BigDecimal("150"),
+                2
         );
 
-        when(accommodationRepositoryPort.findById(7L)).thenReturn(Optional.of(existingAccommodation));
-        when(accommodationRepositoryPort.save(any(Accommodation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        Accommodation existing =
+                new Accommodation(
+                        1L,
+                        AccommodationType.APARTMENT,
+                        "Kyiv",
+                        "55m2",
+                        List.of("WiFi"),
+                        new BigDecimal("100"),
+                        1
+                );
 
-        Accommodation result = accommodationApplicationService.updateAccommodation(command);
+        Accommodation updated =
+                new Accommodation(
+                        1L,
+                        AccommodationType.HOUSE,
+                        "Krakow",
+                        "80m2",
+                        List.of("WiFi"),
+                        new BigDecimal("150"),
+                        2
+                );
 
-        assertThat(result.getId()).isEqualTo(7L);
-        assertThat(result.getType()).isEqualTo(AccommodationType.CONDO);
-        assertThat(result.getLocation()).isEqualTo("Krakow");
-        assertThat(result.getDailyRate()).isEqualByComparingTo("175");
-        assertThat(result.getAvailability()).isEqualTo(4);
+        when(accommodationRepositoryPort.findById(1L))
+                .thenReturn(Optional.of(existing));
+
+        when(accommodationRepositoryPort.save(any()))
+                .thenReturn(updated);
+
+        Accommodation result =
+                accommodationApplicationService.updateAccommodation(command);
+
+        assertEquals(updated, result);
+
+        verify(accommodationRepositoryPort).save(any());
+    }
+
+    @Test
+    void deleteAccommodation_shouldDelete_whenExists() {
+
+        when(accommodationRepositoryPort.existsById(1L)).thenReturn(true);
+
+        accommodationApplicationService.deleteAccommodation(1L);
+
+        verify(accommodationRepositoryPort).deleteById(1L);
+    }
+
+    @Test
+    void deleteAccommodation_shouldThrow_whenNotExists() {
+
+        when(accommodationRepositoryPort.existsById(1L)).thenReturn(false);
+
+        assertThrows(
+                EntityNotFoundDomainException.class,
+                () -> accommodationApplicationService.deleteAccommodation(1L)
+        );
     }
 }
