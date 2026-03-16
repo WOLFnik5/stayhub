@@ -32,8 +32,8 @@ public class OutboxKafkaPublisher {
             try {
                 kafkaTemplate.send(event.getTopic(), event.getEventKey(), event.getPayload()).join();
                 event.markSent();
-            } catch (Exception e) {
-                event.markFailed(truncate(e.getMessage(), 2000));
+            } catch (Exception exception) {
+                event.markFailed(truncate(exception.getMessage(), 2000));
             }
         }
     }

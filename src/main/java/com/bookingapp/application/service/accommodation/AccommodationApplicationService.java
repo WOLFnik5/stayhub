@@ -12,15 +12,13 @@ import com.bookingapp.application.port.out.persistence.AccommodationRepositoryPo
 import com.bookingapp.domain.exception.BusinessValidationException;
 import com.bookingapp.domain.exception.EntityNotFoundDomainException;
 import com.bookingapp.domain.model.Accommodation;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 @Service
 @Transactional(readOnly = true)
-public class AccommodationApplicationService implements
-        CreateAccommodationUseCase,
+public class AccommodationApplicationService implements CreateAccommodationUseCase,
         GetAccommodationByIdUseCase,
         ListAccommodationsUseCase,
         UpdateAccommodationUseCase,
@@ -62,7 +60,8 @@ public class AccommodationApplicationService implements
     public Accommodation getAccommodationById(Long accommodationId) {
         return accommodationRepositoryPort.findById(accommodationId)
                 .orElseThrow(() -> new EntityNotFoundDomainException(
-                        "Accommodation with id '" + accommodationId + "' was not found"));
+                        "Accommodation with id '" + accommodationId + "' was not found"
+                ));
     }
 
     @Override
@@ -80,6 +79,7 @@ public class AccommodationApplicationService implements
         }
 
         Accommodation existingAccommodation = getAccommodationById(command.accommodationId());
+
         Accommodation updatedAccommodation = existingAccommodation.updateDetails(
                 command.type(),
                 command.location(),
@@ -96,7 +96,9 @@ public class AccommodationApplicationService implements
     @Transactional
     public void deleteAccommodation(Long accommodationId) {
         if (!accommodationRepositoryPort.existsById(accommodationId)) {
-            throw new EntityNotFoundDomainException("Accommodation with id '" + accommodationId + "' was not found");
+            throw new EntityNotFoundDomainException(
+                    "Accommodation with id '" + accommodationId + "' was not found"
+            );
         }
 
         accommodationRepositoryPort.deleteById(accommodationId);

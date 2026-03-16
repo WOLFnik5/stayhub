@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class TelegramEventConsumer {
-
     private final ObjectMapper objectMapper;
     private final TelegramKafkaMessageFormatter telegramKafkaMessageFormatter;
     private final SendNotificationUseCase sendNotificationUseCase;
@@ -55,7 +54,9 @@ public class TelegramEventConsumer {
     )
     public void consumeAccommodationCreated(String payload) {
         AccommodationCreatedEvent event = readValue(payload, AccommodationCreatedEvent.class);
-        sendNotificationUseCase.sendMessage(telegramKafkaMessageFormatter.formatAccommodationCreatedEvent(event));
+        sendNotificationUseCase.sendMessage(
+                telegramKafkaMessageFormatter.formatAccommodationCreatedEvent(event)
+        );
     }
 
     @KafkaListener(
@@ -65,7 +66,9 @@ public class TelegramEventConsumer {
     )
     public void consumePaymentSucceeded(String payload) {
         PaymentSucceededEvent event = readValue(payload, PaymentSucceededEvent.class);
-        sendNotificationUseCase.sendMessage(telegramKafkaMessageFormatter.formatPaymentSucceededEvent(event));
+        sendNotificationUseCase.sendMessage(
+                telegramKafkaMessageFormatter.formatPaymentSucceededEvent(event)
+        );
     }
 
     @KafkaListener(
@@ -75,14 +78,19 @@ public class TelegramEventConsumer {
     )
     public void consumeBookingExpired(String payload) {
         BookingExpiredEvent event = readValue(payload, BookingExpiredEvent.class);
-        sendNotificationUseCase.sendMessage(telegramKafkaMessageFormatter.formatBookingExpiredEvent(event));
+        sendNotificationUseCase.sendMessage(
+                telegramKafkaMessageFormatter.formatBookingExpiredEvent(event)
+        );
     }
 
     private <T> T readValue(String payload, Class<T> targetType) {
         try {
             return objectMapper.readValue(payload, targetType);
         } catch (JsonProcessingException exception) {
-            throw new IllegalArgumentException("Failed to deserialize Kafka payload to " + targetType.getSimpleName(), exception);
+            throw new IllegalArgumentException(
+                    "Failed to deserialize Kafka payload to " + targetType.getSimpleName(),
+                    exception
+            );
         }
     }
 }
