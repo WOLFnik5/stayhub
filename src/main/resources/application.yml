@@ -46,7 +46,7 @@ springdoc:
 app:
   security:
     jwt:
-      secret: ${JWT_SECRET:replace-with-a-strong-base64-secret}
+      secret: ${JWT_SECRET:VGhpc0lzQVN0cm9uZ0Jhc2U2NFNlY3JldEZvckpXVFRva2VuU2lnbmluZzEyMw==}
       expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
   kafka:
     topics:

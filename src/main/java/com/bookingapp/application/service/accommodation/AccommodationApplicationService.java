@@ -54,7 +54,7 @@ public class AccommodationApplicationService implements
         );
 
         Accommodation savedAccommodation = accommodationRepositoryPort.save(accommodationToSave);
-        eventPublisherPort.publishAccommodationCreated(savedAccommodation);
+//        eventPublisherPort.publishAccommodationCreated(savedAccommodation);
         return savedAccommodation;
     }
 
