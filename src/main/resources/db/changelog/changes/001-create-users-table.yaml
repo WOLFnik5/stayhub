@@ -1,7 +1,7 @@
 databaseChangeLog:
   - changeSet:
       id: 001-create-users-table
-      author: codex
+      author: admin
       changes:
         - createTable:
             tableName: users

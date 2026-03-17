@@ -1,7 +1,7 @@
 databaseChangeLog:
   - changeSet:
       id: 007-create-outbox-events-table
-      author: chatgpt
+      author: admin
       changes:
         - createTable:
             tableName: outbox_events

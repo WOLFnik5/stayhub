@@ -1,7 +1,7 @@
 databaseChangeLog:
   - changeSet:
       id: 006-add-constraints-and-indexes
-      author: codex
+      author: admin
       changes:
         - addUniqueConstraint:
             tableName: users

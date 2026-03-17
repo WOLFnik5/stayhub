@@ -1,7 +1,7 @@
 databaseChangeLog:
   - changeSet:
       id: 002-create-accommodations-table
-      author: codex
+      author: admin
       changes:
         - createTable:
             tableName: accommodations
