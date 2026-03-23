@@ -4,7 +4,7 @@ import com.bookingapp.adapter.in.web.dto.PatchCurrentUserRequest;
 import com.bookingapp.adapter.in.web.dto.UpdateCurrentUserRequest;
 import com.bookingapp.adapter.in.web.dto.UpdateUserRoleRequest;
 import com.bookingapp.adapter.in.web.dto.UserProfileResponse;
-import com.bookingapp.adapter.out.persistence.mapper.UserWebMapper;
+import com.bookingapp.adapter.in.web.mapper.UserWebMapper;
 import com.bookingapp.application.port.in.user.GetCurrentUserProfileUseCase;
 import com.bookingapp.application.port.in.user.UpdateCurrentUserProfileUseCase;
 import com.bookingapp.application.port.in.user.UpdateUserRoleUseCase;

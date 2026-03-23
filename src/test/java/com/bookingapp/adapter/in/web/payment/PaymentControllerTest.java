@@ -2,14 +2,14 @@ package com.bookingapp.adapter.in.web.payment;
 
 import com.bookingapp.adapter.in.web.ControllerTestSecurityConfig;
 import com.bookingapp.adapter.in.web.controller.PaymentController;
-import com.bookingapp.adapter.out.persistence.mapper.PaymentWebMapper;
+import com.bookingapp.adapter.in.web.mapper.PaymentWebMapper;
 import com.bookingapp.application.dto.PaymentCancelResult;
 import com.bookingapp.application.dto.PaymentSession;
 import com.bookingapp.application.port.in.payment.CreatePaymentSessionUseCase;
 import com.bookingapp.application.port.in.payment.GetPaymentsUseCase;
 import com.bookingapp.application.port.in.payment.HandlePaymentCancelUseCase;
 import com.bookingapp.application.port.in.payment.HandlePaymentSuccessUseCase;
-import com.bookingapp.domain.exception.GlobalExceptionHandler;
+import com.bookingapp.adapter.in.web.exception.GlobalExceptionHandler;
 import com.bookingapp.domain.enums.PaymentStatus;
 import com.bookingapp.domain.model.Payment;
 import org.junit.jupiter.api.Test;

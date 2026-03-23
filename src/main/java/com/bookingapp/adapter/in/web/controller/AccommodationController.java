@@ -2,7 +2,7 @@ package com.bookingapp.adapter.in.web.controller;
 
 import com.bookingapp.adapter.in.web.dto.AccommodationDetailResponse;
 import com.bookingapp.adapter.in.web.dto.AccommodationListResponse;
-import com.bookingapp.adapter.out.persistence.mapper.AccommodationWebMapper;
+import com.bookingapp.adapter.in.web.mapper.AccommodationWebMapper;
 import com.bookingapp.adapter.in.web.dto.CreateAccommodationRequest;
 import com.bookingapp.adapter.in.web.dto.PatchAccommodationRequest;
 import com.bookingapp.adapter.in.web.dto.UpdateAccommodationRequest;

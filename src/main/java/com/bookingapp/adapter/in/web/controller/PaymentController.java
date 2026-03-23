@@ -4,7 +4,7 @@ import com.bookingapp.adapter.in.web.dto.CreatePaymentRequest;
 import com.bookingapp.adapter.in.web.dto.PaymentCancelResponse;
 import com.bookingapp.adapter.in.web.dto.PaymentResponse;
 import com.bookingapp.adapter.in.web.dto.PaymentSuccessResponse;
-import com.bookingapp.adapter.out.persistence.mapper.PaymentWebMapper;
+import com.bookingapp.adapter.in.web.mapper.PaymentWebMapper;
 import com.bookingapp.application.dto.PaymentSession;
 import com.bookingapp.application.port.in.payment.CreatePaymentSessionUseCase;
 import com.bookingapp.application.port.in.payment.GetPaymentsUseCase;

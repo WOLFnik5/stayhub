@@ -4,7 +4,7 @@ import com.bookingapp.adapter.in.web.controller.AuthController;
 import com.bookingapp.application.dto.AuthenticationResult;
 import com.bookingapp.application.port.in.auth.LoginUseCase;
 import com.bookingapp.application.port.in.auth.RegisterUserUseCase;
-import com.bookingapp.domain.exception.GlobalExceptionHandler;
+import com.bookingapp.adapter.in.web.exception.GlobalExceptionHandler;
 import com.bookingapp.domain.enums.UserRole;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

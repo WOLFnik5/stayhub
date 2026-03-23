@@ -2,11 +2,11 @@ package com.bookingapp.adapter.out.kafka;
 
 import com.bookingapp.adapter.out.persistence.outbox.OutboxEventEntity;
 import com.bookingapp.adapter.out.persistence.outbox.OutboxEventJpaRepository;
-import com.bookingapp.application.dto.event.AccommodationCreatedEvent;
-import com.bookingapp.application.dto.event.BookingCanceledEvent;
-import com.bookingapp.application.dto.event.BookingCreatedEvent;
-import com.bookingapp.application.dto.event.BookingExpiredEvent;
-import com.bookingapp.application.dto.event.PaymentSucceededEvent;
+import com.bookingapp.domain.event.AccommodationCreatedEvent;
+import com.bookingapp.domain.event.BookingCanceledEvent;
+import com.bookingapp.domain.event.BookingCreatedEvent;
+import com.bookingapp.domain.event.BookingExpiredEvent;
+import com.bookingapp.domain.event.PaymentSucceededEvent;
 import com.bookingapp.application.port.out.integration.EventPublisherPort;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;

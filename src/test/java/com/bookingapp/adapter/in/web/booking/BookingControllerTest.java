@@ -2,7 +2,7 @@ package com.bookingapp.adapter.in.web.booking;
 
 import com.bookingapp.adapter.in.web.ControllerTestSecurityConfig;
 import com.bookingapp.adapter.in.web.controller.BookingController;
-import com.bookingapp.adapter.out.persistence.mapper.BookingWebMapper;
+import com.bookingapp.adapter.in.web.mapper.BookingWebMapper;
 import com.bookingapp.application.port.in.accommodation.GetAccommodationByIdUseCase;
 import com.bookingapp.application.port.in.booking.CancelBookingUseCase;
 import com.bookingapp.application.port.in.booking.CreateBookingUseCase;
@@ -10,7 +10,7 @@ import com.bookingapp.application.port.in.booking.GetBookingByIdUseCase;
 import com.bookingapp.application.port.in.booking.ListBookingsUseCase;
 import com.bookingapp.application.port.in.booking.ListMyBookingsUseCase;
 import com.bookingapp.application.port.in.booking.UpdateBookingUseCase;
-import com.bookingapp.domain.exception.GlobalExceptionHandler;
+import com.bookingapp.adapter.in.web.exception.GlobalExceptionHandler;
 import com.bookingapp.domain.enums.AccommodationType;
 import com.bookingapp.domain.enums.BookingStatus;
 import com.bookingapp.domain.model.Accommodation;

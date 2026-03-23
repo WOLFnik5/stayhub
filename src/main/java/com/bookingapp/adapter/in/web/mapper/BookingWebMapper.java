@@ -1,4 +1,4 @@
-package com.bookingapp.adapter.out.persistence.mapper;
+package com.bookingapp.adapter.in.web.mapper;
 
 import com.bookingapp.adapter.in.web.dto.AccommodationSummaryResponse;
 import com.bookingapp.adapter.in.web.dto.BookingDetailResponse;

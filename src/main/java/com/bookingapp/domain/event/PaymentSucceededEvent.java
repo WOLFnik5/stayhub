@@ -1,4 +1,4 @@
-package com.bookingapp.application.dto.event;
+package com.bookingapp.domain.event;
 
 import java.math.BigDecimal;
 import java.time.Instant;

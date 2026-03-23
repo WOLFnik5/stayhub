@@ -1,4 +1,4 @@
-package com.bookingapp.application.dto.event;
+package com.bookingapp.domain.event;
 
 import java.time.Instant;
 import java.time.LocalDate;

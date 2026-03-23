@@ -2,11 +2,11 @@ package com.bookingapp.adapter.in.web.user;
 
 import com.bookingapp.adapter.in.web.ControllerTestSecurityConfig;
 import com.bookingapp.adapter.in.web.controller.UserController;
-import com.bookingapp.adapter.out.persistence.mapper.UserWebMapper;
+import com.bookingapp.adapter.in.web.mapper.UserWebMapper;
 import com.bookingapp.application.port.in.user.GetCurrentUserProfileUseCase;
 import com.bookingapp.application.port.in.user.UpdateCurrentUserProfileUseCase;
 import com.bookingapp.application.port.in.user.UpdateUserRoleUseCase;
-import com.bookingapp.domain.exception.GlobalExceptionHandler;
+import com.bookingapp.adapter.in.web.exception.GlobalExceptionHandler;
 import com.bookingapp.domain.enums.UserRole;
 import com.bookingapp.domain.model.User;
 import org.junit.jupiter.api.Test;
