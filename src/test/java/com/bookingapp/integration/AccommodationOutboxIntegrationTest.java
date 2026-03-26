@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import com.bookingapp.infrastructure.persistence.outbox.OutboxEventEntity;
 import com.bookingapp.infrastructure.persistence.outbox.OutboxEventJpaRepository;
 import com.bookingapp.infrastructure.persistence.outbox.OutboxStatus;
-import com.bookingapp.domain.service.dto.CreateAccommodationCommand;
 import com.bookingapp.domain.service.AccommodationService;
 import com.bookingapp.domain.enums.AccommodationType;
 import com.bookingapp.domain.model.Accommodation;
@@ -34,14 +33,12 @@ class AccommodationOutboxIntegrationTest extends AbstractIntegrationTest {
     @Test
     void createAccommodation_shouldSaveOutboxEvent() {
         Accommodation savedAccommodation = accommodationService.createAccommodation(
-                new CreateAccommodationCommand(
-                        AccommodationType.APARTMENT,
-                        "Kyiv",
-                        "55m2",
-                        List.of("WiFi", "Kitchen"),
-                        new BigDecimal("120.00"),
-                        5
-                )
+                AccommodationType.APARTMENT,
+                "Kyiv",
+                "55m2",
+                List.of("WiFi", "Kitchen"),
+                new BigDecimal("120.00"),
+                5
         );
 
         assertNotNull(savedAccommodation.getId());

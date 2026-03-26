@@ -47,7 +47,11 @@ public class BookingController {
     @PostMapping
     @Operation(summary = "Create booking", security = @SecurityRequirement(name = "bearerAuth"))
     public BookingResponse createBooking(@Valid @RequestBody CreateBookingRequest request) {
-        Booking createdBooking = bookingService.createBooking(bookingWebMapper.toCreateCommand(request));
+        Booking createdBooking = bookingService.createBooking(
+                request.accommodationId(),
+                request.checkInDate(),
+                request.checkOutDate()
+        );
         return bookingWebMapper.toResponse(createdBooking);
     }
 
@@ -85,9 +89,7 @@ public class BookingController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateBookingRequest request
     ) {
-        Booking updatedBooking = bookingService.updateBooking(
-                bookingWebMapper.toUpdateCommand(id, request)
-        );
+        Booking updatedBooking = bookingService.updateBooking(id, request.checkInDate(), request.checkOutDate());
         return bookingWebMapper.toResponse(updatedBooking);
     }
 
@@ -99,7 +101,9 @@ public class BookingController {
     ) {
         Booking currentBooking = bookingService.getBookingById(id);
         Booking updatedBooking = bookingService.updateBooking(
-                bookingWebMapper.toPatchCommand(id, request, currentBooking)
+                id,
+                request.checkInDate() != null ? request.checkInDate() : currentBooking.getCheckInDate(),
+                request.checkOutDate() != null ? request.checkOutDate() : currentBooking.getCheckOutDate()
         );
         return bookingWebMapper.toResponse(updatedBooking);
     }

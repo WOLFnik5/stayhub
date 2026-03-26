@@ -6,8 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import com.bookingapp.infrastructure.persistence.outbox.OutboxEventEntity;
 import com.bookingapp.infrastructure.persistence.outbox.OutboxEventJpaRepository;
 import com.bookingapp.infrastructure.persistence.outbox.OutboxStatus;
-import com.bookingapp.domain.service.dto.CreateAccommodationCommand;
-import com.bookingapp.domain.service.dto.CreateBookingCommand;
 import com.bookingapp.domain.service.AccommodationService;
 import com.bookingapp.domain.service.BookingService;
 import com.bookingapp.domain.enums.AccommodationType;
@@ -92,23 +90,19 @@ class BookingOutboxIntegrationTest extends AbstractIntegrationTest {
     @Test
     void createBooking_shouldSaveOutboxEvent() {
         Accommodation accommodation = accommodationService.createAccommodation(
-                new CreateAccommodationCommand(
-                        AccommodationType.APARTMENT,
-                        "Kyiv",
-                        "55m2",
-                        List.of("WiFi", "Kitchen"),
-                        new BigDecimal("120.00"),
-                        5
-                )
+                AccommodationType.APARTMENT,
+                "Kyiv",
+                "55m2",
+                List.of("WiFi", "Kitchen"),
+                new BigDecimal("120.00"),
+                5
         );
 
-        CreateBookingCommand command = new CreateBookingCommand(
+        Booking savedBooking = bookingService.createBooking(
                 accommodation.getId(),
                 LocalDate.of(2026, 1, 10),
                 LocalDate.of(2026, 1, 15)
         );
-
-        Booking savedBooking = bookingService.createBooking(command);
 
         OutboxEventEntity event = outboxEventJpaRepository.findAll().stream()
                 .filter(e -> "Booking".equals(e.getAggregateType()))

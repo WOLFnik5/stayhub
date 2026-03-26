@@ -3,49 +3,14 @@ package com.bookingapp.web.mapper;
 import com.bookingapp.web.dto.AccommodationSummaryResponse;
 import com.bookingapp.web.dto.BookingDetailResponse;
 import com.bookingapp.web.dto.BookingResponse;
-import com.bookingapp.web.dto.CreateBookingRequest;
-import com.bookingapp.web.dto.PatchBookingRequest;
-import com.bookingapp.web.dto.UpdateBookingRequest;
 import com.bookingapp.domain.service.dto.BookingFilterQuery;
-import com.bookingapp.domain.service.dto.CreateBookingCommand;
-import com.bookingapp.domain.service.dto.UpdateBookingCommand;
 import com.bookingapp.domain.enums.BookingStatus;
-import com.bookingapp.domain.exception.BusinessValidationException;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDate;
-
 @Component
 public class BookingWebMapper {
-
-    public CreateBookingCommand toCreateCommand(CreateBookingRequest request) {
-        return new CreateBookingCommand(
-                request.accommodationId(),
-                request.checkInDate(),
-                request.checkOutDate()
-        );
-    }
-
-    public UpdateBookingCommand toUpdateCommand(Long bookingId, UpdateBookingRequest request) {
-        return new UpdateBookingCommand(
-                bookingId,
-                request.checkInDate(),
-                request.checkOutDate()
-        );
-    }
-
-    public UpdateBookingCommand toPatchCommand(Long bookingId, PatchBookingRequest request, Booking currentBooking) {
-        LocalDate checkInDate = request.checkInDate() != null ? request.checkInDate() : currentBooking.getCheckInDate();
-        LocalDate checkOutDate = request.checkOutDate() != null ? request.checkOutDate() : currentBooking.getCheckOutDate();
-
-        if (checkInDate == null || checkOutDate == null) {
-            throw new BusinessValidationException("Booking dates must not be null");
-        }
-
-        return new UpdateBookingCommand(bookingId, checkInDate, checkOutDate);
-    }
 
     public BookingFilterQuery toFilterQuery(Long userId, BookingStatus status) {
         return new BookingFilterQuery(userId, status);

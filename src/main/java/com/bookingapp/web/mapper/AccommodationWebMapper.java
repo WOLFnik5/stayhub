@@ -2,11 +2,6 @@ package com.bookingapp.web.mapper;
 
 import com.bookingapp.web.dto.AccommodationDetailResponse;
 import com.bookingapp.web.dto.AccommodationListResponse;
-import com.bookingapp.web.dto.CreateAccommodationRequest;
-import com.bookingapp.web.dto.PatchAccommodationRequest;
-import com.bookingapp.web.dto.UpdateAccommodationRequest;
-import com.bookingapp.domain.service.dto.CreateAccommodationCommand;
-import com.bookingapp.domain.service.dto.UpdateAccommodationCommand;
 import com.bookingapp.domain.exception.BusinessValidationException;
 import com.bookingapp.domain.model.Accommodation;
 import org.springframework.stereotype.Component;
@@ -15,41 +10,6 @@ import java.util.List;
 
 @Component
 public class AccommodationWebMapper {
-
-    public CreateAccommodationCommand toCreateCommand(CreateAccommodationRequest request) {
-        return new CreateAccommodationCommand(
-                request.type(),
-                request.location(),
-                request.size(),
-                request.amenities(),
-                request.dailyRate(),
-                request.availability()
-        );
-    }
-
-    public UpdateAccommodationCommand toUpdateCommand(Long accommodationId, UpdateAccommodationRequest request) {
-        return new UpdateAccommodationCommand(
-                accommodationId,
-                request.type(),
-                request.location(),
-                request.size(),
-                request.amenities(),
-                request.dailyRate(),
-                request.availability()
-        );
-    }
-
-    public UpdateAccommodationCommand toPatchCommand(Long accommodationId, PatchAccommodationRequest request, Accommodation current) {
-        return new UpdateAccommodationCommand(
-                accommodationId,
-                request.type() != null ? request.type() : current.getType(),
-                selectString(request.location(), current.getLocation(), "location"),
-                selectString(request.size(), current.getSize(), "size"),
-                selectAmenities(request.amenities(), current.getAmenities()),
-                request.dailyRate() != null ? request.dailyRate() : current.getDailyRate(),
-                request.availability() != null ? request.availability() : current.getAvailability()
-        );
-    }
 
     public AccommodationListResponse toListResponse(Accommodation accommodation) {
         return new AccommodationListResponse(
@@ -74,7 +34,7 @@ public class AccommodationWebMapper {
         );
     }
 
-    private String selectString(String candidate, String currentValue, String fieldName) {
+    public String selectString(String candidate, String currentValue, String fieldName) {
         if (candidate == null) {
             return currentValue;
         }
@@ -86,7 +46,7 @@ public class AccommodationWebMapper {
         return trimmed;
     }
 
-    private List<String> selectAmenities(List<String> amenities, List<String> currentAmenities) {
+    public List<String> selectAmenities(List<String> amenities, List<String> currentAmenities) {
         if (amenities == null) {
             return currentAmenities;
         }

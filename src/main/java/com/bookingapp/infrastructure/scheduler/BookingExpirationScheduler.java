@@ -1,6 +1,5 @@
 package com.bookingapp.infrastructure.scheduler;
 
-import com.bookingapp.domain.service.dto.ExpireBookingsCommand;
 import com.bookingapp.domain.service.BookingExpirationService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -18,6 +17,6 @@ public class BookingExpirationScheduler {
 
     @Scheduled(cron = "${app.scheduler.booking-expiration.cron:0 0 1 * * *}")
     public void expireBookingsDaily() {
-        bookingExpirationService.expireBookings(new ExpireBookingsCommand(LocalDate.now()));
+        bookingExpirationService.expireBookings(LocalDate.now());
     }
 }

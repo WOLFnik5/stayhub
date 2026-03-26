@@ -47,7 +47,12 @@ public class AccommodationController {
     @Operation(summary = "Create accommodation", security = @SecurityRequirement(name = "bearerAuth"))
     public AccommodationDetailResponse createAccommodation(@Valid @RequestBody CreateAccommodationRequest request) {
         Accommodation createdAccommodation = accommodationService.createAccommodation(
-                accommodationWebMapper.toCreateCommand(request)
+                request.type(),
+                request.location(),
+                request.size(),
+                request.amenities(),
+                request.dailyRate(),
+                request.availability()
         );
         return accommodationWebMapper.toDetailResponse(createdAccommodation);
     }
@@ -73,7 +78,13 @@ public class AccommodationController {
             @Valid @RequestBody UpdateAccommodationRequest request
     ) {
         Accommodation updatedAccommodation = accommodationService.updateAccommodation(
-                accommodationWebMapper.toUpdateCommand(id, request)
+                id,
+                request.type(),
+                request.location(),
+                request.size(),
+                request.amenities(),
+                request.dailyRate(),
+                request.availability()
         );
         return accommodationWebMapper.toDetailResponse(updatedAccommodation);
     }
@@ -86,7 +97,13 @@ public class AccommodationController {
     ) {
         Accommodation currentAccommodation = accommodationService.getAccommodationById(id);
         Accommodation updatedAccommodation = accommodationService.updateAccommodation(
-                accommodationWebMapper.toPatchCommand(id, request, currentAccommodation)
+                id,
+                request.type() != null ? request.type() : currentAccommodation.getType(),
+                accommodationWebMapper.selectString(request.location(), currentAccommodation.getLocation(), "location"),
+                accommodationWebMapper.selectString(request.size(), currentAccommodation.getSize(), "size"),
+                accommodationWebMapper.selectAmenities(request.amenities(), currentAccommodation.getAmenities()),
+                request.dailyRate() != null ? request.dailyRate() : currentAccommodation.getDailyRate(),
+                request.availability() != null ? request.availability() : currentAccommodation.getAvailability()
         );
         return accommodationWebMapper.toDetailResponse(updatedAccommodation);
     }

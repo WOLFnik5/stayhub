@@ -41,9 +41,7 @@ public class UserController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateUserRoleRequest request
     ) {
-        User updatedUser = userService.updateUserRole(
-                userWebMapper.toUpdateUserRoleCommand(id, request)
-        );
+        User updatedUser = userService.updateUserRole(id, request.role());
         return userWebMapper.toResponse(updatedUser);
     }
 
@@ -58,12 +56,10 @@ public class UserController {
     public UserProfileResponse updateCurrentUserProfile(
             @Valid @RequestBody UpdateCurrentUserRequest request
     ) {
-        /*
-         * Password changes are intentionally excluded from profile endpoints to keep
-         * this API focused on profile data and avoid mixing credential flows here.
-         */
         User updatedUser = userService.updateCurrentUserProfile(
-                userWebMapper.toUpdateProfileCommand(request)
+                request.email(),
+                request.firstName(),
+                request.lastName()
         );
         return userWebMapper.toResponse(updatedUser);
     }
@@ -75,7 +71,9 @@ public class UserController {
     ) {
         User currentUser = userService.getCurrentUserProfile();
         User updatedUser = userService.updateCurrentUserProfile(
-                userWebMapper.toPatchProfileCommand(request, currentUser)
+                userWebMapper.selectValue(request.email(), currentUser.getEmail(), "email"),
+                userWebMapper.selectValue(request.firstName(), currentUser.getFirstName(), "firstName"),
+                userWebMapper.selectValue(request.lastName(), currentUser.getLastName(), "lastName")
         );
         return userWebMapper.toResponse(updatedUser);
     }

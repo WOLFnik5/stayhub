@@ -1,11 +1,7 @@
 package com.bookingapp.web.mapper;
 
 import com.bookingapp.web.dto.PatchCurrentUserRequest;
-import com.bookingapp.web.dto.UpdateCurrentUserRequest;
-import com.bookingapp.web.dto.UpdateUserRoleRequest;
 import com.bookingapp.web.dto.UserProfileResponse;
-import com.bookingapp.domain.service.dto.UpdateProfileCommand;
-import com.bookingapp.domain.service.dto.UpdateUserRoleCommand;
 import com.bookingapp.domain.exception.BusinessValidationException;
 import com.bookingapp.domain.model.User;
 import org.springframework.stereotype.Component;
@@ -23,27 +19,7 @@ public class UserWebMapper {
         );
     }
 
-    public UpdateProfileCommand toUpdateProfileCommand(UpdateCurrentUserRequest request) {
-        return new UpdateProfileCommand(
-                request.email(),
-                request.firstName(),
-                request.lastName()
-        );
-    }
-
-    public UpdateProfileCommand toPatchProfileCommand(PatchCurrentUserRequest request, User currentUser) {
-        String email = selectValue(request.email(), currentUser.getEmail(), "email");
-        String firstName = selectValue(request.firstName(), currentUser.getFirstName(), "firstName");
-        String lastName = selectValue(request.lastName(), currentUser.getLastName(), "lastName");
-
-        return new UpdateProfileCommand(email, firstName, lastName);
-    }
-
-    public UpdateUserRoleCommand toUpdateUserRoleCommand(Long userId, UpdateUserRoleRequest request) {
-        return new UpdateUserRoleCommand(userId, request.role());
-    }
-
-    private String selectValue(String candidate, String currentValue, String fieldName) {
+    public String selectValue(String candidate, String currentValue, String fieldName) {
         if (candidate == null) {
             return currentValue;
         }

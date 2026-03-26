@@ -5,7 +5,7 @@ import com.bookingapp.web.dto.PaymentCancelResponse;
 import com.bookingapp.web.dto.PaymentResponse;
 import com.bookingapp.web.dto.PaymentSuccessResponse;
 import com.bookingapp.web.mapper.PaymentWebMapper;
-import com.bookingapp.domain.service.dto.PaymentSession;
+import com.bookingapp.domain.service.dto.PaymentSessionResult;
 import com.bookingapp.domain.service.PaymentService;
 import com.bookingapp.domain.model.Payment;
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,9 +50,7 @@ public class PaymentController {
     @PostMapping
     @Operation(summary = "Create payment session for booking", security = @SecurityRequirement(name = "bearerAuth"))
     public PaymentResponse createPayment(@Valid @RequestBody CreatePaymentRequest request) {
-        PaymentSession paymentSession = paymentService.createPaymentSession(
-                paymentWebMapper.toCreatePaymentSessionCommand(request)
-        );
+        PaymentSessionResult paymentSession = paymentService.createPaymentSession(request.bookingId());
 
         return paymentWebMapper.toResponse(
                 paymentSession.paymentId(),
