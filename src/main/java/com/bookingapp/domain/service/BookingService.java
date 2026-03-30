@@ -57,10 +57,6 @@ public class BookingService {
         ensureAccommodationHasAvailability(accommodation);
         ensureNoOverlap(accommodationId, checkInDate, checkOutDate, null);
 
-        /*
-         * Bookings start in PENDING state so payment success can explicitly drive
-         * the business transition instead of silently confirming during creation.
-         */
         Booking bookingToSave = Booking.createNew(
                 checkInDate,
                 checkOutDate,
@@ -142,8 +138,6 @@ public class BookingService {
             LocalDate checkOutDate,
             Long excludedBookingId
     ) {
-        // Current business rule treats each accommodation as a single rentable listing:
-        // any active overlapping booking blocks the date range, even if availability > 1.
         if (bookingRepository.existsActiveBookingOverlap(
                 accommodationId, checkInDate, checkOutDate, excludedBookingId
         )) {

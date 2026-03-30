@@ -10,9 +10,6 @@ public final class User {
     private final String email;
     private final String firstName;
     private final String lastName;
-    /**
-     * Password must be encoded before persistence.
-     */
     private final String password;
     private final UserRole role;
 
