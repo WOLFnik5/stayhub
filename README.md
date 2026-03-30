@@ -245,8 +245,18 @@ Coverage:
 - the build fails when overall line coverage for project code drops below 60%
 - the Spring Boot bootstrap class `BookingAppApplication` is excluded from the JaCoCo gate because it contains only framework startup boilerplate
 
-## Known Assumptions
+## Non-Functional Assumptions and Lightweight Verification
 
-- `.env` should be treated as the local development contract; do not commit real secrets.
-- Local non-container app startup is expected to use the host-exposed Compose dependency ports by default.
-- Full Compose startup uses internal service names for app-to-database and app-to-Kafka communication.
+This project targets a relatively small workload described in the task requirements:
+- up to 5 concurrent users
+- up to 1,000 accommodations
+- up to 50,000 bookings per year
+- approximately 30 MB of business data per year
+
+These targets are addressed by design and supported by a lightweight concurrent smoke test:
+- `FiveConcurrentUsersTest` starts the application on a random port
+- uses Testcontainers PostgreSQL for isolated execution
+- runs 5 concurrent user scenarios
+- verifies registration/login and representative public/authenticated endpoints
+
+This test is intended as lightweight engineering verification, not as a formal benchmark or load-certification report.
