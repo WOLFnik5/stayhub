@@ -1,10 +1,10 @@
 package com.bookingapp.web.controller;
 
+import com.bookingapp.domain.service.AuthService;
+import com.bookingapp.domain.service.dto.AuthenticationResult;
 import com.bookingapp.web.dto.AuthResponse;
 import com.bookingapp.web.dto.LoginRequest;
 import com.bookingapp.web.dto.RegisterRequest;
-import com.bookingapp.domain.service.dto.AuthenticationResult;
-import com.bookingapp.domain.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

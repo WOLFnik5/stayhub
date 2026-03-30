@@ -1,17 +1,16 @@
 package com.bookingapp.infrastructure.persistence;
 
-import com.bookingapp.infrastructure.persistence.mapper.BookingPersistenceMapper;
-import com.bookingapp.infrastructure.persistence.repository.JpaBookingRepository;
-import com.bookingapp.domain.service.dto.BookingFilterQuery;
-import com.bookingapp.domain.repository.BookingRepository;
 import com.bookingapp.domain.enums.BookingStatus;
 import com.bookingapp.domain.model.Booking;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
+import com.bookingapp.domain.repository.BookingRepository;
+import com.bookingapp.domain.service.dto.BookingFilterQuery;
+import com.bookingapp.infrastructure.persistence.mapper.BookingPersistenceMapper;
+import com.bookingapp.infrastructure.persistence.repository.JpaBookingRepository;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Transactional(readOnly = true)
@@ -79,7 +78,8 @@ public class BookingRepositoryImpl implements BookingRepository {
 
     @Override
     public List<Booking> findBookingsToExpire(LocalDate businessDate) {
-        return jpaBookingRepository.findBookingsToExpire(businessDate, INACTIVE_BOOKING_STATUSES).stream()
+        return jpaBookingRepository
+                .findBookingsToExpire(businessDate, INACTIVE_BOOKING_STATUSES).stream()
                 .map(bookingPersistenceMapper::toDomain)
                 .toList();
     }

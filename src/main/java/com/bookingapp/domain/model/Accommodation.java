@@ -2,7 +2,6 @@ package com.bookingapp.domain.model;
 
 import com.bookingapp.domain.enums.AccommodationType;
 import com.bookingapp.domain.exception.BusinessValidationException;
-
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
@@ -63,12 +62,16 @@ public final class Accommodation {
         if (updatedAvailability < 0) {
             throw new BusinessValidationException("Accommodation availability cannot be negative");
         }
-        return new Accommodation(id, type, location, size, amenities, dailyRate, updatedAvailability);
+        return new Accommodation(
+                id, type, location, size, amenities, dailyRate, updatedAvailability
+        );
     }
 
     public Accommodation increaseAvailability(int units) {
         validateUnits(units);
-        return new Accommodation(id, type, location, size, amenities, dailyRate, availability + units);
+        return new Accommodation(
+                id, type, location, size, amenities, dailyRate, availability + units
+        );
     }
 
     public Long getId() {
@@ -127,7 +130,9 @@ public final class Accommodation {
 
     private static void validateUnits(int units) {
         if (units <= 0) {
-            throw new BusinessValidationException("Availability change units must be greater than zero");
+            throw new BusinessValidationException(
+                    "Availability change units must be greater than zero"
+            );
         }
     }
 

@@ -6,20 +6,19 @@ import com.bookingapp.domain.exception.EntityNotFoundDomainException;
 import com.bookingapp.domain.exception.ForbiddenOperationException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import java.time.Instant;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-import java.time.Instant;
-import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -37,7 +36,11 @@ public class GlobalExceptionHandler {
             BusinessValidationException exception,
             HttpServletRequest request
     ) {
-        return buildResponse(HttpStatus.BAD_REQUEST, exception.getMessage(), request.getRequestURI());
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage(),
+                request.getRequestURI()
+        );
     }
 
     @ExceptionHandler(BookingConflictException.class)
@@ -61,7 +64,8 @@ public class GlobalExceptionHandler {
             AuthenticationCredentialsNotFoundException exception,
             HttpServletRequest request
     ) {
-        return buildResponse(HttpStatus.UNAUTHORIZED, exception.getMessage(), request.getRequestURI());
+        return buildResponse(HttpStatus.UNAUTHORIZED, exception.getMessage(),
+                request.getRequestURI());
     }
 
     @ExceptionHandler(AuthenticationException.class)
@@ -69,7 +73,8 @@ public class GlobalExceptionHandler {
             AuthenticationException exception,
             HttpServletRequest request
     ) {
-        return buildResponse(HttpStatus.UNAUTHORIZED, exception.getMessage(), request.getRequestURI());
+        return buildResponse(HttpStatus.UNAUTHORIZED, exception.getMessage(),
+                request.getRequestURI());
     }
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -114,7 +119,8 @@ public class GlobalExceptionHandler {
             MissingServletRequestParameterException exception,
             HttpServletRequest request
     ) {
-        String message = "Required request parameter '%s' is missing".formatted(exception.getParameterName());
+        String message = "Required request parameter '%s' is missing"
+                .formatted(exception.getParameterName());
         return buildResponse(HttpStatus.BAD_REQUEST, message, request.getRequestURI());
     }
 
@@ -123,10 +129,13 @@ public class GlobalExceptionHandler {
             Exception exception,
             HttpServletRequest request
     ) {
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error occurred", request.getRequestURI());
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error occurred",
+                request.getRequestURI());
     }
 
-    private ResponseEntity<ApiErrorResponse> buildResponse(HttpStatus status, String message, String path) {
+    private ResponseEntity<ApiErrorResponse> buildResponse(HttpStatus status,
+                                                           String message,
+                                                           String path) {
         return ResponseEntity.status(status)
                 .body(new ApiErrorResponse(
                         Instant.now(),

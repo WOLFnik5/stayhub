@@ -1,11 +1,10 @@
 package com.bookingapp.infrastructure.persistence.mapper;
 
-import com.bookingapp.infrastructure.persistence.entity.AccommodationEntity;
 import com.bookingapp.domain.model.Accommodation;
-import org.springframework.stereotype.Component;
-
+import com.bookingapp.infrastructure.persistence.entity.AccommodationEntity;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.stereotype.Component;
 
 @Component
 public class AccommodationPersistenceMapper {

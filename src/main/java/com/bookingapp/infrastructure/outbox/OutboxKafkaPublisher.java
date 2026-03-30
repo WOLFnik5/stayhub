@@ -1,9 +1,9 @@
 package com.bookingapp.infrastructure.outbox;
 
+import com.bookingapp.infrastructure.config.OutboxProperties;
 import com.bookingapp.infrastructure.persistence.outbox.OutboxEventEntity;
 import com.bookingapp.infrastructure.persistence.outbox.OutboxEventJpaRepository;
 import com.bookingapp.infrastructure.persistence.outbox.OutboxStatus;
-import com.bookingapp.infrastructure.config.OutboxProperties;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -33,7 +33,10 @@ public class OutboxKafkaPublisher {
     @Transactional
     public void publishPendingEvents() {
         List<OutboxEventEntity> events = outboxEventJpaRepository
-                .findTop100ByStatusInOrderByCreatedAtAsc(List.of(OutboxStatus.NEW, OutboxStatus.FAILED));
+                .findTop100ByStatusInOrderByCreatedAtAsc(List.of(
+                        OutboxStatus.NEW,
+                        OutboxStatus.FAILED
+                ));
 
         for (OutboxEventEntity event : events) {
             publishSingleEvent(event);
@@ -43,7 +46,8 @@ public class OutboxKafkaPublisher {
     @Scheduled(cron = "${app.outbox.cleanup-cron:0 0 3 * * *}")
     @Transactional
     public void cleanupSentEvents() {
-        LocalDateTime threshold = LocalDateTime.now().minusDays(outboxProperties.sentRetentionDays());
+        LocalDateTime threshold = LocalDateTime.now()
+                .minusDays(outboxProperties.sentRetentionDays());
         outboxEventJpaRepository.deleteByStatusAndPublishedAtBefore(OutboxStatus.SENT, threshold);
     }
 
@@ -55,7 +59,8 @@ public class OutboxKafkaPublisher {
             event.incrementAttempts();
 
             Throwable cause = exception;
-            if (exception instanceof java.util.concurrent.CompletionException && exception.getCause() != null) {
+            if (exception instanceof java.util.concurrent.CompletionException
+                    && exception.getCause() != null) {
                 cause = exception.getCause();
             }
             String errorMessage = truncate(cause.getMessage(), ERROR_MESSAGE_MAX_LENGTH);

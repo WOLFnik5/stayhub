@@ -1,14 +1,13 @@
 package com.bookingapp.infrastructure.persistence;
 
+import com.bookingapp.domain.model.Accommodation;
+import com.bookingapp.domain.repository.AccommodationRepository;
 import com.bookingapp.infrastructure.persistence.mapper.AccommodationPersistenceMapper;
 import com.bookingapp.infrastructure.persistence.repository.JpaAccommodationRepository;
-import com.bookingapp.domain.repository.AccommodationRepository;
-import com.bookingapp.domain.model.Accommodation;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 import java.util.Optional;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Transactional(readOnly = true)
@@ -29,7 +28,8 @@ public class AccommodationRepositoryImpl implements AccommodationRepository {
     @Transactional
     public Accommodation save(Accommodation accommodation) {
         return accommodationPersistenceMapper.toDomain(
-                jpaAccommodationRepository.save(accommodationPersistenceMapper.toEntity(accommodation))
+                jpaAccommodationRepository
+                        .save(accommodationPersistenceMapper.toEntity(accommodation))
         );
     }
 

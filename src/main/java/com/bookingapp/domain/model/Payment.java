@@ -3,7 +3,6 @@ package com.bookingapp.domain.model;
 import com.bookingapp.domain.enums.PaymentStatus;
 import com.bookingapp.domain.exception.BusinessValidationException;
 import com.bookingapp.domain.exception.PaymentStateException;
-
 import java.math.BigDecimal;
 import java.util.Objects;
 
@@ -37,8 +36,10 @@ public final class Payment {
     }
 
     public Payment attachSession(String sessionId, String sessionUrl) {
-        return new Payment(id, status, bookingId, requireNonBlank(sessionUrl, "Payment session URL must not be blank"),
-                requireNonBlank(sessionId, "Payment session id must not be blank"), amountToPay);
+        return new Payment(id, status, bookingId, requireNonBlank(sessionUrl,
+                "Payment session URL must not be blank"),
+                requireNonBlank(sessionId, "Payment session id must not be blank"),
+                amountToPay);
     }
 
     public Payment markPaid() {
@@ -58,7 +59,9 @@ public final class Payment {
         if (status == PaymentStatus.EXPIRED) {
             return this;
         }
-        return new Payment(id, PaymentStatus.EXPIRED, bookingId, sessionUrl, sessionId, amountToPay);
+        return new Payment(
+                id, PaymentStatus.EXPIRED, bookingId, sessionUrl, sessionId, amountToPay
+        );
     }
 
     public Long getId() {

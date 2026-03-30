@@ -2,7 +2,6 @@ package com.bookingapp.domain.model;
 
 import com.bookingapp.domain.enums.UserRole;
 import com.bookingapp.domain.exception.BusinessValidationException;
-
 import java.util.Objects;
 
 public final class User {

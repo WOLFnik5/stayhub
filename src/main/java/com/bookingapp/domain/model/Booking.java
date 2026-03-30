@@ -3,7 +3,6 @@ package com.bookingapp.domain.model;
 import com.bookingapp.domain.enums.BookingStatus;
 import com.bookingapp.domain.exception.BusinessValidationException;
 import com.bookingapp.domain.exception.InvalidBookingStateException;
-
 import java.time.LocalDate;
 import java.util.Objects;
 
@@ -25,12 +24,17 @@ public final class Booking {
             BookingStatus status
     ) {
         this.id = id;
-        this.checkInDate = Objects.requireNonNull(checkInDate, "Booking check-in date must not be null");
-        this.checkOutDate = Objects.requireNonNull(checkOutDate, "Booking check-out date must not be null");
+        this.checkInDate = Objects.requireNonNull(checkInDate,
+                "Booking check-in date must not be null");
+        this.checkOutDate = Objects.requireNonNull(checkOutDate,
+                "Booking check-out date must not be null");
         validateDates(this.checkInDate, this.checkOutDate);
-        this.accommodationId = Objects.requireNonNull(accommodationId, "Booking accommodation id must not be null");
-        this.userId = Objects.requireNonNull(userId, "Booking user id must not be null");
-        this.status = Objects.requireNonNull(status, "Booking status must not be null");
+        this.accommodationId = Objects.requireNonNull(accommodationId,
+                "Booking accommodation id must not be null");
+        this.userId = Objects.requireNonNull(userId,
+                "Booking user id must not be null");
+        this.status = Objects.requireNonNull(status,
+                "Booking status must not be null");
     }
 
     public static Booking createNew(
@@ -39,17 +43,24 @@ public final class Booking {
             Long accommodationId,
             Long userId
     ) {
-        return new Booking(null, checkInDate, checkOutDate, accommodationId, userId, BookingStatus.PENDING);
+        return new Booking(
+                null, checkInDate, checkOutDate, accommodationId, userId, BookingStatus.PENDING
+        );
     }
 
     public Booking confirm() {
         if (status == BookingStatus.CANCELED || status == BookingStatus.EXPIRED) {
-            throw new InvalidBookingStateException("Booking cannot be confirmed from state " + status);
+            throw new InvalidBookingStateException(
+                    "Booking cannot be confirmed from state "
+                            + status
+            );
         }
         if (status == BookingStatus.CONFIRMED) {
             return this;
         }
-        return new Booking(id, checkInDate, checkOutDate, accommodationId, userId, BookingStatus.CONFIRMED);
+        return new Booking(
+                id, checkInDate, checkOutDate, accommodationId, userId, BookingStatus.CONFIRMED
+        );
     }
 
     public Booking cancel() {
@@ -59,7 +70,9 @@ public final class Booking {
         if (status == BookingStatus.EXPIRED) {
             throw new InvalidBookingStateException("Expired booking cannot be canceled");
         }
-        return new Booking(id, checkInDate, checkOutDate, accommodationId, userId, BookingStatus.CANCELED);
+        return new Booking(
+                id, checkInDate, checkOutDate, accommodationId, userId, BookingStatus.CANCELED
+        );
     }
 
     public Booking expire() {
@@ -69,19 +82,25 @@ public final class Booking {
         if (status == BookingStatus.EXPIRED) {
             throw new InvalidBookingStateException("Booking is already expired");
         }
-        return new Booking(id, checkInDate, checkOutDate, accommodationId, userId, BookingStatus.EXPIRED);
+        return new Booking(
+                id, checkInDate, checkOutDate, accommodationId, userId, BookingStatus.EXPIRED
+        );
     }
 
     public Booking reschedule(LocalDate checkInDate, LocalDate checkOutDate) {
         if (status == BookingStatus.CANCELED || status == BookingStatus.EXPIRED) {
-            throw new InvalidBookingStateException("Only active bookings can be rescheduled");
+            throw new InvalidBookingStateException(
+                    "Only active bookings can be rescheduled"
+            );
         }
         return new Booking(id, checkInDate, checkOutDate, accommodationId, userId, status);
     }
 
     public boolean overlaps(LocalDate otherCheckInDate, LocalDate otherCheckOutDate) {
-        Objects.requireNonNull(otherCheckInDate, "Other booking check-in date must not be null");
-        Objects.requireNonNull(otherCheckOutDate, "Other booking check-out date must not be null");
+        Objects.requireNonNull(otherCheckInDate,
+                "Other booking check-in date must not be null");
+        Objects.requireNonNull(otherCheckOutDate,
+                "Other booking check-out date must not be null");
         validateDates(otherCheckInDate, otherCheckOutDate);
 
         return checkInDate.isBefore(otherCheckOutDate) && otherCheckInDate.isBefore(checkOutDate);
@@ -113,7 +132,9 @@ public final class Booking {
 
     private static void validateDates(LocalDate checkInDate, LocalDate checkOutDate) {
         if (!checkInDate.isBefore(checkOutDate)) {
-            throw new BusinessValidationException("Booking check-in date must be before check-out date");
+            throw new BusinessValidationException(
+                    "Booking check-in date must be before check-out date"
+            );
         }
     }
 }

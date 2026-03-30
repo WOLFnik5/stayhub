@@ -13,12 +13,16 @@ public class AuthenticatedCurrentUserService implements CurrentUserService {
     public CurrentUser getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new AuthenticationCredentialsNotFoundException("Current user is not authenticated");
+            throw new AuthenticationCredentialsNotFoundException(
+                    "Current user is not authenticated"
+            );
         }
 
         Object principal = authentication.getPrincipal();
         if (!(principal instanceof AuthenticatedUserPrincipal authenticatedUserPrincipal)) {
-            throw new AuthenticationCredentialsNotFoundException("Current user principal is not available");
+            throw new AuthenticationCredentialsNotFoundException(
+                    "Current user principal is not available"
+            );
         }
 
         return new CurrentUser(

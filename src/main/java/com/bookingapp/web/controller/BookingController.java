@@ -1,19 +1,20 @@
 package com.bookingapp.web.controller;
 
-import com.bookingapp.web.dto.BookingDetailResponse;
-import com.bookingapp.web.dto.BookingResponse;
-import com.bookingapp.web.mapper.BookingWebMapper;
-import com.bookingapp.web.dto.CreateBookingRequest;
-import com.bookingapp.web.dto.PatchBookingRequest;
-import com.bookingapp.web.dto.UpdateBookingRequest;
-import com.bookingapp.domain.service.BookingService;
 import com.bookingapp.domain.enums.BookingStatus;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
+import com.bookingapp.domain.service.BookingService;
+import com.bookingapp.web.dto.BookingDetailResponse;
+import com.bookingapp.web.dto.BookingResponse;
+import com.bookingapp.web.dto.CreateBookingRequest;
+import com.bookingapp.web.dto.PatchBookingRequest;
+import com.bookingapp.web.dto.UpdateBookingRequest;
+import com.bookingapp.web.mapper.BookingWebMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,8 +26,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/bookings")
@@ -57,7 +56,8 @@ public class BookingController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "List bookings with admin filters", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "List bookings with admin filters",
+            security = @SecurityRequirement(name = "bearerAuth"))
     public List<BookingResponse> listBookings(
             @RequestParam(name = "user_id", required = false) Long userId,
             @RequestParam(name = "status", required = false) BookingStatus status
@@ -68,7 +68,8 @@ public class BookingController {
     }
 
     @GetMapping("/my")
-    @Operation(summary = "List current user's bookings", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "List current user's bookings",
+            security = @SecurityRequirement(name = "bearerAuth"))
     public List<BookingResponse> listMyBookings() {
         return bookingService.listMyBookings().stream()
                 .map(bookingWebMapper::toResponse)
@@ -84,17 +85,20 @@ public class BookingController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Replace booking dates", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "Replace booking dates",
+            security = @SecurityRequirement(name = "bearerAuth"))
     public BookingResponse updateBooking(
             @PathVariable Long id,
             @Valid @RequestBody UpdateBookingRequest request
     ) {
-        Booking updatedBooking = bookingService.updateBooking(id, request.checkInDate(), request.checkOutDate());
+        Booking updatedBooking = bookingService.updateBooking(id,
+                request.checkInDate(), request.checkOutDate());
         return bookingWebMapper.toResponse(updatedBooking);
     }
 
     @PatchMapping("/{id}")
-    @Operation(summary = "Partially update booking dates", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "Partially update booking dates",
+            security = @SecurityRequirement(name = "bearerAuth"))
     public BookingResponse patchBooking(
             @PathVariable Long id,
             @Valid @RequestBody PatchBookingRequest request
@@ -102,8 +106,10 @@ public class BookingController {
         Booking currentBooking = bookingService.getBookingById(id);
         Booking updatedBooking = bookingService.updateBooking(
                 id,
-                request.checkInDate() != null ? request.checkInDate() : currentBooking.getCheckInDate(),
-                request.checkOutDate() != null ? request.checkOutDate() : currentBooking.getCheckOutDate()
+                request.checkInDate() != null ? request.checkInDate() : currentBooking
+                        .getCheckInDate(),
+                request.checkOutDate() != null ? request.checkOutDate() : currentBooking
+                        .getCheckOutDate()
         );
         return bookingWebMapper.toResponse(updatedBooking);
     }

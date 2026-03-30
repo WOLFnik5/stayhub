@@ -1,7 +1,5 @@
 package com.bookingapp.domain.service;
 
-import com.bookingapp.domain.service.dto.BookingFilterQuery;
-import com.bookingapp.domain.service.dto.CurrentUser;
 import com.bookingapp.domain.enums.BookingStatus;
 import com.bookingapp.domain.enums.PaymentStatus;
 import com.bookingapp.domain.enums.UserRole;
@@ -15,13 +13,14 @@ import com.bookingapp.domain.model.Payment;
 import com.bookingapp.domain.repository.AccommodationRepository;
 import com.bookingapp.domain.repository.BookingRepository;
 import com.bookingapp.domain.repository.PaymentRepository;
+import com.bookingapp.domain.service.dto.BookingFilterQuery;
+import com.bookingapp.domain.service.dto.CurrentUser;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
 import com.bookingapp.infrastructure.security.CurrentUserService;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDate;
 import java.util.List;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
@@ -89,7 +88,9 @@ public class BookingService {
         CurrentUser currentUser = currentUserService.getCurrentUser();
 
         if (currentUser.role() == UserRole.ADMIN) {
-            BookingFilterQuery effectiveQuery = query == null ? new BookingFilterQuery(null, null) : query;
+            BookingFilterQuery effectiveQuery = query == null ? new BookingFilterQuery(
+                    null,
+                    null) : query;
             return bookingRepository.findAllByFilter(effectiveQuery);
         }
 
@@ -135,9 +136,18 @@ public class BookingService {
         return savedBooking;
     }
 
-    private void ensureNoOverlap(Long accommodationId, LocalDate checkInDate, LocalDate checkOutDate, Long excludedBookingId) {
-        if (bookingRepository.existsActiveBookingOverlap(accommodationId, checkInDate, checkOutDate, excludedBookingId)) {
-            throw new BookingConflictException("Accommodation is already booked for the selected dates");
+    private void ensureNoOverlap(
+            Long accommodationId,
+            LocalDate checkInDate,
+            LocalDate checkOutDate,
+            Long excludedBookingId
+    ) {
+        if (bookingRepository.existsActiveBookingOverlap(
+                accommodationId, checkInDate, checkOutDate, excludedBookingId
+        )) {
+            throw new BookingConflictException(
+                    "Accommodation is already booked for the selected dates"
+            );
         }
     }
 
@@ -153,7 +163,8 @@ public class BookingService {
             throw new BusinessValidationException("Paid booking cannot be updated");
         }
 
-        if (booking.getStatus() == BookingStatus.CANCELED || booking.getStatus() == BookingStatus.EXPIRED) {
+        if (booking.getStatus() == BookingStatus.CANCELED
+                || booking.getStatus() == BookingStatus.EXPIRED) {
             throw new BusinessValidationException("Only active bookings can be updated");
         }
     }
@@ -165,18 +176,29 @@ public class BookingService {
         }
 
         if (!currentUser.id().equals(booking.getUserId())) {
-            throw new ForbiddenOperationException("Access denied for booking id '" + booking.getId() + "'");
+            throw new ForbiddenOperationException(
+                    "Access denied for booking id '"
+                            + booking.getId()
+                            + "'"
+            );
         }
     }
 
     private Booking findBookingById(Long bookingId) {
         return bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new EntityNotFoundDomainException("Booking with id '" + bookingId + "' was not found"));
+                .orElseThrow(() -> new EntityNotFoundDomainException(
+                        "Booking with id '"
+                                + bookingId
+                                + "' was not found")
+                );
     }
 
     private Accommodation getAccommodation(Long accommodationId) {
         return accommodationRepository.findById(accommodationId)
                 .orElseThrow(() -> new EntityNotFoundDomainException(
-                        "Accommodation with id '" + accommodationId + "' was not found"));
+                        "Accommodation with id '"
+                                + accommodationId
+                                + "' was not found")
+                );
     }
 }

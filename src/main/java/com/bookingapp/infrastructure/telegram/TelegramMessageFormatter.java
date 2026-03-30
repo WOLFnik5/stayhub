@@ -3,9 +3,8 @@ package com.bookingapp.infrastructure.telegram;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.Payment;
-import org.springframework.stereotype.Component;
-
 import java.time.format.DateTimeFormatter;
+import org.springframework.stereotype.Component;
 
 @Component
 public class TelegramMessageFormatter {

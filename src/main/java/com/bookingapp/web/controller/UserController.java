@@ -1,12 +1,12 @@
 package com.bookingapp.web.controller;
 
+import com.bookingapp.domain.model.User;
+import com.bookingapp.domain.service.UserService;
 import com.bookingapp.web.dto.PatchCurrentUserRequest;
 import com.bookingapp.web.dto.UpdateCurrentUserRequest;
 import com.bookingapp.web.dto.UpdateUserRoleRequest;
 import com.bookingapp.web.dto.UserProfileResponse;
 import com.bookingapp.web.mapper.UserWebMapper;
-import com.bookingapp.domain.service.UserService;
-import com.bookingapp.domain.model.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -46,13 +46,15 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    @Operation(summary = "Get current user profile", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "Get current user profile",
+            security = @SecurityRequirement(name = "bearerAuth"))
     public UserProfileResponse getCurrentUserProfile() {
         return userWebMapper.toResponse(userService.getCurrentUserProfile());
     }
 
     @PutMapping("/me")
-    @Operation(summary = "Replace current user profile", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "Replace current user profile",
+            security = @SecurityRequirement(name = "bearerAuth"))
     public UserProfileResponse updateCurrentUserProfile(
             @Valid @RequestBody UpdateCurrentUserRequest request
     ) {
@@ -65,15 +67,19 @@ public class UserController {
     }
 
     @PatchMapping("/me")
-    @Operation(summary = "Partially update current user profile", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "Partially update current user profile",
+            security = @SecurityRequirement(name = "bearerAuth"))
     public UserProfileResponse patchCurrentUserProfile(
             @Valid @RequestBody PatchCurrentUserRequest request
     ) {
         User currentUser = userService.getCurrentUserProfile();
         User updatedUser = userService.updateCurrentUserProfile(
-                userWebMapper.selectValue(request.email(), currentUser.getEmail(), "email"),
-                userWebMapper.selectValue(request.firstName(), currentUser.getFirstName(), "firstName"),
-                userWebMapper.selectValue(request.lastName(), currentUser.getLastName(), "lastName")
+                userWebMapper.selectValue(request.email(),
+                        currentUser.getEmail(), "email"),
+                userWebMapper.selectValue(request.firstName(),
+                        currentUser.getFirstName(), "firstName"),
+                userWebMapper.selectValue(request.lastName(),
+                        currentUser.getLastName(), "lastName")
         );
         return userWebMapper.toResponse(updatedUser);
     }

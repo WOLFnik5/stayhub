@@ -1,7 +1,6 @@
 package com.bookingapp.web.dto;
 
 import com.bookingapp.domain.enums.AccommodationType;
-
 import java.math.BigDecimal;
 
 public record AccommodationListResponse(

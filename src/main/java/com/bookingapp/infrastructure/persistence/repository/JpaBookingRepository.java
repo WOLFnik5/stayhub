@@ -1,13 +1,12 @@
 package com.bookingapp.infrastructure.persistence.repository;
 
-import com.bookingapp.infrastructure.persistence.entity.BookingEntity;
 import com.bookingapp.domain.enums.BookingStatus;
+import com.bookingapp.infrastructure.persistence.entity.BookingEntity;
+import java.time.LocalDate;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import java.time.LocalDate;
-import java.util.List;
 
 public interface JpaBookingRepository extends JpaRepository<BookingEntity, Long> {
 
@@ -18,7 +17,8 @@ public interface JpaBookingRepository extends JpaRepository<BookingEntity, Long>
               and (:status is null or b.status = :status)
             order by b.checkInDate asc, b.id desc
             """)
-    List<BookingEntity> findAllByFilter(@Param("userId") Long userId, @Param("status") BookingStatus status);
+    List<BookingEntity> findAllByFilter(@Param("userId") Long userId,
+                                        @Param("status") BookingStatus status);
 
     List<BookingEntity> findAllByUserIdOrderByCheckInDateAscIdDesc(Long userId);
 

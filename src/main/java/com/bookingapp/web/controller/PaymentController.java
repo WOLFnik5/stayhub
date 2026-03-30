@@ -1,25 +1,24 @@
 package com.bookingapp.web.controller;
 
+import com.bookingapp.domain.model.Payment;
+import com.bookingapp.domain.service.PaymentService;
+import com.bookingapp.domain.service.dto.PaymentSessionResult;
 import com.bookingapp.web.dto.CreatePaymentRequest;
 import com.bookingapp.web.dto.PaymentCancelResponse;
 import com.bookingapp.web.dto.PaymentResponse;
 import com.bookingapp.web.dto.PaymentSuccessResponse;
 import com.bookingapp.web.mapper.PaymentWebMapper;
-import com.bookingapp.domain.service.dto.PaymentSessionResult;
-import com.bookingapp.domain.service.PaymentService;
-import com.bookingapp.domain.model.Payment;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/payments")
@@ -48,9 +47,11 @@ public class PaymentController {
     }
 
     @PostMapping
-    @Operation(summary = "Create payment session for booking", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "Create payment session for booking",
+            security = @SecurityRequirement(name = "bearerAuth"))
     public PaymentResponse createPayment(@Valid @RequestBody CreatePaymentRequest request) {
-        PaymentSessionResult paymentSession = paymentService.createPaymentSession(request.bookingId());
+        PaymentSessionResult paymentSession = paymentService
+                .createPaymentSession(request.bookingId());
 
         return paymentWebMapper.toResponse(
                 paymentSession.paymentId(),

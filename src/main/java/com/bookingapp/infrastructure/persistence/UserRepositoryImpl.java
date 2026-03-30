@@ -1,13 +1,12 @@
 package com.bookingapp.infrastructure.persistence;
 
+import com.bookingapp.domain.model.User;
 import com.bookingapp.domain.repository.UserRepository;
 import com.bookingapp.infrastructure.persistence.mapper.UserPersistenceMapper;
 import com.bookingapp.infrastructure.persistence.repository.JpaUserRepository;
-import com.bookingapp.domain.model.User;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Optional;
 
 @Component
 @Transactional(readOnly = true)

@@ -1,11 +1,10 @@
 package com.bookingapp.infrastructure.security;
 
 import com.bookingapp.domain.enums.UserRole;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-
 import java.util.Collection;
 import java.util.List;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 public record AuthenticatedUserPrincipal(
         Long userId,

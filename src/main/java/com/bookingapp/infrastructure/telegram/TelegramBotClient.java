@@ -1,11 +1,10 @@
 package com.bookingapp.infrastructure.telegram;
 
 import com.bookingapp.infrastructure.config.TelegramProperties;
+import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-
-import java.util.Map;
 
 @Component
 public class TelegramBotClient {

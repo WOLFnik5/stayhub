@@ -42,7 +42,8 @@ public class SecurityConfiguration {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(restAuthenticationEntryPoint)
                         .accessDeniedHandler(restAccessDeniedHandler)
@@ -60,18 +61,26 @@ public class SecurityConfiguration {
                                 "/actuator/health",
                                 "/error"
                         ).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/accommodations", "/accommodations/*").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/accommodations").hasRole(UserRole.ADMIN.name())
-                        .requestMatchers(HttpMethod.PUT, "/accommodations/*").hasRole(UserRole.ADMIN.name())
-                        .requestMatchers(HttpMethod.PATCH, "/accommodations/*").hasRole(UserRole.ADMIN.name())
-                        .requestMatchers(HttpMethod.DELETE, "/accommodations/*").hasRole(UserRole.ADMIN.name())
-                        .requestMatchers(HttpMethod.PUT, "/users/*/role").hasRole(UserRole.ADMIN.name())
+                        .requestMatchers(HttpMethod.GET,
+                                "/accommodations",
+                                "/accommodations/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/accommodations")
+                        .hasRole(UserRole.ADMIN.name())
+                        .requestMatchers(HttpMethod.PUT, "/accommodations/*")
+                        .hasRole(UserRole.ADMIN.name())
+                        .requestMatchers(HttpMethod.PATCH, "/accommodations/*")
+                        .hasRole(UserRole.ADMIN.name())
+                        .requestMatchers(HttpMethod.DELETE, "/accommodations/*")
+                        .hasRole(UserRole.ADMIN.name())
+                        .requestMatchers(HttpMethod.PUT, "/users/*/role")
+                        .hasRole(UserRole.ADMIN.name())
                         .requestMatchers("/users/me").authenticated()
                         .requestMatchers("/bookings/**").authenticated()
                         .requestMatchers("/payments/**").authenticated()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable);

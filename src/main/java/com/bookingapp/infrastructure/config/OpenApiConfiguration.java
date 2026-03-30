@@ -19,7 +19,9 @@ public class OpenApiConfiguration {
                 .info(new Info()
                         .title("Booking App API")
                         .version("v1")
-                        .description("API for accommodation listing, booking management, payments, and notifications."))
+                        .description(
+                                "API for accommodation listing, "
+                                        + "booking management, payments, and notifications."))
                 .components(new Components()
                         .addSecuritySchemes(BEARER_SCHEME, new SecurityScheme()
                                 .type(SecurityScheme.Type.HTTP)

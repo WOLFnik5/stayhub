@@ -1,12 +1,11 @@
 package com.bookingapp.web.mapper;
 
-import com.bookingapp.web.dto.AccommodationDetailResponse;
-import com.bookingapp.web.dto.AccommodationListResponse;
 import com.bookingapp.domain.exception.BusinessValidationException;
 import com.bookingapp.domain.model.Accommodation;
-import org.springframework.stereotype.Component;
-
+import com.bookingapp.web.dto.AccommodationDetailResponse;
+import com.bookingapp.web.dto.AccommodationListResponse;
 import java.util.List;
+import org.springframework.stereotype.Component;
 
 @Component
 public class AccommodationWebMapper {

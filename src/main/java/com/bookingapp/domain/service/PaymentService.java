@@ -1,9 +1,5 @@
 package com.bookingapp.domain.service;
 
-import com.bookingapp.domain.service.dto.CurrentUser;
-import com.bookingapp.domain.service.dto.PaymentCancelResult;
-import com.bookingapp.domain.service.dto.PaymentFilterQuery;
-import com.bookingapp.domain.service.dto.PaymentSessionResult;
 import com.bookingapp.domain.enums.PaymentStatus;
 import com.bookingapp.domain.enums.UserRole;
 import com.bookingapp.domain.exception.BusinessValidationException;
@@ -18,15 +14,18 @@ import com.bookingapp.domain.repository.AccommodationRepository;
 import com.bookingapp.domain.repository.BookingRepository;
 import com.bookingapp.domain.repository.PaymentRepository;
 import com.bookingapp.domain.repository.UserRepository;
+import com.bookingapp.domain.service.dto.CurrentUser;
+import com.bookingapp.domain.service.dto.PaymentCancelResult;
+import com.bookingapp.domain.service.dto.PaymentFilterQuery;
+import com.bookingapp.domain.service.dto.PaymentSessionResult;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
 import com.bookingapp.infrastructure.security.CurrentUserService;
 import com.bookingapp.infrastructure.stripe.StripePaymentProvider;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
@@ -74,7 +73,8 @@ public class PaymentService {
                 bookingOwner
         );
 
-        Payment paymentToSave = pendingPayment.attachSession(providerSession.sessionId(), providerSession.sessionUrl());
+        Payment paymentToSave = pendingPayment.attachSession(providerSession.sessionId(),
+                providerSession.sessionUrl());
         Payment savedPayment = paymentRepository.save(paymentToSave);
 
         return new PaymentSessionResult(
@@ -91,7 +91,8 @@ public class PaymentService {
         CurrentUser currentUser = currentUserService.getCurrentUser();
 
         if (currentUser.role() == UserRole.ADMIN) {
-            PaymentFilterQuery effectiveQuery = query == null ? new PaymentFilterQuery(null) : query;
+            PaymentFilterQuery effectiveQuery = query == null ? new PaymentFilterQuery(
+                    null) : query;
             return paymentRepository.findAllByFilter(effectiveQuery);
         }
 
@@ -103,7 +104,9 @@ public class PaymentService {
         Payment payment = getPaymentBySessionId(sessionId);
 
         if (!stripePaymentProvider.isPaymentSuccessful(sessionId)) {
-            throw new PaymentStateException("Payment session '" + sessionId + "' is not confirmed as successful");
+            throw new PaymentStateException("Payment session '"
+                    + sessionId
+                    + "' is not confirmed as successful");
         }
 
         Payment savedPayment = paymentRepository.save(payment.markPaid());
@@ -122,11 +125,13 @@ public class PaymentService {
                     payment.getSessionUrl(),
                     payment.getStatus(),
                     true,
-                    "Payment was canceled on the provider page, but the session is still active and can be completed later."
+                    "Payment was canceled on the provider page, "
+                            + "but the session is still active and can be completed later."
             );
         }
 
-        Payment expiredPayment = payment.getStatus() == PaymentStatus.EXPIRED ? payment : payment.expire();
+        Payment expiredPayment =
+                payment.getStatus() == PaymentStatus.EXPIRED ? payment : payment.expire();
         Payment savedPayment = paymentRepository.save(expiredPayment);
 
         return new PaymentCancelResult(
@@ -135,12 +140,14 @@ public class PaymentService {
                 savedPayment.getSessionUrl(),
                 savedPayment.getStatus(),
                 false,
-                "Payment session is no longer active. A new checkout session will be required."
+                "Payment session is no longer active. "
+                        + "A new checkout session will be required."
         );
     }
 
     private BigDecimal calculateTotalAmount(Booking booking, Accommodation accommodation) {
-        long bookedDays = ChronoUnit.DAYS.between(booking.getCheckInDate(), booking.getCheckOutDate());
+        long bookedDays = ChronoUnit.DAYS.between(booking.getCheckInDate(),
+                booking.getCheckOutDate());
         if (bookedDays <= 0) {
             throw new BusinessValidationException("Booking must contain at least one payable day");
         }
@@ -154,7 +161,9 @@ public class PaymentService {
         }
 
         if (existingPayment.getStatus() == PaymentStatus.PAID) {
-            throw new PaymentStateException("Payment for booking id '" + bookingId + "' has already been completed");
+            throw new PaymentStateException("Payment for booking id '"
+                    + bookingId
+                    + "' has already been completed");
         }
 
         return new Payment(
@@ -174,13 +183,17 @@ public class PaymentService {
         }
 
         if (!currentUser.id().equals(booking.getUserId())) {
-            throw new ForbiddenOperationException("Access denied for booking id '" + booking.getId() + "'");
+            throw new ForbiddenOperationException("Access denied for booking id '"
+                    + booking.getId()
+                    + "'");
         }
     }
 
     private Booking getBooking(Long bookingId) {
         return bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new EntityNotFoundDomainException("Booking with id '" + bookingId + "' was not found"));
+                .orElseThrow(() -> new EntityNotFoundDomainException("Booking with id '"
+                        + bookingId
+                        + "' was not found"));
     }
 
     private Accommodation getAccommodation(Long accommodationId) {
@@ -191,7 +204,9 @@ public class PaymentService {
 
     private User getUser(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundDomainException("User with id '" + userId + "' was not found"));
+                .orElseThrow(() -> new EntityNotFoundDomainException("User with id '"
+                        + userId
+                        + "' was not found"));
     }
 
     private Payment getPaymentBySessionId(String sessionId) {

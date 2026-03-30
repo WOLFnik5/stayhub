@@ -1,7 +1,5 @@
 package com.bookingapp.infrastructure.kafka;
 
-import com.bookingapp.infrastructure.persistence.outbox.OutboxEventEntity;
-import com.bookingapp.infrastructure.persistence.outbox.OutboxEventJpaRepository;
 import com.bookingapp.domain.event.AccommodationCreatedEvent;
 import com.bookingapp.domain.event.BookingCanceledEvent;
 import com.bookingapp.domain.event.BookingCreatedEvent;
@@ -11,6 +9,8 @@ import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.Payment;
 import com.bookingapp.infrastructure.config.KafkaTopicsProperties;
+import com.bookingapp.infrastructure.persistence.outbox.OutboxEventEntity;
+import com.bookingapp.infrastructure.persistence.outbox.OutboxEventJpaRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
@@ -145,7 +145,8 @@ public class OutboxKafkaEventPublisher implements KafkaEventPublisher {
                     )
             );
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Failed to serialize outbox payload for " + eventType, e);
+            throw new IllegalStateException("Failed to serialize outbox payload for "
+                    + eventType, e);
         }
     }
 

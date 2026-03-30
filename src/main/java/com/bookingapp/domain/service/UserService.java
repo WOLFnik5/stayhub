@@ -1,10 +1,10 @@
 package com.bookingapp.domain.service;
 
-import com.bookingapp.domain.service.dto.CurrentUser;
 import com.bookingapp.domain.exception.BusinessValidationException;
 import com.bookingapp.domain.exception.EntityNotFoundDomainException;
 import com.bookingapp.domain.model.User;
 import com.bookingapp.domain.repository.UserRepository;
+import com.bookingapp.domain.service.dto.CurrentUser;
 import com.bookingapp.infrastructure.security.CurrentUserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +51,8 @@ public class UserService {
 
     private User getUserById(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundDomainException("User with id '" + userId + "' was not found"));
+                .orElseThrow(() -> new EntityNotFoundDomainException("User with id '"
+                        + userId
+                        + "' was not found"));
     }
 }

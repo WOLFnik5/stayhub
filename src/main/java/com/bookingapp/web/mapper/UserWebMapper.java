@@ -1,9 +1,8 @@
 package com.bookingapp.web.mapper;
 
-import com.bookingapp.web.dto.PatchCurrentUserRequest;
-import com.bookingapp.web.dto.UserProfileResponse;
 import com.bookingapp.domain.exception.BusinessValidationException;
 import com.bookingapp.domain.model.User;
+import com.bookingapp.web.dto.UserProfileResponse;
 import org.springframework.stereotype.Component;
 
 @Component

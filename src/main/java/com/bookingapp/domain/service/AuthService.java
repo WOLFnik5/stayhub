@@ -1,14 +1,14 @@
 package com.bookingapp.domain.service;
 
-import com.bookingapp.domain.service.dto.AuthenticationResult;
 import com.bookingapp.domain.enums.UserRole;
 import com.bookingapp.domain.exception.BusinessValidationException;
 import com.bookingapp.domain.model.User;
 import com.bookingapp.domain.repository.UserRepository;
+import com.bookingapp.domain.service.dto.AuthenticationResult;
 import com.bookingapp.infrastructure.security.JwtTokenService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Service
 @Transactional(readOnly = true)
@@ -29,7 +29,12 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthenticationResult register(String email, String firstName, String lastName, String password) {
+    public AuthenticationResult register(
+            String email,
+            String firstName,
+            String lastName,
+            String password
+    ) {
         if (userRepository.existsByEmail(email)) {
             throw new BusinessValidationException("User with email '" + email + "' already exists");
         }
@@ -45,7 +50,9 @@ public class AuthService {
 
         User savedUser = userRepository.save(userToSave);
         String accessToken = jwtTokenService.generateToken(savedUser);
-        return new AuthenticationResult(accessToken, savedUser.getId(), savedUser.getEmail(), savedUser.getRole());
+        return new AuthenticationResult(
+                accessToken, savedUser.getId(), savedUser.getEmail(), savedUser.getRole()
+        );
     }
 
     public AuthenticationResult login(String email, String password) {

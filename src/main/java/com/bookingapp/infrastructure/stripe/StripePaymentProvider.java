@@ -1,21 +1,20 @@
 package com.bookingapp.infrastructure.stripe;
 
-import com.bookingapp.domain.service.dto.PaymentSessionResult;
 import com.bookingapp.domain.exception.PaymentStateException;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.Payment;
 import com.bookingapp.domain.model.User;
+import com.bookingapp.domain.service.dto.PaymentSessionResult;
 import com.bookingapp.infrastructure.config.StripeProperties;
 import com.stripe.StripeClient;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
-import org.springframework.stereotype.Component;
-import org.springframework.web.util.UriComponentsBuilder;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import org.springframework.stereotype.Component;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 public class StripePaymentProvider {
@@ -33,7 +32,12 @@ public class StripePaymentProvider {
         this.stripeProperties = stripeProperties;
     }
 
-    public PaymentSessionResult createPaymentSession(Payment payment, Booking booking, Accommodation accommodation, User user) {
+    public PaymentSessionResult createPaymentSession(
+            Payment payment,
+            Booking booking,
+            Accommodation accommodation,
+            User user
+    ) {
         try {
             Session session = stripeClient.checkout().sessions().create(
                     SessionCreateParams.builder()
@@ -70,7 +74,11 @@ public class StripePaymentProvider {
         return "open".equalsIgnoreCase(status) || "complete".equalsIgnoreCase(status);
     }
 
-    private SessionCreateParams.LineItem buildLineItem(Payment payment, Accommodation accommodation, Booking booking) {
+    private SessionCreateParams.LineItem buildLineItem(
+            Payment payment,
+            Accommodation accommodation,
+            Booking booking
+    ) {
         return SessionCreateParams.LineItem.builder()
                 .setQuantity(1L)
                 .setPriceData(
@@ -81,7 +89,9 @@ public class StripePaymentProvider {
                                         SessionCreateParams.LineItem.PriceData.ProductData.builder()
                                                 .setName("Booking #" + booking.getId())
                                                 .setDescription(
-                                                        accommodation.getType() + " in " + accommodation.getLocation()
+                                                        accommodation.getType()
+                                                                + " in "
+                                                                + accommodation.getLocation()
                                                 )
                                                 .build()
                                 )

@@ -1,7 +1,6 @@
 package com.bookingapp.domain.repository;
 
 import com.bookingapp.domain.model.User;
-
 import java.util.Optional;
 
 public interface UserRepository {

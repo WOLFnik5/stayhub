@@ -1,17 +1,18 @@
 package com.bookingapp.web.controller;
 
+import com.bookingapp.domain.model.Accommodation;
+import com.bookingapp.domain.service.AccommodationService;
 import com.bookingapp.web.dto.AccommodationDetailResponse;
 import com.bookingapp.web.dto.AccommodationListResponse;
-import com.bookingapp.web.mapper.AccommodationWebMapper;
 import com.bookingapp.web.dto.CreateAccommodationRequest;
 import com.bookingapp.web.dto.PatchAccommodationRequest;
 import com.bookingapp.web.dto.UpdateAccommodationRequest;
-import com.bookingapp.domain.service.AccommodationService;
-import com.bookingapp.domain.model.Accommodation;
+import com.bookingapp.web.mapper.AccommodationWebMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,8 +24,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/accommodations")
@@ -44,8 +43,11 @@ public class AccommodationController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Create accommodation", security = @SecurityRequirement(name = "bearerAuth"))
-    public AccommodationDetailResponse createAccommodation(@Valid @RequestBody CreateAccommodationRequest request) {
+    @Operation(summary = "Create accommodation",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    public AccommodationDetailResponse createAccommodation(
+            @Valid @RequestBody CreateAccommodationRequest request
+    ) {
         Accommodation createdAccommodation = accommodationService.createAccommodation(
                 request.type(),
                 request.location(),
@@ -68,11 +70,13 @@ public class AccommodationController {
     @GetMapping("/{id}")
     @Operation(summary = "Get accommodation by id")
     public AccommodationDetailResponse getAccommodationById(@PathVariable Long id) {
-        return accommodationWebMapper.toDetailResponse(accommodationService.getAccommodationById(id));
+        return accommodationWebMapper
+                .toDetailResponse(accommodationService.getAccommodationById(id));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Replace accommodation", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "Replace accommodation",
+            security = @SecurityRequirement(name = "bearerAuth"))
     public AccommodationDetailResponse updateAccommodation(
             @PathVariable Long id,
             @Valid @RequestBody UpdateAccommodationRequest request
@@ -90,7 +94,8 @@ public class AccommodationController {
     }
 
     @PatchMapping("/{id}")
-    @Operation(summary = "Partially update accommodation", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "Partially update accommodation",
+            security = @SecurityRequirement(name = "bearerAuth"))
     public AccommodationDetailResponse patchAccommodation(
             @PathVariable Long id,
             @Valid @RequestBody PatchAccommodationRequest request
@@ -99,18 +104,26 @@ public class AccommodationController {
         Accommodation updatedAccommodation = accommodationService.updateAccommodation(
                 id,
                 request.type() != null ? request.type() : currentAccommodation.getType(),
-                accommodationWebMapper.selectString(request.location(), currentAccommodation.getLocation(), "location"),
-                accommodationWebMapper.selectString(request.size(), currentAccommodation.getSize(), "size"),
-                accommodationWebMapper.selectAmenities(request.amenities(), currentAccommodation.getAmenities()),
-                request.dailyRate() != null ? request.dailyRate() : currentAccommodation.getDailyRate(),
-                request.availability() != null ? request.availability() : currentAccommodation.getAvailability()
+                accommodationWebMapper.selectString(request.location(),
+                        currentAccommodation.getLocation(),
+                        "location"),
+                accommodationWebMapper.selectString(request.size(),
+                        currentAccommodation.getSize(),
+                        "size"),
+                accommodationWebMapper.selectAmenities(request.amenities(), currentAccommodation
+                        .getAmenities()),
+                request.dailyRate() != null ? request.dailyRate() : currentAccommodation
+                        .getDailyRate(),
+                request.availability() != null ? request.availability() : currentAccommodation
+                        .getAvailability()
         );
         return accommodationWebMapper.toDetailResponse(updatedAccommodation);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Delete accommodation", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "Delete accommodation",
+            security = @SecurityRequirement(name = "bearerAuth"))
     public void deleteAccommodation(@PathVariable Long id) {
         accommodationService.deleteAccommodation(id);
     }

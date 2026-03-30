@@ -5,9 +5,8 @@ import com.bookingapp.domain.event.BookingCanceledEvent;
 import com.bookingapp.domain.event.BookingCreatedEvent;
 import com.bookingapp.domain.event.BookingExpiredEvent;
 import com.bookingapp.domain.event.PaymentSucceededEvent;
-import org.springframework.stereotype.Component;
-
 import java.time.format.DateTimeFormatter;
+import org.springframework.stereotype.Component;
 
 @Component
 public class TelegramEventMessageFormatter {

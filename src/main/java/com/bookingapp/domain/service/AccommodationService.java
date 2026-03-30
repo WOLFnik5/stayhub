@@ -1,15 +1,13 @@
 package com.bookingapp.domain.service;
 
-import com.bookingapp.domain.exception.BusinessValidationException;
-import com.bookingapp.domain.exception.EntityNotFoundDomainException;
 import com.bookingapp.domain.enums.AccommodationType;
+import com.bookingapp.domain.exception.EntityNotFoundDomainException;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.repository.AccommodationRepository;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @Transactional(readOnly = true)

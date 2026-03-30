@@ -1,10 +1,9 @@
 package com.bookingapp.infrastructure.scheduler;
 
 import com.bookingapp.domain.service.BookingExpirationService;
+import java.time.LocalDate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-
-import java.time.LocalDate;
 
 @Component
 public class BookingExpirationScheduler {
