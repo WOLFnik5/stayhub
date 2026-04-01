@@ -100,23 +100,7 @@ public class AccommodationController {
             @PathVariable Long id,
             @Valid @RequestBody PatchAccommodationRequest request
     ) {
-        Accommodation currentAccommodation = accommodationService.getAccommodationById(id);
-        Accommodation updatedAccommodation = accommodationService.updateAccommodation(
-                id,
-                request.type() != null ? request.type() : currentAccommodation.getType(),
-                accommodationWebMapper.selectString(request.location(),
-                        currentAccommodation.getLocation(),
-                        "location"),
-                accommodationWebMapper.selectString(request.size(),
-                        currentAccommodation.getSize(),
-                        "size"),
-                accommodationWebMapper.selectAmenities(request.amenities(), currentAccommodation
-                        .getAmenities()),
-                request.dailyRate() != null ? request.dailyRate() : currentAccommodation
-                        .getDailyRate(),
-                request.availability() != null ? request.availability() : currentAccommodation
-                        .getAvailability()
-        );
+        Accommodation updatedAccommodation = accommodationService.patchAccommodation(id, request);
         return accommodationWebMapper.toDetailResponse(updatedAccommodation);
     }
 

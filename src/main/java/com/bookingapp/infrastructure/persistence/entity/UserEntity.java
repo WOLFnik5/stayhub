@@ -11,6 +11,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(
@@ -22,6 +24,8 @@ import jakarta.persistence.UniqueConstraint;
                 @Index(name = "idx_users_email", columnList = "email")
         }
 )
+@Getter
+@Setter
 public class UserEntity {
 
     @Id
@@ -43,52 +47,4 @@ public class UserEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 50)
     private UserRole role;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
-
-    public String getLastName() {
-        return lastName;
-    }
-
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public UserRole getRole() {
-        return role;
-    }
-
-    public void setRole(UserRole role) {
-        this.role = role;
-    }
 }

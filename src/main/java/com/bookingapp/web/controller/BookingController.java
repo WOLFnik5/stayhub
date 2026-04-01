@@ -101,14 +101,7 @@ public class BookingController {
             @PathVariable Long id,
             @Valid @RequestBody PatchBookingRequest request
     ) {
-        Booking currentBooking = bookingService.getBookingById(id);
-        Booking updatedBooking = bookingService.updateBooking(
-                id,
-                request.checkInDate() != null ? request.checkInDate() : currentBooking
-                        .getCheckInDate(),
-                request.checkOutDate() != null ? request.checkOutDate() : currentBooking
-                        .getCheckOutDate()
-        );
+        Booking updatedBooking = bookingService.patchBooking(id, request);
         return bookingWebMapper.toResponse(updatedBooking);
     }
 

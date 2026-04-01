@@ -12,6 +12,8 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(
@@ -24,6 +26,8 @@ import java.math.BigDecimal;
                 @Index(name = "idx_payments_session_id", columnList = "session_id")
         }
 )
+@Getter
+@Setter
 public class PaymentEntity {
 
     @Id
@@ -45,52 +49,4 @@ public class PaymentEntity {
 
     @Column(name = "amount_to_pay", nullable = false, precision = 12, scale = 2)
     private BigDecimal amountToPay;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public PaymentStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(PaymentStatus status) {
-        this.status = status;
-    }
-
-    public Long getBookingId() {
-        return bookingId;
-    }
-
-    public void setBookingId(Long bookingId) {
-        this.bookingId = bookingId;
-    }
-
-    public String getSessionUrl() {
-        return sessionUrl;
-    }
-
-    public void setSessionUrl(String sessionUrl) {
-        this.sessionUrl = sessionUrl;
-    }
-
-    public String getSessionId() {
-        return sessionId;
-    }
-
-    public void setSessionId(String sessionId) {
-        this.sessionId = sessionId;
-    }
-
-    public BigDecimal getAmountToPay() {
-        return amountToPay;
-    }
-
-    public void setAmountToPay(BigDecimal amountToPay) {
-        this.amountToPay = amountToPay;
-    }
 }

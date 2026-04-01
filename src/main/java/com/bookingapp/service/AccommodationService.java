@@ -1,11 +1,17 @@
 package com.bookingapp.service;
 
 import com.bookingapp.domain.model.enums.AccommodationType;
+import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.exception.EntityNotFoundDomainException;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.repository.AccommodationRepository;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
+
+import java.math.BigDecimal;
 import java.util.List;
+
+import com.bookingapp.web.dto.PatchAccommodationRequest;
+import jakarta.validation.Valid;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -93,5 +99,43 @@ public class AccommodationService {
         }
 
         accommodationRepository.deleteById(accommodationId);
+    }
+
+    @Transactional
+    public Accommodation patchAccommodation(Long id, PatchAccommodationRequest request) {
+        Accommodation current = getAccommodationById(id);
+
+        AccommodationType type = request.type() != null
+                ? request.type()
+                : current.getType();
+
+        String location = selectNonBlank(request.location(), current.getLocation(), "location");
+        String size     = selectNonBlank(request.size(),     current.getSize(),     "size");
+
+        List<String> amenities = request.amenities() != null
+                ? request.amenities()
+                : current.getAmenities();
+
+        BigDecimal dailyRate = request.dailyRate() != null
+                ? request.dailyRate()
+                : current.getDailyRate();
+
+        int availability = request.availability() != null
+                ? request.availability()
+                : current.getAvailability();
+
+        Accommodation updated = current.updateDetails(type, location, size, amenities, dailyRate, availability);
+        return accommodationRepository.save(updated);
+    }
+
+    private static String selectNonBlank(String candidate, String fallback, String fieldName) {
+        if (candidate == null) {
+            return fallback;
+        }
+        String trimmed = candidate.trim();
+        if (trimmed.isEmpty()) {
+            throw new BusinessValidationException("Field '" + fieldName + "' must not be blank");
+        }
+        return trimmed;
     }
 }

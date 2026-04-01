@@ -1,9 +1,13 @@
 package com.bookingapp.infrastructure.config;
 
 import jakarta.validation.constraints.NotBlank;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
+@Setter
+@Getter
 @Validated
 @ConfigurationProperties(prefix = "app.telegram")
 public class TelegramProperties {
@@ -16,27 +20,4 @@ public class TelegramProperties {
 
     private String baseUrl = "https://api.telegram.org";
 
-    public String getBotToken() {
-        return botToken;
-    }
-
-    public void setBotToken(String botToken) {
-        this.botToken = botToken;
-    }
-
-    public String getChatId() {
-        return chatId;
-    }
-
-    public void setChatId(String chatId) {
-        this.chatId = chatId;
-    }
-
-    public String getBaseUrl() {
-        return baseUrl;
-    }
-
-    public void setBaseUrl(String baseUrl) {
-        this.baseUrl = baseUrl;
-    }
 }

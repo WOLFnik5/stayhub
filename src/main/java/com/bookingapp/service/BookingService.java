@@ -19,6 +19,8 @@ import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
 import com.bookingapp.infrastructure.security.CurrentUserService;
 import java.time.LocalDate;
 import java.util.List;
+
+import com.bookingapp.web.dto.PatchBookingRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -196,5 +198,20 @@ public class BookingService {
                                 + accommodationId
                                 + "' was not found")
                 );
+    }
+
+    @Transactional
+    public Booking patchBooking(Long id, PatchBookingRequest request) {
+        Booking current = findBookingById(id);
+        ensureCurrentUserCanAccessBooking(current);
+        ensureBookingCanBeUpdated(current);
+
+        LocalDate checkInDate  = request.checkInDate()  != null ? request.checkInDate()  : current.getCheckInDate();
+        LocalDate checkOutDate = request.checkOutDate() != null ? request.checkOutDate() : current.getCheckOutDate();
+
+        ensureNoOverlap(current.getAccommodationId(), checkInDate, checkOutDate, current.getId());
+
+        Booking rescheduled = current.reschedule(checkInDate, checkOutDate);
+        return bookingRepository.save(rescheduled);
     }
 }

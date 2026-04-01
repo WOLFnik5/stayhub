@@ -11,6 +11,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(
@@ -22,6 +24,8 @@ import java.time.LocalDate;
                 @Index(name = "idx_bookings_checkout_date", columnList = "check_out_date")
         }
 )
+@Getter
+@Setter
 public class BookingEntity {
 
     @Id
@@ -43,52 +47,4 @@ public class BookingEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)
     private BookingStatus status;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public LocalDate getCheckInDate() {
-        return checkInDate;
-    }
-
-    public void setCheckInDate(LocalDate checkInDate) {
-        this.checkInDate = checkInDate;
-    }
-
-    public LocalDate getCheckOutDate() {
-        return checkOutDate;
-    }
-
-    public void setCheckOutDate(LocalDate checkOutDate) {
-        this.checkOutDate = checkOutDate;
-    }
-
-    public Long getAccommodationId() {
-        return accommodationId;
-    }
-
-    public void setAccommodationId(Long accommodationId) {
-        this.accommodationId = accommodationId;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
-
-    public BookingStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(BookingStatus status) {
-        this.status = status;
-    }
 }

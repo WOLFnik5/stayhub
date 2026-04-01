@@ -17,17 +17,4 @@ public class UserWebMapper {
                 user.getRole()
         );
     }
-
-    public String selectValue(String candidate, String currentValue, String fieldName) {
-        if (candidate == null) {
-            return currentValue;
-        }
-
-        String trimmed = candidate.trim();
-        if (trimmed.isEmpty()) {
-            throw new BusinessValidationException("Field '" + fieldName + "' must not be blank");
-        }
-
-        return trimmed;
-    }
 }

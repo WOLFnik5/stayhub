@@ -8,9 +8,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "outbox_events")
+@Getter
+@Setter
 public class OutboxEventEntity {
     @Id
     private UUID id;
@@ -122,53 +126,5 @@ public class OutboxEventEntity {
     public void markDead(String errorMessage) {
         this.status = OutboxStatus.DEAD;
         this.lastError = errorMessage;
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public String getAggregateType() {
-        return aggregateType;
-    }
-
-    public Long getAggregateId() {
-        return aggregateId;
-    }
-
-    public String getEventType() {
-        return eventType;
-    }
-
-    public String getTopic() {
-        return topic;
-    }
-
-    public String getEventKey() {
-        return eventKey;
-    }
-
-    public String getPayload() {
-        return payload;
-    }
-
-    public OutboxStatus getStatus() {
-        return status;
-    }
-
-    public int getAttempts() {
-        return attempts;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public LocalDateTime getPublishedAt() {
-        return publishedAt;
-    }
-
-    public String getLastError() {
-        return lastError;
     }
 }

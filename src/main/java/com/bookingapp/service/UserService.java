@@ -7,6 +7,8 @@ import com.bookingapp.domain.model.User;
 import com.bookingapp.domain.repository.UserRepository;
 import com.bookingapp.service.dto.CurrentUser;
 import com.bookingapp.infrastructure.security.CurrentUserService;
+import com.bookingapp.web.dto.PatchCurrentUserRequest;
+import jakarta.validation.Valid;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,5 +57,32 @@ public class UserService {
                 .orElseThrow(() -> new EntityNotFoundDomainException("User with id '"
                         + userId
                         + "' was not found"));
+    }
+
+    @Transactional
+    public User patchCurrentUserProfile(PatchCurrentUserRequest request) {
+        CurrentUser currentUser = currentUserService.getCurrentUser();
+        User existing = getUserById(currentUser.id());
+
+        String email     = selectNonBlank(request.email(),     existing.getEmail(),     "email");
+        String firstName = selectNonBlank(request.firstName(), existing.getFirstName(), "firstName");
+        String lastName  = selectNonBlank(request.lastName(),  existing.getLastName(),  "lastName");
+
+        if (!existing.getEmail().equals(email) && userRepository.existsByEmail(email)) {
+            throw new BusinessValidationException("User with email '" + email + "' already exists");
+        }
+
+        return userRepository.save(existing.updateProfile(email, firstName, lastName));
+    }
+
+    private static String selectNonBlank(String candidate, String fallback, String fieldName) {
+        if (candidate == null) {
+            return fallback;
+        }
+        String trimmed = candidate.trim();
+        if (trimmed.isEmpty()) {
+            throw new BusinessValidationException("Field '" + fieldName + "' must not be blank");
+        }
+        return trimmed;
     }
 }

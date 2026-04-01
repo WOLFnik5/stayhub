@@ -72,15 +72,7 @@ public class UserController {
     public UserProfileResponse patchCurrentUserProfile(
             @Valid @RequestBody PatchCurrentUserRequest request
     ) {
-        User currentUser = userService.getCurrentUserProfile();
-        User updatedUser = userService.updateCurrentUserProfile(
-                userWebMapper.selectValue(request.email(),
-                        currentUser.getEmail(), "email"),
-                userWebMapper.selectValue(request.firstName(),
-                        currentUser.getFirstName(), "firstName"),
-                userWebMapper.selectValue(request.lastName(),
-                        currentUser.getLastName(), "lastName")
-        );
+        User updatedUser = userService.patchCurrentUserProfile(request);
         return userWebMapper.toResponse(updatedUser);
     }
 }
