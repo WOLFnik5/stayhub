@@ -1,6 +1,6 @@
 package com.bookingapp.infrastructure.security;
 
-import com.bookingapp.domain.enums.UserRole;
+import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.infrastructure.config.JwtProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;

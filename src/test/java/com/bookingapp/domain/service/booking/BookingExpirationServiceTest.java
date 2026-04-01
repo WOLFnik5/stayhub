@@ -1,10 +1,10 @@
 package com.bookingapp.domain.service.booking;
 
-import com.bookingapp.domain.enums.BookingStatus;
+import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.repository.BookingRepository;
-import com.bookingapp.domain.service.BookingExpirationService;
-import com.bookingapp.domain.service.dto.BookingExpirationResult;
+import com.bookingapp.service.BookingExpirationService;
+import com.bookingapp.service.dto.BookingExpirationResult;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
 import com.bookingapp.infrastructure.telegram.TelegramNotificationService;
 import org.junit.jupiter.api.Test;

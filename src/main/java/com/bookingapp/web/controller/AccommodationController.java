@@ -1,7 +1,7 @@
 package com.bookingapp.web.controller;
 
 import com.bookingapp.domain.model.Accommodation;
-import com.bookingapp.domain.service.AccommodationService;
+import com.bookingapp.service.AccommodationService;
 import com.bookingapp.web.dto.AccommodationDetailResponse;
 import com.bookingapp.web.dto.AccommodationListResponse;
 import com.bookingapp.web.dto.CreateAccommodationRequest;

@@ -1,8 +1,8 @@
-package com.bookingapp.domain.service;
+package com.bookingapp.service;
 
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.repository.BookingRepository;
-import com.bookingapp.domain.service.dto.BookingExpirationResult;
+import com.bookingapp.service.dto.BookingExpirationResult;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
 import com.bookingapp.infrastructure.telegram.TelegramNotificationService;
 import java.time.LocalDate;

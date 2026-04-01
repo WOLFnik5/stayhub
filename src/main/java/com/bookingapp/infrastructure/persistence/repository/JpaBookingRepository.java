@@ -1,6 +1,6 @@
 package com.bookingapp.infrastructure.persistence.repository;
 
-import com.bookingapp.domain.enums.BookingStatus;
+import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.infrastructure.persistence.entity.BookingEntity;
 import java.time.LocalDate;
 import java.util.List;

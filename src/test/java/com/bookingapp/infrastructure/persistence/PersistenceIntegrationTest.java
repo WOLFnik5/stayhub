@@ -1,10 +1,10 @@
 package com.bookingapp.infrastructure.persistence;
 
-import com.bookingapp.domain.service.dto.PaymentFilterQuery;
-import com.bookingapp.domain.enums.AccommodationType;
-import com.bookingapp.domain.enums.BookingStatus;
-import com.bookingapp.domain.enums.PaymentStatus;
-import com.bookingapp.domain.enums.UserRole;
+import com.bookingapp.service.dto.PaymentFilterQuery;
+import com.bookingapp.domain.model.enums.AccommodationType;
+import com.bookingapp.domain.model.enums.BookingStatus;
+import com.bookingapp.domain.model.enums.PaymentStatus;
+import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.Payment;

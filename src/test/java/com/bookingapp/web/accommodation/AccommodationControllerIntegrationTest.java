@@ -3,7 +3,7 @@ package com.bookingapp.web.accommodation;
 import com.bookingapp.web.dto.CreateAccommodationRequest;
 import com.bookingapp.web.dto.UpdateAccommodationRequest;
 import com.bookingapp.web.support.AbstractControllerIntegrationTest;
-import com.bookingapp.domain.enums.AccommodationType;
+import com.bookingapp.domain.model.enums.AccommodationType;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.User;
 import org.junit.jupiter.api.Test;

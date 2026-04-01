@@ -1,6 +1,6 @@
 package com.bookingapp.web.dto;
 
-import com.bookingapp.domain.enums.PaymentStatus;
+import com.bookingapp.domain.model.enums.PaymentStatus;
 import java.math.BigDecimal;
 
 public record PaymentResponse(

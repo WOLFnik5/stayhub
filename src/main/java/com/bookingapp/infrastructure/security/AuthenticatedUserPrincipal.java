@@ -1,6 +1,6 @@
 package com.bookingapp.infrastructure.security;
 
-import com.bookingapp.domain.enums.UserRole;
+import com.bookingapp.domain.model.enums.UserRole;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.security.core.GrantedAuthority;

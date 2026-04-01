@@ -3,12 +3,12 @@ package com.bookingapp.domain.service.accommodation;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.bookingapp.domain.service.AccommodationService;
+import com.bookingapp.service.AccommodationService;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
 import com.bookingapp.domain.repository.AccommodationRepository;
-import com.bookingapp.domain.enums.AccommodationType;
-import com.bookingapp.domain.exception.BusinessValidationException;
-import com.bookingapp.domain.exception.EntityNotFoundDomainException;
+import com.bookingapp.domain.model.enums.AccommodationType;
+import com.bookingapp.exception.BusinessValidationException;
+import com.bookingapp.exception.EntityNotFoundDomainException;
 import com.bookingapp.domain.model.Accommodation;
 
 import java.math.BigDecimal;

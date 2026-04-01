@@ -1,6 +1,6 @@
-package com.bookingapp.domain.service.dto;
+package com.bookingapp.service.dto;
 
-import com.bookingapp.domain.enums.PaymentStatus;
+import com.bookingapp.domain.model.enums.PaymentStatus;
 
 public record PaymentCancelResult(
         Long paymentId,

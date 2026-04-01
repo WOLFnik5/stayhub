@@ -1,12 +1,13 @@
 package com.bookingapp.web.booking;
 
+import com.bookingapp.service.dto.BookingFilterQuery;
 import com.bookingapp.web.ControllerTestSecurityConfig;
 import com.bookingapp.web.controller.BookingController;
 import com.bookingapp.web.mapper.BookingWebMapper;
-import com.bookingapp.domain.service.BookingService;
-import com.bookingapp.web.exception.GlobalExceptionHandler;
-import com.bookingapp.domain.enums.AccommodationType;
-import com.bookingapp.domain.enums.BookingStatus;
+import com.bookingapp.service.BookingService;
+import com.bookingapp.exception.GlobalExceptionHandler;
+import com.bookingapp.domain.model.enums.AccommodationType;
+import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import org.junit.jupiter.api.Test;
@@ -113,7 +114,7 @@ class BookingControllerTest {
 
     @Test
     void listBookingsShouldAllowAdminWithoutFilters() throws Exception {
-        when(bookingService.listBookings(eq(new com.bookingapp.domain.service.dto.BookingFilterQuery(null, null))))
+        when(bookingService.listBookings(eq(new BookingFilterQuery(null, null))))
                 .thenReturn(List.of(
                         new Booking(9L, LocalDate.of(2099, 4, 10), LocalDate.of(2099, 4, 12), 3L, 15L, BookingStatus.PENDING),
                         new Booking(10L, LocalDate.of(2099, 4, 15), LocalDate.of(2099, 4, 18), 3L, 16L, BookingStatus.CONFIRMED)

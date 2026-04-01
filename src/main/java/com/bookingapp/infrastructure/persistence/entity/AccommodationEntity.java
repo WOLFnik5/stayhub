@@ -1,6 +1,6 @@
 package com.bookingapp.infrastructure.persistence.entity;
 
-import com.bookingapp.domain.enums.AccommodationType;
+import com.bookingapp.domain.model.enums.AccommodationType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -36,7 +36,7 @@ public class AccommodationEntity {
     @Column(name = "size", nullable = false)
     private String size;
 
-    @ElementCollection(fetch = FetchType.EAGER)
+    @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(
             name = "accommodation_amenities",
             joinColumns = @JoinColumn(name = "accommodation_id")

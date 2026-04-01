@@ -1,7 +1,7 @@
 package com.bookingapp.web.controller;
 
 import com.bookingapp.domain.model.User;
-import com.bookingapp.domain.service.UserService;
+import com.bookingapp.service.UserService;
 import com.bookingapp.web.dto.PatchCurrentUserRequest;
 import com.bookingapp.web.dto.UpdateCurrentUserRequest;
 import com.bookingapp.web.dto.UpdateUserRoleRequest;

@@ -1,10 +1,10 @@
 package com.bookingapp.web.auth;
 
 import com.bookingapp.web.controller.AuthController;
-import com.bookingapp.domain.service.dto.AuthenticationResult;
-import com.bookingapp.domain.service.AuthService;
-import com.bookingapp.web.exception.GlobalExceptionHandler;
-import com.bookingapp.domain.enums.UserRole;
+import com.bookingapp.service.dto.AuthenticationResult;
+import com.bookingapp.service.AuthService;
+import com.bookingapp.exception.GlobalExceptionHandler;
+import com.bookingapp.domain.model.enums.UserRole;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;

@@ -1,11 +1,12 @@
 package com.bookingapp.web.payment;
 
+import com.bookingapp.service.dto.PaymentFilterQuery;
 import com.bookingapp.web.dto.CreatePaymentRequest;
 import com.bookingapp.web.support.AbstractControllerIntegrationTest;
-import com.bookingapp.domain.service.dto.PaymentSessionResult;
-import com.bookingapp.domain.enums.AccommodationType;
-import com.bookingapp.domain.enums.BookingStatus;
-import com.bookingapp.domain.enums.PaymentStatus;
+import com.bookingapp.service.dto.PaymentSessionResult;
+import com.bookingapp.domain.model.enums.AccommodationType;
+import com.bookingapp.domain.model.enums.BookingStatus;
+import com.bookingapp.domain.model.enums.PaymentStatus;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.Payment;
@@ -135,7 +136,7 @@ class PaymentControllerIntegrationTest extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$[0].id").isNumber())
                 .andExpect(jsonPath("$[1].id").isNumber());
 
-        List<Payment> payments = paymentRepository.findAllByFilter(new com.bookingapp.domain.service.dto.PaymentFilterQuery(null));
+        List<Payment> payments = paymentRepository.findAllByFilter(new PaymentFilterQuery(null));
         assertThat(payments).extracting(Payment::getId)
                 .containsExactlyInAnyOrder(firstPayment.getId(), secondPayment.getId());
     }

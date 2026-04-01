@@ -3,8 +3,8 @@ package com.bookingapp.domain.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.bookingapp.domain.enums.AccommodationType;
-import com.bookingapp.domain.exception.BusinessValidationException;
+import com.bookingapp.domain.model.enums.AccommodationType;
+import com.bookingapp.exception.BusinessValidationException;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;

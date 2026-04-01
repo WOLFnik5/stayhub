@@ -1,6 +1,6 @@
 package com.bookingapp.web.dto;
 
-import com.bookingapp.domain.enums.BookingStatus;
+import com.bookingapp.domain.model.enums.BookingStatus;
 import java.time.LocalDate;
 
 public record BookingResponse(

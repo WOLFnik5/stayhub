@@ -4,7 +4,7 @@ import com.bookingapp.web.dto.PatchCurrentUserRequest;
 import com.bookingapp.web.dto.UpdateCurrentUserRequest;
 import com.bookingapp.web.dto.UpdateUserRoleRequest;
 import com.bookingapp.web.support.AbstractControllerIntegrationTest;
-import com.bookingapp.domain.enums.UserRole;
+import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.domain.model.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;

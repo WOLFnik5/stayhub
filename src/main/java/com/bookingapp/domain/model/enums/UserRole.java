@@ -1,4 +1,4 @@
-package com.bookingapp.domain.enums;
+package com.bookingapp.domain.model.enums;
 
 public enum UserRole {
     ADMIN,

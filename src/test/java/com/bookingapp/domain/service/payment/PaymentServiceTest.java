@@ -1,9 +1,10 @@
 package com.bookingapp.domain.service.payment;
 
-import com.bookingapp.domain.service.dto.CurrentUser;
-import com.bookingapp.domain.service.dto.PaymentFilterQuery;
-import com.bookingapp.domain.service.dto.PaymentSessionResult;
-import com.bookingapp.domain.service.PaymentService;
+import com.bookingapp.service.dto.CurrentUser;
+import com.bookingapp.service.dto.PaymentFilterQuery;
+import com.bookingapp.service.dto.PaymentSessionResult;
+import com.bookingapp.service.PaymentService;
+import com.bookingapp.exception.PaymentStateException;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
 import com.bookingapp.domain.repository.AccommodationRepository;
 import com.bookingapp.domain.repository.BookingRepository;
@@ -11,10 +12,10 @@ import com.bookingapp.domain.repository.PaymentRepository;
 import com.bookingapp.domain.repository.UserRepository;
 import com.bookingapp.infrastructure.security.CurrentUserService;
 import com.bookingapp.infrastructure.stripe.StripePaymentProvider;
-import com.bookingapp.domain.enums.AccommodationType;
-import com.bookingapp.domain.enums.BookingStatus;
-import com.bookingapp.domain.enums.PaymentStatus;
-import com.bookingapp.domain.enums.UserRole;
+import com.bookingapp.domain.model.enums.AccommodationType;
+import com.bookingapp.domain.model.enums.BookingStatus;
+import com.bookingapp.domain.model.enums.PaymentStatus;
+import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.Payment;
@@ -276,7 +277,7 @@ class PaymentServiceTest {
         when(stripePaymentProvider.isPaymentSuccessful("sess_123")).thenReturn(false);
 
         assertThatThrownBy(() -> paymentService.handlePaymentSuccess("sess_123"))
-                .isInstanceOf(com.bookingapp.domain.exception.PaymentStateException.class)
+                .isInstanceOf(PaymentStateException.class)
                 .hasMessageContaining("not confirmed as successful");
     }
 }

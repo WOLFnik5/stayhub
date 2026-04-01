@@ -2,7 +2,7 @@ package com.bookingapp.infrastructure.persistence;
 
 import com.bookingapp.domain.model.Payment;
 import com.bookingapp.domain.repository.PaymentRepository;
-import com.bookingapp.domain.service.dto.PaymentFilterQuery;
+import com.bookingapp.service.dto.PaymentFilterQuery;
 import com.bookingapp.infrastructure.persistence.mapper.PaymentPersistenceMapper;
 import com.bookingapp.infrastructure.persistence.repository.JpaPaymentRepository;
 import java.util.List;

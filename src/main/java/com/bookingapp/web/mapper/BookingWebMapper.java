@@ -1,9 +1,9 @@
 package com.bookingapp.web.mapper;
 
-import com.bookingapp.domain.enums.BookingStatus;
+import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
-import com.bookingapp.domain.service.dto.BookingFilterQuery;
+import com.bookingapp.service.dto.BookingFilterQuery;
 import com.bookingapp.web.dto.AccommodationSummaryResponse;
 import com.bookingapp.web.dto.BookingDetailResponse;
 import com.bookingapp.web.dto.BookingResponse;

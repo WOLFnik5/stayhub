@@ -1,9 +1,5 @@
-package com.bookingapp.web.exception;
+package com.bookingapp.exception;
 
-import com.bookingapp.domain.exception.BookingConflictException;
-import com.bookingapp.domain.exception.BusinessValidationException;
-import com.bookingapp.domain.exception.EntityNotFoundDomainException;
-import com.bookingapp.domain.exception.ForbiddenOperationException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;

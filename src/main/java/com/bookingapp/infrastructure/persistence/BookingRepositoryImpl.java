@@ -1,9 +1,9 @@
 package com.bookingapp.infrastructure.persistence;
 
-import com.bookingapp.domain.enums.BookingStatus;
+import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.repository.BookingRepository;
-import com.bookingapp.domain.service.dto.BookingFilterQuery;
+import com.bookingapp.service.dto.BookingFilterQuery;
 import com.bookingapp.infrastructure.persistence.mapper.BookingPersistenceMapper;
 import com.bookingapp.infrastructure.persistence.repository.JpaBookingRepository;
 import java.time.LocalDate;

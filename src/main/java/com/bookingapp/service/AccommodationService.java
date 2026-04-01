@@ -1,7 +1,7 @@
-package com.bookingapp.domain.service;
+package com.bookingapp.service;
 
-import com.bookingapp.domain.enums.AccommodationType;
-import com.bookingapp.domain.exception.EntityNotFoundDomainException;
+import com.bookingapp.domain.model.enums.AccommodationType;
+import com.bookingapp.exception.EntityNotFoundDomainException;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.repository.AccommodationRepository;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;

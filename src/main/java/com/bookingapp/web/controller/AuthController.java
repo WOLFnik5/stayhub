@@ -1,7 +1,7 @@
 package com.bookingapp.web.controller;
 
-import com.bookingapp.domain.service.AuthService;
-import com.bookingapp.domain.service.dto.AuthenticationResult;
+import com.bookingapp.service.AuthService;
+import com.bookingapp.service.dto.AuthenticationResult;
 import com.bookingapp.web.dto.AuthResponse;
 import com.bookingapp.web.dto.LoginRequest;
 import com.bookingapp.web.dto.RegisterRequest;

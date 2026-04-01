@@ -1,7 +1,7 @@
 package com.bookingapp.domain.model;
 
-import com.bookingapp.domain.enums.AccommodationType;
-import com.bookingapp.domain.exception.BusinessValidationException;
+import com.bookingapp.domain.model.enums.AccommodationType;
+import com.bookingapp.exception.BusinessValidationException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
@@ -108,7 +108,8 @@ public final class Accommodation {
         }
 
         return amenities.stream()
-                .map(amenity -> requireNonBlank(amenity, "Accommodation amenity must not be blank"))
+                .map(amenity -> requireNonBlank(amenity,
+                        "Accommodation amenity must not be blank"))
                 .toList();
     }
 

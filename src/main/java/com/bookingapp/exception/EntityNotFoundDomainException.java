@@ -1,4 +1,4 @@
-package com.bookingapp.domain.exception;
+package com.bookingapp.exception;
 
 public class EntityNotFoundDomainException extends DomainException {
 

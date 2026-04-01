@@ -1,4 +1,4 @@
-package com.bookingapp.web.exception;
+package com.bookingapp.exception;
 
 import java.time.Instant;
 

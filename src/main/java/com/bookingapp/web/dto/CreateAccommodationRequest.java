@@ -1,6 +1,6 @@
 package com.bookingapp.web.dto;
 
-import com.bookingapp.domain.enums.AccommodationType;
+import com.bookingapp.domain.model.enums.AccommodationType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;

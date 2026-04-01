@@ -1,4 +1,4 @@
-package com.bookingapp.domain.service.dto;
+package com.bookingapp.service.dto;
 
 public record PaymentFilterQuery(
         Long userId

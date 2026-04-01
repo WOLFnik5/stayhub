@@ -1,8 +1,8 @@
 package com.bookingapp.domain.model;
 
-import com.bookingapp.domain.enums.PaymentStatus;
-import com.bookingapp.domain.exception.BusinessValidationException;
-import com.bookingapp.domain.exception.PaymentStateException;
+import com.bookingapp.domain.model.enums.PaymentStatus;
+import com.bookingapp.exception.BusinessValidationException;
+import com.bookingapp.exception.PaymentStateException;
 import java.math.BigDecimal;
 import java.util.Objects;
 

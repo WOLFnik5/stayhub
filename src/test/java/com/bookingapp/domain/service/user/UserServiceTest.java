@@ -1,11 +1,11 @@
 package com.bookingapp.domain.service.user;
 
-import com.bookingapp.domain.service.dto.CurrentUser;
-import com.bookingapp.domain.service.UserService;
+import com.bookingapp.service.dto.CurrentUser;
+import com.bookingapp.service.UserService;
 import com.bookingapp.domain.repository.UserRepository;
 import com.bookingapp.infrastructure.security.CurrentUserService;
-import com.bookingapp.domain.enums.UserRole;
-import com.bookingapp.domain.exception.BusinessValidationException;
+import com.bookingapp.domain.model.enums.UserRole;
+import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.domain.model.User;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -1,7 +1,7 @@
 package com.bookingapp.domain.repository;
 
 import com.bookingapp.domain.model.Booking;
-import com.bookingapp.domain.service.dto.BookingFilterQuery;
+import com.bookingapp.service.dto.BookingFilterQuery;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;

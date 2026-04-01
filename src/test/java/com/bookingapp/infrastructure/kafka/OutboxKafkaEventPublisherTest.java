@@ -8,7 +8,7 @@ import static org.mockito.Mockito.verify;
 import com.bookingapp.infrastructure.persistence.outbox.OutboxEventEntity;
 import com.bookingapp.infrastructure.persistence.outbox.OutboxEventJpaRepository;
 import com.bookingapp.infrastructure.persistence.outbox.OutboxStatus;
-import com.bookingapp.domain.enums.AccommodationType;
+import com.bookingapp.domain.model.enums.AccommodationType;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.infrastructure.config.KafkaTopicsProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;

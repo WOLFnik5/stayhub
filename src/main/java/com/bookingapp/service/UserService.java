@@ -1,10 +1,11 @@
-package com.bookingapp.domain.service;
+package com.bookingapp.service;
 
-import com.bookingapp.domain.exception.BusinessValidationException;
-import com.bookingapp.domain.exception.EntityNotFoundDomainException;
+import com.bookingapp.domain.model.enums.UserRole;
+import com.bookingapp.exception.BusinessValidationException;
+import com.bookingapp.exception.EntityNotFoundDomainException;
 import com.bookingapp.domain.model.User;
 import com.bookingapp.domain.repository.UserRepository;
-import com.bookingapp.domain.service.dto.CurrentUser;
+import com.bookingapp.service.dto.CurrentUser;
 import com.bookingapp.infrastructure.security.CurrentUserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +44,7 @@ public class UserService {
     }
 
     @Transactional
-    public User updateUserRole(Long userId, com.bookingapp.domain.enums.UserRole role) {
+    public User updateUserRole(Long userId, UserRole role) {
         User existingUser = getUserById(userId);
         User updatedUser = existingUser.changeRole(role);
         return userRepository.save(updatedUser);

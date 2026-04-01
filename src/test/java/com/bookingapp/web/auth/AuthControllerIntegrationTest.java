@@ -3,7 +3,7 @@ package com.bookingapp.web.auth;
 import com.bookingapp.web.dto.LoginRequest;
 import com.bookingapp.web.dto.RegisterRequest;
 import com.bookingapp.web.support.AbstractControllerIntegrationTest;
-import com.bookingapp.domain.enums.UserRole;
+import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.domain.model.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;

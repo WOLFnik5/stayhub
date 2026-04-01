@@ -1,6 +1,6 @@
 package com.bookingapp.infrastructure.persistence.entity;
 
-import com.bookingapp.domain.enums.UserRole;
+import com.bookingapp.domain.model.enums.UserRole;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

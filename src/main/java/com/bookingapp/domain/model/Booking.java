@@ -1,8 +1,8 @@
 package com.bookingapp.domain.model;
 
-import com.bookingapp.domain.enums.BookingStatus;
-import com.bookingapp.domain.exception.BusinessValidationException;
-import com.bookingapp.domain.exception.InvalidBookingStateException;
+import com.bookingapp.domain.model.enums.BookingStatus;
+import com.bookingapp.exception.BusinessValidationException;
+import com.bookingapp.exception.InvalidBookingStateException;
 import java.time.LocalDate;
 import java.util.Objects;
 
