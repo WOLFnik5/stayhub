@@ -1,8 +1,8 @@
 package com.bookingapp.web.controller;
 
-import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
+import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.service.BookingService;
 import com.bookingapp.web.dto.BookingDetailResponse;
 import com.bookingapp.web.dto.BookingResponse;

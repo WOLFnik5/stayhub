@@ -1,26 +1,25 @@
 package com.bookingapp.service;
 
+import com.bookingapp.domain.model.Accommodation;
+import com.bookingapp.domain.model.Booking;
+import com.bookingapp.domain.model.Payment;
 import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.domain.model.enums.PaymentStatus;
 import com.bookingapp.domain.model.enums.UserRole;
+import com.bookingapp.domain.repository.AccommodationRepository;
+import com.bookingapp.domain.repository.BookingRepository;
+import com.bookingapp.domain.repository.PaymentRepository;
 import com.bookingapp.exception.BookingConflictException;
 import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.exception.EntityNotFoundDomainException;
 import com.bookingapp.exception.ForbiddenOperationException;
-import com.bookingapp.domain.model.Accommodation;
-import com.bookingapp.domain.model.Booking;
-import com.bookingapp.domain.model.Payment;
-import com.bookingapp.domain.repository.AccommodationRepository;
-import com.bookingapp.domain.repository.BookingRepository;
-import com.bookingapp.domain.repository.PaymentRepository;
-import com.bookingapp.service.dto.BookingFilterQuery;
-import com.bookingapp.service.dto.CurrentUser;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
 import com.bookingapp.infrastructure.security.CurrentUserService;
+import com.bookingapp.service.dto.BookingFilterQuery;
+import com.bookingapp.service.dto.CurrentUser;
+import com.bookingapp.web.dto.PatchBookingRequest;
 import java.time.LocalDate;
 import java.util.List;
-
-import com.bookingapp.web.dto.PatchBookingRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -206,8 +205,10 @@ public class BookingService {
         ensureCurrentUserCanAccessBooking(current);
         ensureBookingCanBeUpdated(current);
 
-        LocalDate checkInDate  = request.checkInDate()  != null ? request.checkInDate()  : current.getCheckInDate();
-        LocalDate checkOutDate = request.checkOutDate() != null ? request.checkOutDate() : current.getCheckOutDate();
+        LocalDate checkInDate =
+                request.checkInDate() != null ? request.checkInDate() : current.getCheckInDate();
+        LocalDate checkOutDate =
+                request.checkOutDate() != null ? request.checkOutDate() : current.getCheckOutDate();
 
         ensureNoOverlap(current.getAccommodationId(), checkInDate, checkOutDate, current.getId());
 

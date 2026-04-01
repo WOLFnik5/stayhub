@@ -1,12 +1,12 @@
 package com.bookingapp.service;
 
+import com.bookingapp.domain.model.User;
 import com.bookingapp.domain.model.enums.UserRole;
+import com.bookingapp.domain.repository.UserRepository;
 import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.exception.EntityNotFoundDomainException;
-import com.bookingapp.domain.model.User;
-import com.bookingapp.domain.repository.UserRepository;
-import com.bookingapp.service.dto.CurrentUser;
 import com.bookingapp.infrastructure.security.CurrentUserService;
+import com.bookingapp.service.dto.CurrentUser;
 import com.bookingapp.web.dto.PatchCurrentUserRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,9 +63,17 @@ public class UserService {
         CurrentUser currentUser = currentUserService.getCurrentUser();
         User existing = getUserById(currentUser.id());
 
-        String email     = selectNonBlank(request.email(),     existing.getEmail(),     "email");
-        String firstName = selectNonBlank(request.firstName(), existing.getFirstName(), "firstName");
-        String lastName  = selectNonBlank(request.lastName(),  existing.getLastName(),  "lastName");
+        String email = selectNonBlank(request.email(), existing.getEmail(), "email");
+        String firstName = selectNonBlank(
+                request.firstName(),
+                existing.getFirstName(),
+                "firstName"
+        );
+        String lastName = selectNonBlank(
+                request.lastName(),
+                existing.getLastName(),
+                "lastName"
+        );
 
         if (!existing.getEmail().equals(email) && userRepository.existsByEmail(email)) {
             throw new BusinessValidationException("User with email '" + email + "' already exists");

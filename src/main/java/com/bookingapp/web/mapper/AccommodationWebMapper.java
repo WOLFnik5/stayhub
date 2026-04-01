@@ -1,7 +1,7 @@
 package com.bookingapp.web.mapper;
 
-import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.domain.model.Accommodation;
+import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.web.dto.AccommodationDetailResponse;
 import com.bookingapp.web.dto.AccommodationListResponse;
 import java.util.List;

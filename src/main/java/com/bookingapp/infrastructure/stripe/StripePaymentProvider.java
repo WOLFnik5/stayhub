@@ -1,12 +1,12 @@
 package com.bookingapp.infrastructure.stripe;
 
-import com.bookingapp.exception.PaymentStateException;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.Payment;
 import com.bookingapp.domain.model.User;
-import com.bookingapp.service.dto.PaymentSessionResult;
+import com.bookingapp.exception.PaymentStateException;
 import com.bookingapp.infrastructure.config.StripeProperties;
+import com.bookingapp.service.dto.PaymentSessionResult;
 import com.stripe.StripeClient;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;

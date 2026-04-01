@@ -1,16 +1,14 @@
 package com.bookingapp.service;
 
+import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.enums.AccommodationType;
+import com.bookingapp.domain.repository.AccommodationRepository;
 import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.exception.EntityNotFoundDomainException;
-import com.bookingapp.domain.model.Accommodation;
-import com.bookingapp.domain.repository.AccommodationRepository;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
-
+import com.bookingapp.web.dto.PatchAccommodationRequest;
 import java.math.BigDecimal;
 import java.util.List;
-
-import com.bookingapp.web.dto.PatchAccommodationRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -109,7 +107,7 @@ public class AccommodationService {
                 : current.getType();
 
         String location = selectNonBlank(request.location(), current.getLocation(), "location");
-        String size     = selectNonBlank(request.size(),     current.getSize(),     "size");
+        String size = selectNonBlank(request.size(), current.getSize(), "size");
 
         List<String> amenities = request.amenities() != null
                 ? request.amenities()
@@ -123,7 +121,14 @@ public class AccommodationService {
                 ? request.availability()
                 : current.getAvailability();
 
-        Accommodation updated = current.updateDetails(type, location, size, amenities, dailyRate, availability);
+        Accommodation updated = current.updateDetails(
+                type,
+                location,
+                size,
+                amenities,
+                dailyRate,
+                availability
+        );
         return accommodationRepository.save(updated);
     }
 

@@ -1,11 +1,11 @@
 package com.bookingapp.service;
 
-import com.bookingapp.domain.model.enums.UserRole;
-import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.domain.model.User;
+import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.domain.repository.UserRepository;
-import com.bookingapp.service.dto.AuthenticationResult;
+import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.infrastructure.security.JwtTokenService;
+import com.bookingapp.service.dto.AuthenticationResult;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

@@ -1,7 +1,7 @@
 package com.bookingapp.infrastructure.security;
 
-import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.domain.model.User;
+import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.infrastructure.config.JwtProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
