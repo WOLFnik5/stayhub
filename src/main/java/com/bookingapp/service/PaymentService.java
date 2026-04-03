@@ -1,5 +1,7 @@
 package com.bookingapp.service;
 
+import static com.bookingapp.service.validation.TextValidationUtils.requireNonBlank;
+
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.Payment;
@@ -227,13 +229,6 @@ public class PaymentService {
             throw new BusinessValidationException("Payment amount must not be negative");
         }
         return amountToPay;
-    }
-
-    private String requireNonBlank(String value, String message) {
-        if (value == null || value.isBlank()) {
-            throw new BusinessValidationException(message);
-        }
-        return value.trim();
     }
 
     private void ensureCurrentUserCanAccessBooking(Booking booking) {

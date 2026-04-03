@@ -1,5 +1,8 @@
 package com.bookingapp.service;
 
+import static com.bookingapp.service.validation.TextValidationUtils.requireNonBlank;
+import static com.bookingapp.service.validation.TextValidationUtils.selectNonBlank;
+
 import com.bookingapp.domain.model.User;
 import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.exception.BusinessValidationException;
@@ -100,23 +103,5 @@ public class UserService {
         existing.setFirstName(firstName);
         existing.setLastName(lastName);
         return userRepository.save(existing);
-    }
-
-    private static String selectNonBlank(String candidate, String fallback, String fieldName) {
-        if (candidate == null) {
-            return fallback;
-        }
-        String trimmed = candidate.trim();
-        if (trimmed.isEmpty()) {
-            throw new BusinessValidationException("Field '" + fieldName + "' must not be blank");
-        }
-        return trimmed;
-    }
-
-    private static String requireNonBlank(String value, String message) {
-        if (value == null || value.isBlank()) {
-            throw new BusinessValidationException(message);
-        }
-        return value.trim();
     }
 }

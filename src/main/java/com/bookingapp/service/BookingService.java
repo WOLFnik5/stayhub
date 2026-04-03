@@ -1,5 +1,7 @@
 package com.bookingapp.service;
 
+import static com.bookingapp.service.validation.BookingValidationUtils.validateBookingDates;
+
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.Payment;
@@ -179,20 +181,6 @@ public class BookingService {
         }
         if (booking.getStatus() == BookingStatus.EXPIRED) {
             throw new InvalidBookingStateException("Expired booking cannot be canceled");
-        }
-    }
-
-    private void validateBookingDates(LocalDate checkInDate, LocalDate checkOutDate) {
-        if (checkInDate == null) {
-            throw new BusinessValidationException("Booking check-in date must not be null");
-        }
-        if (checkOutDate == null) {
-            throw new BusinessValidationException("Booking check-out date must not be null");
-        }
-        if (!checkInDate.isBefore(checkOutDate)) {
-            throw new BusinessValidationException(
-                    "Booking check-in date must be before check-out date"
-            );
         }
     }
 

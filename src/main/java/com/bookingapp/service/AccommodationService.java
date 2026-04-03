@@ -1,5 +1,8 @@
 package com.bookingapp.service;
 
+import static com.bookingapp.service.validation.TextValidationUtils.requireNonBlank;
+import static com.bookingapp.service.validation.TextValidationUtils.selectNonBlank;
+
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.enums.AccommodationType;
 import com.bookingapp.exception.BusinessValidationException;
@@ -176,13 +179,6 @@ public class AccommodationService {
         );
     }
 
-    private static String selectNonBlank(String candidate, String fallback, String fieldName) {
-        if (candidate == null) {
-            return fallback;
-        }
-        return requireNonBlank(candidate, "Field '" + fieldName + "' must not be blank");
-    }
-
     private static AccommodationType validateType(AccommodationType type) {
         if (type == null) {
             throw new BusinessValidationException("Accommodation type must not be null");
@@ -227,12 +223,5 @@ public class AccommodationService {
                     "Availability change units must be greater than zero"
             );
         }
-    }
-
-    private static String requireNonBlank(String value, String message) {
-        if (value == null || value.isBlank()) {
-            throw new BusinessValidationException(message);
-        }
-        return value.trim();
     }
 }

@@ -1,5 +1,7 @@
 package com.bookingapp.service;
 
+import static com.bookingapp.service.validation.TextValidationUtils.requireNonBlank;
+
 import com.bookingapp.domain.model.User;
 import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.exception.BusinessValidationException;
@@ -69,12 +71,5 @@ public class AuthService {
 
         String accessToken = jwtTokenService.generateToken(user);
         return new AuthenticationResult(accessToken, user.getId(), user.getEmail(), user.getRole());
-    }
-
-    private String requireNonBlank(String value, String message) {
-        if (value == null || value.isBlank()) {
-            throw new BusinessValidationException(message);
-        }
-        return value.trim();
     }
 }
