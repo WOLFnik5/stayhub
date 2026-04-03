@@ -11,8 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 @Entity
 @Table(
@@ -24,8 +23,7 @@ import lombok.Setter;
                 @Index(name = "idx_users_email", columnList = "email")
         }
 )
-@Getter
-@Setter
+@Data
 public class UserEntity {
 
     @Id

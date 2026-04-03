@@ -4,43 +4,30 @@ import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.domain.repository.BookingFilterQuery;
+import com.bookingapp.infrastructure.config.MapStructConfig;
 import com.bookingapp.web.dto.AccommodationSummaryResponse;
 import com.bookingapp.web.dto.BookingDetailResponse;
 import com.bookingapp.web.dto.BookingResponse;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
-@Component
-public class BookingWebMapper {
+@Mapper(config = MapStructConfig.class)
+public interface BookingWebMapper {
 
-    public BookingFilterQuery toFilterQuery(Long userId, BookingStatus status) {
+    default BookingFilterQuery toFilterQuery(Long userId, BookingStatus status) {
         return new BookingFilterQuery(userId, status);
     }
 
-    public BookingResponse toResponse(Booking booking) {
-        return new BookingResponse(
-                booking.getId(),
-                booking.getCheckInDate(),
-                booking.getCheckOutDate(),
-                booking.getAccommodationId(),
-                booking.getUserId(),
-                booking.getStatus()
-        );
-    }
+    BookingResponse toResponse(Booking booking);
 
-    public BookingDetailResponse toDetailResponse(Booking booking, Accommodation accommodation) {
-        return new BookingDetailResponse(
-                booking.getId(),
-                booking.getCheckInDate(),
-                booking.getCheckOutDate(),
-                booking.getAccommodationId(),
-                booking.getUserId(),
-                booking.getStatus(),
-                new AccommodationSummaryResponse(
-                        accommodation.getId(),
-                        accommodation.getType(),
-                        accommodation.getLocation(),
-                        accommodation.getSize()
-                )
-        );
-    }
+    AccommodationSummaryResponse toAccommodationSummaryResponse(Accommodation accommodation);
+
+    @Mapping(target = "id", source = "booking.id")
+    @Mapping(target = "checkInDate", source = "booking.checkInDate")
+    @Mapping(target = "checkOutDate", source = "booking.checkOutDate")
+    @Mapping(target = "accommodationId", source = "booking.accommodationId")
+    @Mapping(target = "userId", source = "booking.userId")
+    @Mapping(target = "status", source = "booking.status")
+    @Mapping(target = "accommodation", source = "accommodation")
+    BookingDetailResponse toDetailResponse(Booking booking, Accommodation accommodation);
 }

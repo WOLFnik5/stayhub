@@ -17,13 +17,11 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 @Entity
 @Table(name = "accommodations")
-@Getter
-@Setter
+@Data
 public class AccommodationEntity {
 
     @Id

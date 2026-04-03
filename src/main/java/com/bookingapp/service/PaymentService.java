@@ -8,6 +8,7 @@ import com.bookingapp.domain.model.enums.PaymentStatus;
 import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.domain.repository.AccommodationRepository;
 import com.bookingapp.domain.repository.BookingRepository;
+import com.bookingapp.domain.repository.PaymentFilterQuery;
 import com.bookingapp.domain.repository.PaymentRepository;
 import com.bookingapp.domain.repository.UserRepository;
 import com.bookingapp.exception.BusinessValidationException;
@@ -15,11 +16,10 @@ import com.bookingapp.exception.EntityNotFoundDomainException;
 import com.bookingapp.exception.ForbiddenOperationException;
 import com.bookingapp.exception.PaymentStateException;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
+import com.bookingapp.infrastructure.security.CurrentUser;
 import com.bookingapp.infrastructure.security.CurrentUserService;
 import com.bookingapp.infrastructure.stripe.StripePaymentProvider;
-import com.bookingapp.infrastructure.security.CurrentUser;
 import com.bookingapp.web.dto.PaymentCancelResult;
-import com.bookingapp.domain.repository.PaymentFilterQuery;
 import com.bookingapp.web.dto.PaymentSessionResult;
 import java.math.BigDecimal;
 import java.time.temporal.ChronoUnit;
@@ -73,8 +73,11 @@ public class PaymentService {
                 bookingOwner
         );
 
-        Payment paymentToSave = pendingPayment.attachSession(providerSession.sessionId(),
-                providerSession.sessionUrl());
+        Payment paymentToSave = attachSession(
+                pendingPayment,
+                providerSession.sessionId(),
+                providerSession.sessionUrl()
+        );
         Payment savedPayment = paymentRepository.save(paymentToSave);
 
         return new PaymentSessionResult(
@@ -109,7 +112,7 @@ public class PaymentService {
                     + "' is not confirmed as successful");
         }
 
-        Payment savedPayment = paymentRepository.save(payment.markPaid());
+        Payment savedPayment = paymentRepository.save(markPaid(payment));
         kafkaEventPublisher.publishPaymentSucceeded(savedPayment);
         return savedPayment;
     }
@@ -136,8 +139,7 @@ public class PaymentService {
             );
         }
 
-        Payment expiredPayment =
-                payment.getStatus() == PaymentStatus.EXPIRED ? payment : payment.expire();
+        Payment expiredPayment = expirePayment(payment);
         Payment savedPayment = paymentRepository.save(expiredPayment);
 
         return new PaymentCancelResult(
@@ -163,7 +165,14 @@ public class PaymentService {
     private Payment preparePaymentForCheckout(Long bookingId, BigDecimal totalAmount) {
         Payment existingPayment = paymentRepository.findByBookingId(bookingId).orElse(null);
         if (existingPayment == null) {
-            return Payment.createPending(bookingId, totalAmount);
+            return new Payment(
+                    null,
+                    PaymentStatus.PENDING,
+                    bookingId,
+                    null,
+                    null,
+                    validateAmount(totalAmount)
+            );
         }
 
         if (existingPayment.getStatus() == PaymentStatus.PAID) {
@@ -180,6 +189,51 @@ public class PaymentService {
                 null,
                 totalAmount
         );
+    }
+
+    private Payment attachSession(Payment payment, String sessionId, String sessionUrl) {
+        payment.setSessionId(requireNonBlank(sessionId, "Payment session id must not be blank"));
+        payment.setSessionUrl(requireNonBlank(sessionUrl, "Payment session URL must not be blank"));
+        return payment;
+    }
+
+    private Payment markPaid(Payment payment) {
+        if (payment.getStatus() == PaymentStatus.PAID) {
+            return payment;
+        }
+        if (payment.getStatus() == PaymentStatus.EXPIRED) {
+            throw new PaymentStateException("Expired payment cannot be marked as paid");
+        }
+        payment.setStatus(PaymentStatus.PAID);
+        return payment;
+    }
+
+    private Payment expirePayment(Payment payment) {
+        if (payment.getStatus() == PaymentStatus.EXPIRED) {
+            return payment;
+        }
+        if (payment.getStatus() == PaymentStatus.PAID) {
+            throw new PaymentStateException("Paid payment cannot be expired");
+        }
+        payment.setStatus(PaymentStatus.EXPIRED);
+        return payment;
+    }
+
+    private BigDecimal validateAmount(BigDecimal amountToPay) {
+        if (amountToPay == null) {
+            throw new BusinessValidationException("Payment amount must not be null");
+        }
+        if (amountToPay.signum() < 0) {
+            throw new BusinessValidationException("Payment amount must not be negative");
+        }
+        return amountToPay;
+    }
+
+    private String requireNonBlank(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw new BusinessValidationException(message);
+        }
+        return value.trim();
     }
 
     private void ensureCurrentUserCanAccessBooking(Booking booking) {

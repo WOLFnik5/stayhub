@@ -3,7 +3,7 @@ package com.bookingapp.web.booking;
 import com.bookingapp.domain.repository.BookingFilterQuery;
 import com.bookingapp.web.ControllerTestSecurityConfig;
 import com.bookingapp.web.controller.BookingController;
-import com.bookingapp.web.mapper.BookingWebMapper;
+import com.bookingapp.web.mapper.BookingWebMapperImpl;
 import com.bookingapp.service.BookingService;
 import com.bookingapp.exception.GlobalExceptionHandler;
 import com.bookingapp.domain.model.enums.AccommodationType;
@@ -42,7 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 pattern = "com\\.bookingapp\\.infrastructure\\.security\\..*"
         )
 )
-@Import({ControllerTestSecurityConfig.class, GlobalExceptionHandler.class, BookingWebMapper.class})
+@Import({ControllerTestSecurityConfig.class, GlobalExceptionHandler.class, BookingWebMapperImpl.class})
 class BookingControllerTest {
 
     @Autowired

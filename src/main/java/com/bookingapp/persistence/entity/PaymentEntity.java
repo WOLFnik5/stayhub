@@ -12,8 +12,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 @Entity
 @Table(
@@ -26,8 +25,7 @@ import lombok.Setter;
                 @Index(name = "idx_payments_session_id", columnList = "session_id")
         }
 )
-@Getter
-@Setter
+@Data
 public class PaymentEntity {
 
     @Id

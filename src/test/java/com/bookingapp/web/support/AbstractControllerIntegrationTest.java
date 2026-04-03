@@ -101,7 +101,14 @@ public abstract class AbstractControllerIntegrationTest extends PostgreSqlIntegr
 
     protected User persistUser(String email, String firstName, String lastName, String rawPassword, UserRole role) {
         return userRepository.save(
-                User.createNew(email, firstName, lastName, passwordEncoder.encode(rawPassword), role)
+                new User(
+                        null,
+                        email,
+                        firstName,
+                        lastName,
+                        passwordEncoder.encode(rawPassword),
+                        role
+                )
         );
     }
 
@@ -114,7 +121,7 @@ public abstract class AbstractControllerIntegrationTest extends PostgreSqlIntegr
             int availability
     ) {
         return accommodationRepository.save(
-                Accommodation.createNew(type, location, size, amenities, dailyRate, availability)
+                new Accommodation(null, type, location, size, amenities, dailyRate, availability)
         );
     }
 

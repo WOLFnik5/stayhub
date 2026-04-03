@@ -3,7 +3,7 @@ package com.bookingapp.web.user;
 import com.bookingapp.web.ControllerTestSecurityConfig;
 import com.bookingapp.web.controller.UserController;
 import com.bookingapp.web.dto.PatchCurrentUserRequest;
-import com.bookingapp.web.mapper.UserWebMapper;
+import com.bookingapp.web.mapper.UserWebMapperImpl;
 import com.bookingapp.service.UserService;
 import com.bookingapp.exception.GlobalExceptionHandler;
 import com.bookingapp.domain.model.enums.UserRole;
@@ -38,7 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 pattern = "com\\.bookingapp\\.infrastructure\\.security\\..*"
         )
 )
-@Import({ControllerTestSecurityConfig.class, GlobalExceptionHandler.class, UserWebMapper.class})
+@Import({ControllerTestSecurityConfig.class, GlobalExceptionHandler.class, UserWebMapperImpl.class})
 class UserControllerTest {
 
     @Autowired

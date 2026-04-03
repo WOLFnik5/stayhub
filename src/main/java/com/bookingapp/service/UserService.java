@@ -5,8 +5,8 @@ import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.domain.repository.UserRepository;
 import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.exception.EntityNotFoundDomainException;
-import com.bookingapp.infrastructure.security.CurrentUserService;
 import com.bookingapp.infrastructure.security.CurrentUser;
+import com.bookingapp.infrastructure.security.CurrentUserService;
 import com.bookingapp.web.dto.PatchCurrentUserRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,20 +35,37 @@ public class UserService {
     public User updateCurrentUserProfile(String email, String firstName, String lastName) {
         CurrentUser currentUser = currentUserService.getCurrentUser();
         User existingUser = getUserById(currentUser.id());
+        String normalizedEmail = requireNonBlank(email, "User email must not be blank");
 
-        if (!existingUser.getEmail().equals(email) && userRepository.existsByEmail(email)) {
-            throw new BusinessValidationException("User with email '" + email + "' already exists");
+        if (!existingUser.getEmail().equals(normalizedEmail)
+                && userRepository.existsByEmail(normalizedEmail)) {
+            throw new BusinessValidationException(
+                    "User with email '" + normalizedEmail + "' already exists"
+            );
         }
 
-        User updatedUser = existingUser.updateProfile(email, firstName, lastName);
-        return userRepository.save(updatedUser);
+        String normalizedFirstName = requireNonBlank(
+                firstName,
+                "User first name must not be blank"
+        );
+        String normalizedLastName = requireNonBlank(
+                lastName,
+                "User last name must not be blank"
+        );
+        existingUser.setEmail(normalizedEmail);
+        existingUser.setFirstName(normalizedFirstName);
+        existingUser.setLastName(normalizedLastName);
+        return userRepository.save(existingUser);
     }
 
     @Transactional
     public User updateUserRole(Long userId, UserRole role) {
         User existingUser = getUserById(userId);
-        User updatedUser = existingUser.changeRole(role);
-        return userRepository.save(updatedUser);
+        if (role == null) {
+            throw new BusinessValidationException("User role must not be null");
+        }
+        existingUser.setRole(role);
+        return userRepository.save(existingUser);
     }
 
     private User getUserById(Long userId) {
@@ -69,17 +86,20 @@ public class UserService {
                 existing.getFirstName(),
                 "firstName"
         );
-        String lastName = selectNonBlank(
-                request.lastName(),
-                existing.getLastName(),
-                "lastName"
-        );
 
         if (!existing.getEmail().equals(email) && userRepository.existsByEmail(email)) {
             throw new BusinessValidationException("User with email '" + email + "' already exists");
         }
 
-        return userRepository.save(existing.updateProfile(email, firstName, lastName));
+        String lastName = selectNonBlank(
+                request.lastName(),
+                existing.getLastName(),
+                "lastName"
+        );
+        existing.setEmail(email);
+        existing.setFirstName(firstName);
+        existing.setLastName(lastName);
+        return userRepository.save(existing);
     }
 
     private static String selectNonBlank(String candidate, String fallback, String fieldName) {
@@ -91,5 +111,12 @@ public class UserService {
             throw new BusinessValidationException("Field '" + fieldName + "' must not be blank");
         }
         return trimmed;
+    }
+
+    private static String requireNonBlank(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw new BusinessValidationException(message);
+        }
+        return value.trim();
     }
 }

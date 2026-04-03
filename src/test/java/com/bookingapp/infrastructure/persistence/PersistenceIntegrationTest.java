@@ -44,7 +44,8 @@ class PersistenceIntegrationTest extends PostgreSqlIntegrationTestSupport {
     @Test
     void shouldSaveAndReadUser() {
         User savedUser = userRepository.save(
-                User.createNew(
+                new User(
+                        null,
                         "guest@example.com",
                         "Jane",
                         "Guest",
@@ -64,7 +65,8 @@ class PersistenceIntegrationTest extends PostgreSqlIntegrationTestSupport {
     @Test
     void shouldSaveAccommodationWithAmenities() {
         Accommodation savedAccommodation = accommodationRepository.save(
-                Accommodation.createNew(
+                new Accommodation(
+                        null,
                         AccommodationType.APARTMENT,
                         "Krakow",
                         "45m2",
@@ -97,10 +99,18 @@ class PersistenceIntegrationTest extends PostgreSqlIntegrationTestSupport {
     @Test
     void shouldDetectActiveBookingOverlapAndIgnoreInactiveOrExcludedBookings() {
         User savedUser = userRepository.save(
-                User.createNew("booker@example.com", "Alex", "Booker", "encoded-password", UserRole.CUSTOMER)
+                new User(
+                        null,
+                        "booker@example.com",
+                        "Alex",
+                        "Booker",
+                        "encoded-password",
+                        UserRole.CUSTOMER
+                )
         );
         Accommodation savedAccommodation = accommodationRepository.save(
-                Accommodation.createNew(
+                new Accommodation(
+                        null,
                         AccommodationType.HOUSE,
                         "Gdansk",
                         "3 rooms",
@@ -110,11 +120,13 @@ class PersistenceIntegrationTest extends PostgreSqlIntegrationTestSupport {
                 )
         );
         Booking activeBooking = bookingRepository.save(
-                Booking.createNew(
+                new Booking(
+                        null,
                         LocalDate.of(2099, 6, 10),
                         LocalDate.of(2099, 6, 15),
                         savedAccommodation.getId(),
-                        savedUser.getId()
+                        savedUser.getId(),
+                        BookingStatus.PENDING
                 )
         );
         bookingRepository.save(
@@ -146,10 +158,18 @@ class PersistenceIntegrationTest extends PostgreSqlIntegrationTestSupport {
     @Test
     void shouldPersistPaymentFlowAndFilterByUser() {
         User savedUser = userRepository.save(
-                User.createNew("payer@example.com", "Pat", "Payer", "encoded-password", UserRole.CUSTOMER)
+                new User(
+                        null,
+                        "payer@example.com",
+                        "Pat",
+                        "Payer",
+                        "encoded-password",
+                        UserRole.CUSTOMER
+                )
         );
         Accommodation savedAccommodation = accommodationRepository.save(
-                Accommodation.createNew(
+                new Accommodation(
+                        null,
                         AccommodationType.CONDO,
                         "Warsaw",
                         "studio",
@@ -159,18 +179,25 @@ class PersistenceIntegrationTest extends PostgreSqlIntegrationTestSupport {
                 )
         );
         Booking savedBooking = bookingRepository.save(
-                Booking.createNew(
+                new Booking(
+                        null,
                         LocalDate.of(2099, 7, 1),
                         LocalDate.of(2099, 7, 4),
                         savedAccommodation.getId(),
-                        savedUser.getId()
+                        savedUser.getId(),
+                        BookingStatus.PENDING
                 )
         );
 
         Payment savedPayment = paymentRepository.save(
-                Payment.createPending(savedBooking.getId(), BigDecimal.valueOf(540))
-                        .attachSession("sess_123", "https://checkout.example/sess_123")
-                        .markPaid()
+                new Payment(
+                        null,
+                        PaymentStatus.PAID,
+                        savedBooking.getId(),
+                        "https://checkout.example/sess_123",
+                        "sess_123",
+                        BigDecimal.valueOf(540)
+                )
         );
 
         assertThat(paymentRepository.findByBookingId(savedBooking.getId()))

@@ -2,6 +2,7 @@ package com.bookingapp.web.auth;
 
 import com.bookingapp.web.controller.AuthController;
 import com.bookingapp.web.dto.AuthenticationResult;
+import com.bookingapp.web.mapper.AuthWebMapperImpl;
 import com.bookingapp.service.AuthService;
 import com.bookingapp.exception.GlobalExceptionHandler;
 import com.bookingapp.domain.model.enums.UserRole;
@@ -31,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 pattern = "com\\.bookingapp\\.infrastructure\\.security\\..*"
         )
 )
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, AuthWebMapperImpl.class})
 class AuthControllerTest {
 
     @Autowired

@@ -7,16 +7,17 @@ import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.domain.model.enums.PaymentStatus;
 import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.domain.repository.AccommodationRepository;
+import com.bookingapp.domain.repository.BookingFilterQuery;
 import com.bookingapp.domain.repository.BookingRepository;
 import com.bookingapp.domain.repository.PaymentRepository;
 import com.bookingapp.exception.BookingConflictException;
 import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.exception.EntityNotFoundDomainException;
 import com.bookingapp.exception.ForbiddenOperationException;
+import com.bookingapp.exception.InvalidBookingStateException;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
-import com.bookingapp.infrastructure.security.CurrentUserService;
-import com.bookingapp.domain.repository.BookingFilterQuery;
 import com.bookingapp.infrastructure.security.CurrentUser;
+import com.bookingapp.infrastructure.security.CurrentUserService;
 import com.bookingapp.web.dto.PatchBookingRequest;
 import java.time.LocalDate;
 import java.util.List;
@@ -53,16 +54,19 @@ public class BookingService {
             LocalDate checkInDate,
             LocalDate checkOutDate
     ) {
-        CurrentUser currentUser = currentUserService.getCurrentUser();
         Accommodation accommodation = getAccommodation(accommodationId);
+        validateBookingDates(checkInDate, checkOutDate);
         ensureAccommodationHasAvailability(accommodation);
         ensureNoOverlap(accommodationId, checkInDate, checkOutDate, null);
+        CurrentUser currentUser = currentUserService.getCurrentUser();
 
-        Booking bookingToSave = Booking.createNew(
+        Booking bookingToSave = new Booking(
+                null,
                 checkInDate,
                 checkOutDate,
                 accommodation.getId(),
-                currentUser.id()
+                currentUser.id(),
+                BookingStatus.PENDING
         );
 
         Booking savedBooking = bookingRepository.save(bookingToSave);
@@ -111,6 +115,7 @@ public class BookingService {
         Booking existingBooking = findBookingById(bookingId);
         ensureCurrentUserCanAccessBooking(existingBooking);
         ensureBookingCanBeUpdated(existingBooking);
+        validateBookingDates(checkInDate, checkOutDate);
         ensureNoOverlap(
                 existingBooking.getAccommodationId(),
                 checkInDate,
@@ -118,17 +123,19 @@ public class BookingService {
                 existingBooking.getId()
         );
 
-        Booking updatedBooking = existingBooking.reschedule(checkInDate, checkOutDate);
-        return bookingRepository.save(updatedBooking);
+        existingBooking.setCheckInDate(checkInDate);
+        existingBooking.setCheckOutDate(checkOutDate);
+        return bookingRepository.save(existingBooking);
     }
 
     @Transactional
     public Booking cancelBooking(Long bookingId) {
         Booking existingBooking = findBookingById(bookingId);
         ensureCurrentUserCanAccessBooking(existingBooking);
+        ensureBookingCanBeCanceled(existingBooking);
 
-        Booking canceledBooking = existingBooking.cancel();
-        Booking savedBooking = bookingRepository.save(canceledBooking);
+        existingBooking.setStatus(BookingStatus.CANCELED);
+        Booking savedBooking = bookingRepository.save(existingBooking);
         kafkaEventPublisher.publishBookingCanceled(savedBooking);
         return savedBooking;
     }
@@ -163,6 +170,29 @@ public class BookingService {
         if (booking.getStatus() == BookingStatus.CANCELED
                 || booking.getStatus() == BookingStatus.EXPIRED) {
             throw new BusinessValidationException("Only active bookings can be updated");
+        }
+    }
+
+    private void ensureBookingCanBeCanceled(Booking booking) {
+        if (booking.getStatus() == BookingStatus.CANCELED) {
+            throw new InvalidBookingStateException("Booking is already canceled");
+        }
+        if (booking.getStatus() == BookingStatus.EXPIRED) {
+            throw new InvalidBookingStateException("Expired booking cannot be canceled");
+        }
+    }
+
+    private void validateBookingDates(LocalDate checkInDate, LocalDate checkOutDate) {
+        if (checkInDate == null) {
+            throw new BusinessValidationException("Booking check-in date must not be null");
+        }
+        if (checkOutDate == null) {
+            throw new BusinessValidationException("Booking check-out date must not be null");
+        }
+        if (!checkInDate.isBefore(checkOutDate)) {
+            throw new BusinessValidationException(
+                    "Booking check-in date must be before check-out date"
+            );
         }
     }
 
@@ -210,9 +240,11 @@ public class BookingService {
         LocalDate checkOutDate =
                 request.checkOutDate() != null ? request.checkOutDate() : current.getCheckOutDate();
 
+        validateBookingDates(checkInDate, checkOutDate);
         ensureNoOverlap(current.getAccommodationId(), checkInDate, checkOutDate, current.getId());
 
-        Booking rescheduled = current.reschedule(checkInDate, checkOutDate);
-        return bookingRepository.save(rescheduled);
+        current.setCheckInDate(checkInDate);
+        current.setCheckOutDate(checkOutDate);
+        return bookingRepository.save(current);
     }
 }

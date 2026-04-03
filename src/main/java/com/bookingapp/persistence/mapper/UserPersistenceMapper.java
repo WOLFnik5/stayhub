@@ -1,31 +1,14 @@
 package com.bookingapp.persistence.mapper;
 
 import com.bookingapp.domain.model.User;
+import com.bookingapp.infrastructure.config.MapStructConfig;
 import com.bookingapp.persistence.entity.UserEntity;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
 
-@Component
-public class UserPersistenceMapper {
+@Mapper(config = MapStructConfig.class)
+public interface UserPersistenceMapper {
 
-    public UserEntity toEntity(User domain) {
-        UserEntity entity = new UserEntity();
-        entity.setId(domain.getId());
-        entity.setEmail(domain.getEmail());
-        entity.setFirstName(domain.getFirstName());
-        entity.setLastName(domain.getLastName());
-        entity.setPassword(domain.getPassword());
-        entity.setRole(domain.getRole());
-        return entity;
-    }
+    UserEntity toEntity(User domain);
 
-    public User toDomain(UserEntity entity) {
-        return new User(
-                entity.getId(),
-                entity.getEmail(),
-                entity.getFirstName(),
-                entity.getLastName(),
-                entity.getPassword(),
-                entity.getRole()
-        );
-    }
+    User toDomain(UserEntity entity);
 }

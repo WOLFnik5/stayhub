@@ -1,31 +1,14 @@
 package com.bookingapp.persistence.mapper;
 
 import com.bookingapp.domain.model.Payment;
+import com.bookingapp.infrastructure.config.MapStructConfig;
 import com.bookingapp.persistence.entity.PaymentEntity;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
 
-@Component
-public class PaymentPersistenceMapper {
+@Mapper(config = MapStructConfig.class)
+public interface PaymentPersistenceMapper {
 
-    public PaymentEntity toEntity(Payment domain) {
-        PaymentEntity entity = new PaymentEntity();
-        entity.setId(domain.getId());
-        entity.setStatus(domain.getStatus());
-        entity.setBookingId(domain.getBookingId());
-        entity.setSessionUrl(domain.getSessionUrl());
-        entity.setSessionId(domain.getSessionId());
-        entity.setAmountToPay(domain.getAmountToPay());
-        return entity;
-    }
+    PaymentEntity toEntity(Payment domain);
 
-    public Payment toDomain(PaymentEntity entity) {
-        return new Payment(
-                entity.getId(),
-                entity.getStatus(),
-                entity.getBookingId(),
-                entity.getSessionUrl(),
-                entity.getSessionId(),
-                entity.getAmountToPay()
-        );
-    }
+    Payment toDomain(PaymentEntity entity);
 }

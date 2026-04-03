@@ -6,7 +6,6 @@ import com.bookingapp.domain.repository.UserRepository;
 import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.infrastructure.security.JwtTokenService;
 import com.bookingapp.web.dto.AuthenticationResult;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,16 +35,20 @@ public class AuthService {
             String lastName,
             String password
     ) {
-        if (userRepository.existsByEmail(email)) {
-            throw new BusinessValidationException("User with email '" + email + "' already exists");
+        String normalizedEmail = requireNonBlank(email, "User email must not be blank");
+        if (userRepository.existsByEmail(normalizedEmail)) {
+            throw new BusinessValidationException(
+                    "User with email '" + normalizedEmail + "' already exists"
+            );
         }
 
         String encodedPassword = passwordEncoder.encode(password);
-        User userToSave = User.createNew(
-                email,
-                firstName,
-                lastName,
-                encodedPassword,
+        User userToSave = new User(
+                null,
+                normalizedEmail,
+                requireNonBlank(firstName, "User first name must not be blank"),
+                requireNonBlank(lastName, "User last name must not be blank"),
+                requireNonBlank(encodedPassword, "User password must not be blank"),
                 UserRole.CUSTOMER
         );
 
@@ -66,5 +69,12 @@ public class AuthService {
 
         String accessToken = jwtTokenService.generateToken(user);
         return new AuthenticationResult(accessToken, user.getId(), user.getEmail(), user.getRole());
+    }
+
+    private String requireNonBlank(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw new BusinessValidationException(message);
+        }
+        return value.trim();
     }
 }

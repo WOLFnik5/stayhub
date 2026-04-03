@@ -2,64 +2,36 @@ package com.bookingapp.web.mapper;
 
 import com.bookingapp.domain.model.Payment;
 import com.bookingapp.domain.model.enums.PaymentStatus;
-import com.bookingapp.web.dto.PaymentCancelResult;
 import com.bookingapp.domain.repository.PaymentFilterQuery;
+import com.bookingapp.infrastructure.config.MapStructConfig;
 import com.bookingapp.web.dto.PaymentCancelResponse;
+import com.bookingapp.web.dto.PaymentCancelResult;
 import com.bookingapp.web.dto.PaymentResponse;
+import com.bookingapp.web.dto.PaymentSessionResult;
 import com.bookingapp.web.dto.PaymentSuccessResponse;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
-@Component
-public class PaymentWebMapper {
+@Mapper(config = MapStructConfig.class)
+public interface PaymentWebMapper {
 
-    public PaymentFilterQuery toFilterQuery(Long userId) {
+    default PaymentFilterQuery toFilterQuery(Long userId) {
         return new PaymentFilterQuery(userId);
     }
 
-    public PaymentResponse toResponse(Payment payment) {
-        return new PaymentResponse(
-                payment.getId(),
-                payment.getStatus(),
-                payment.getBookingId(),
-                payment.getSessionUrl(),
-                payment.getSessionId(),
-                payment.getAmountToPay()
-        );
-    }
+    PaymentResponse toResponse(Payment payment);
 
-    public PaymentResponse toResponse(
-            Long paymentId,
-            String sessionId,
-            String sessionUrl,
-            String status,
-            java.math.BigDecimal amountToPay,
-            Long bookingId
-    ) {
-        return new PaymentResponse(
-                paymentId,
-                PaymentStatus.valueOf(status),
-                bookingId,
-                sessionUrl,
-                sessionId,
-                amountToPay
-        );
-    }
+    @Mapping(target = "id", source = "paymentId")
+    @Mapping(target = "status", source = "status")
+    PaymentResponse toResponse(PaymentSessionResult paymentSessionResult);
 
-    public PaymentSuccessResponse toSuccessResponse(Payment payment) {
-        return new PaymentSuccessResponse(
-                "Payment completed successfully.",
-                toResponse(payment)
-        );
-    }
+    PaymentCancelResponse toCancelResponse(PaymentCancelResult result);
 
-    public PaymentCancelResponse toCancelResponse(PaymentCancelResult result) {
-        return new PaymentCancelResponse(
-                result.message(),
-                result.canBeCompletedLater(),
-                result.paymentId(),
-                result.paymentStatus(),
-                result.sessionId(),
-                result.sessionUrl()
-        );
+    @Mapping(target = "message", constant = "Payment completed successfully.")
+    @Mapping(target = "payment", source = "payment")
+    PaymentSuccessResponse toSuccessResponse(Payment payment);
+
+    default PaymentStatus map(String status) {
+        return status == null ? null : PaymentStatus.valueOf(status);
     }
 }

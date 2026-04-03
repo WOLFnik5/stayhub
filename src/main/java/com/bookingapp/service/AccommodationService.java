@@ -36,7 +36,8 @@ public class AccommodationService {
             BigDecimal dailyRate,
             int availability
     ) {
-        Accommodation accommodationToSave = Accommodation.createNew(
+        Accommodation accommodationToSave = buildAccommodation(
+                null,
                 type,
                 location,
                 size,
@@ -74,8 +75,8 @@ public class AccommodationService {
             int availability
     ) {
         Accommodation existingAccommodation = getAccommodationById(accommodationId);
-
-        Accommodation updatedAccommodation = existingAccommodation.updateDetails(
+        Accommodation updatedAccommodation = buildAccommodation(
+                existingAccommodation.getId(),
                 type,
                 location,
                 size,
@@ -121,7 +122,8 @@ public class AccommodationService {
                 ? request.availability()
                 : current.getAvailability();
 
-        Accommodation updated = current.updateDetails(
+        Accommodation updated = buildAccommodation(
+                current.getId(),
                 type,
                 location,
                 size,
@@ -132,14 +134,105 @@ public class AccommodationService {
         return accommodationRepository.save(updated);
     }
 
+    @Transactional
+    public Accommodation decreaseAvailability(Long accommodationId, int units) {
+        Accommodation accommodation = getAccommodationById(accommodationId);
+        validateAvailabilityUnits(units);
+
+        int updatedAvailability = accommodation.getAvailability() - units;
+        if (updatedAvailability < 0) {
+            throw new BusinessValidationException("Accommodation availability cannot be negative");
+        }
+
+        accommodation.setAvailability(updatedAvailability);
+        return accommodationRepository.save(accommodation);
+    }
+
+    @Transactional
+    public Accommodation increaseAvailability(Long accommodationId, int units) {
+        Accommodation accommodation = getAccommodationById(accommodationId);
+        validateAvailabilityUnits(units);
+        accommodation.setAvailability(accommodation.getAvailability() + units);
+        return accommodationRepository.save(accommodation);
+    }
+
+    private Accommodation buildAccommodation(
+            Long id,
+            AccommodationType type,
+            String location,
+            String size,
+            List<String> amenities,
+            BigDecimal dailyRate,
+            Integer availability
+    ) {
+        return new Accommodation(
+                id,
+                validateType(type),
+                requireNonBlank(location, "Accommodation location must not be blank"),
+                requireNonBlank(size, "Accommodation size must not be blank"),
+                sanitizeAmenities(amenities),
+                validateDailyRate(dailyRate),
+                validateAvailability(availability)
+        );
+    }
+
     private static String selectNonBlank(String candidate, String fallback, String fieldName) {
-        if (candidate == null || candidate.isBlank()) { // ""
+        if (candidate == null) {
             return fallback;
         }
-        String trimmed = candidate.trim(); //""
-        if (trimmed.isEmpty()) {
-            throw new BusinessValidationException("Field '" + fieldName + "' must not be blank");
+        return requireNonBlank(candidate, "Field '" + fieldName + "' must not be blank");
+    }
+
+    private static AccommodationType validateType(AccommodationType type) {
+        if (type == null) {
+            throw new BusinessValidationException("Accommodation type must not be null");
         }
-        return trimmed;
+        return type;
+    }
+
+    private static List<String> sanitizeAmenities(List<String> amenities) {
+        if (amenities == null) {
+            return List.of();
+        }
+
+        return amenities.stream()
+                .map(amenity -> requireNonBlank(amenity,
+                        "Accommodation amenity must not be blank"))
+                .toList();
+    }
+
+    private static BigDecimal validateDailyRate(BigDecimal dailyRate) {
+        if (dailyRate == null) {
+            throw new BusinessValidationException("Accommodation daily rate must not be null");
+        }
+        if (dailyRate.signum() < 0) {
+            throw new BusinessValidationException("Accommodation daily rate must not be negative");
+        }
+        return dailyRate;
+    }
+
+    private static Integer validateAvailability(Integer availability) {
+        if (availability == null) {
+            throw new BusinessValidationException("Accommodation availability must not be null");
+        }
+        if (availability < 0) {
+            throw new BusinessValidationException("Accommodation availability cannot be negative");
+        }
+        return availability;
+    }
+
+    private static void validateAvailabilityUnits(int units) {
+        if (units <= 0) {
+            throw new BusinessValidationException(
+                    "Availability change units must be greater than zero"
+            );
+        }
+    }
+
+    private static String requireNonBlank(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw new BusinessValidationException(message);
+        }
+        return value.trim();
     }
 }

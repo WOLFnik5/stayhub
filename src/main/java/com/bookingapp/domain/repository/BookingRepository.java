@@ -1,7 +1,6 @@
 package com.bookingapp.domain.repository;
 
 import com.bookingapp.domain.model.Booking;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;

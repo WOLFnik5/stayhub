@@ -1,19 +1,12 @@
 package com.bookingapp.web.mapper;
 
 import com.bookingapp.domain.model.User;
+import com.bookingapp.infrastructure.config.MapStructConfig;
 import com.bookingapp.web.dto.UserProfileResponse;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
 
-@Component
-public class UserWebMapper {
+@Mapper(config = MapStructConfig.class)
+public interface UserWebMapper {
 
-    public UserProfileResponse toResponse(User user) {
-        return new UserProfileResponse(
-                user.getId(),
-                user.getEmail(),
-                user.getFirstName(),
-                user.getLastName(),
-                user.getRole()
-        );
-    }
+    UserProfileResponse toResponse(User user);
 }

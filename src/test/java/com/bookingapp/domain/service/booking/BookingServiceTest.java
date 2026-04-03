@@ -112,7 +112,6 @@ class BookingServiceTest {
                 BigDecimal.valueOf(120),
                 2
         );
-        when(currentUserService.getCurrentUser()).thenReturn(currentUser);
         when(accommodationRepository.findById(3L)).thenReturn(Optional.of(accommodation));
         when(bookingRepository.existsActiveBookingOverlap(eq(3L), any(LocalDate.class), any(LocalDate.class), eq(null)))
                 .thenReturn(true);
@@ -140,7 +139,6 @@ class BookingServiceTest {
                 BigDecimal.valueOf(120),
                 0
         );
-        when(currentUserService.getCurrentUser()).thenReturn(currentUser);
         when(accommodationRepository.findById(3L)).thenReturn(Optional.of(accommodation));
 
         assertThatThrownBy(() -> bookingService.createBooking(

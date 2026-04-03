@@ -2,7 +2,7 @@ package com.bookingapp.web.payment;
 
 import com.bookingapp.web.ControllerTestSecurityConfig;
 import com.bookingapp.web.controller.PaymentController;
-import com.bookingapp.web.mapper.PaymentWebMapper;
+import com.bookingapp.web.mapper.PaymentWebMapperImpl;
 import com.bookingapp.web.dto.PaymentCancelResult;
 import com.bookingapp.web.dto.PaymentSessionResult;
 import com.bookingapp.service.PaymentService;
@@ -39,7 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 pattern = "com\\.bookingapp\\.infrastructure\\.security\\..*"
         )
 )
-@Import({ControllerTestSecurityConfig.class, GlobalExceptionHandler.class, PaymentWebMapper.class})
+@Import({ControllerTestSecurityConfig.class, GlobalExceptionHandler.class, PaymentWebMapperImpl.class})
 class PaymentControllerTest {
 
     @Autowired
