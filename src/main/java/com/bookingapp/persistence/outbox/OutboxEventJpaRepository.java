@@ -1,4 +1,4 @@
-package com.bookingapp.infrastructure.persistence.outbox;
+package com.bookingapp.persistence.outbox;
 
 import java.time.LocalDateTime;
 import java.util.Collection;

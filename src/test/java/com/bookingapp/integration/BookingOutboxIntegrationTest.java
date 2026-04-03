@@ -3,9 +3,9 @@ package com.bookingapp.integration;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import com.bookingapp.infrastructure.persistence.outbox.OutboxEventEntity;
-import com.bookingapp.infrastructure.persistence.outbox.OutboxEventJpaRepository;
-import com.bookingapp.infrastructure.persistence.outbox.OutboxStatus;
+import com.bookingapp.persistence.outbox.OutboxEventEntity;
+import com.bookingapp.persistence.outbox.OutboxEventJpaRepository;
+import com.bookingapp.persistence.outbox.OutboxStatus;
 import com.bookingapp.service.AccommodationService;
 import com.bookingapp.service.BookingService;
 import com.bookingapp.domain.model.enums.AccommodationType;

@@ -117,7 +117,7 @@ public class AccommodationService {
                 ? request.dailyRate()
                 : current.getDailyRate();
 
-        int availability = request.availability() != null
+        int availability = request.availability() != null // optional.ofnullable
                 ? request.availability()
                 : current.getAvailability();
 
@@ -133,10 +133,10 @@ public class AccommodationService {
     }
 
     private static String selectNonBlank(String candidate, String fallback, String fieldName) {
-        if (candidate == null) {
+        if (candidate == null || candidate.isBlank()) { // ""
             return fallback;
         }
-        String trimmed = candidate.trim();
+        String trimmed = candidate.trim(); //""
         if (trimmed.isEmpty()) {
             throw new BusinessValidationException("Field '" + fieldName + "' must not be blank");
         }

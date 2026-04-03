@@ -2,8 +2,11 @@ package com.bookingapp.domain.model;
 
 import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.exception.BusinessValidationException;
+import lombok.Getter;
+
 import java.util.Objects;
 
+@Getter
 public final class User {
 
     private final Long id;
@@ -49,30 +52,6 @@ public final class User {
 
     public User changeRole(UserRole role) {
         return new User(id, email, firstName, lastName, password, role);
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public String getLastName() {
-        return lastName;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public UserRole getRole() {
-        return role;
     }
 
     private static String requireNonBlank(String value, String message) {

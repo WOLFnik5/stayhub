@@ -1,4 +1,4 @@
-package com.bookingapp.infrastructure.persistence.outbox;
+package com.bookingapp.persistence.outbox;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

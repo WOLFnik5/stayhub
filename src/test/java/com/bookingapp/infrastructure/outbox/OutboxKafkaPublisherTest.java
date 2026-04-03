@@ -8,9 +8,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.bookingapp.infrastructure.persistence.outbox.OutboxEventEntity;
-import com.bookingapp.infrastructure.persistence.outbox.OutboxEventJpaRepository;
-import com.bookingapp.infrastructure.persistence.outbox.OutboxStatus;
+import com.bookingapp.persistence.outbox.OutboxEventEntity;
+import com.bookingapp.persistence.outbox.OutboxEventJpaRepository;
+import com.bookingapp.persistence.outbox.OutboxStatus;
 import com.bookingapp.infrastructure.config.OutboxProperties;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;

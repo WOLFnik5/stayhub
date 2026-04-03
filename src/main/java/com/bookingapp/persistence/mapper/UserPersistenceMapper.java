@@ -1,7 +1,7 @@
-package com.bookingapp.infrastructure.persistence.mapper;
+package com.bookingapp.persistence.mapper;
 
 import com.bookingapp.domain.model.User;
-import com.bookingapp.infrastructure.persistence.entity.UserEntity;
+import com.bookingapp.persistence.entity.UserEntity;
 import org.springframework.stereotype.Component;
 
 @Component

@@ -47,7 +47,7 @@ class BookingControllerIntegrationTest extends AbstractControllerIntegrationTest
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.path").value("/bookings"));
 
-        assertThat(jpaBookingRepository.count()).isZero();
+        assertThat(countEntities("BookingEntity")).isZero();
     }
 
     @Test
@@ -127,7 +127,7 @@ class BookingControllerIntegrationTest extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$.userId").value(customer.getId()))
                 .andExpect(jsonPath("$.status").value("PENDING"));
 
-        assertThat(jpaBookingRepository.count()).isEqualTo(1);
+        assertThat(countEntities("BookingEntity")).isEqualTo(1);
         Booking savedBooking = bookingRepository.findAllByUserId(customer.getId()).get(0);
         assertThat(savedBooking.getAccommodationId()).isEqualTo(accommodation.getId());
         assertThat(savedBooking.getCheckInDate()).isEqualTo(checkInDate);
@@ -355,7 +355,7 @@ class BookingControllerIntegrationTest extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.path").value("/bookings"));
 
-        assertThat(jpaBookingRepository.count()).isZero();
+        assertThat(countEntities("BookingEntity")).isZero();
     }
 
     @Test

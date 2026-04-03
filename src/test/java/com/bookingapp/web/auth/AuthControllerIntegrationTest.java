@@ -101,7 +101,7 @@ class AuthControllerIntegrationTest extends AbstractControllerIntegrationTest {
                 .andExpect(jsonPath("$.message").value("User with email 'register-duplicate@example.com' already exists"))
                 .andExpect(jsonPath("$.path").value("/auth/register"));
 
-        assertThat(jpaUserRepository.count()).isEqualTo(1);
+        assertThat(countEntities("UserEntity")).isEqualTo(1);
     }
 
     @Test

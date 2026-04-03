@@ -5,9 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 
-import com.bookingapp.infrastructure.persistence.outbox.OutboxEventEntity;
-import com.bookingapp.infrastructure.persistence.outbox.OutboxEventJpaRepository;
-import com.bookingapp.infrastructure.persistence.outbox.OutboxStatus;
+import com.bookingapp.persistence.outbox.OutboxEventEntity;
+import com.bookingapp.persistence.outbox.OutboxEventJpaRepository;
+import com.bookingapp.persistence.outbox.OutboxStatus;
 import com.bookingapp.domain.model.enums.AccommodationType;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.infrastructure.config.KafkaTopicsProperties;

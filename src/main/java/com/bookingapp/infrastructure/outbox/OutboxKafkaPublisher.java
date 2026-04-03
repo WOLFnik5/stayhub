@@ -1,9 +1,9 @@
 package com.bookingapp.infrastructure.outbox;
 
 import com.bookingapp.infrastructure.config.OutboxProperties;
-import com.bookingapp.infrastructure.persistence.outbox.OutboxEventEntity;
-import com.bookingapp.infrastructure.persistence.outbox.OutboxEventJpaRepository;
-import com.bookingapp.infrastructure.persistence.outbox.OutboxStatus;
+import com.bookingapp.persistence.outbox.OutboxEventEntity;
+import com.bookingapp.persistence.outbox.OutboxEventJpaRepository;
+import com.bookingapp.persistence.outbox.OutboxStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.kafka.core.KafkaTemplate;

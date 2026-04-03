@@ -3,9 +3,12 @@ package com.bookingapp.domain.model;
 import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.exception.InvalidBookingStateException;
+import lombok.Getter;
+
 import java.time.LocalDate;
 import java.util.Objects;
 
+@Getter
 public final class Booking {
 
     private final Long id;
@@ -104,30 +107,6 @@ public final class Booking {
         validateDates(otherCheckInDate, otherCheckOutDate);
 
         return checkInDate.isBefore(otherCheckOutDate) && otherCheckInDate.isBefore(checkOutDate);
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public LocalDate getCheckInDate() {
-        return checkInDate;
-    }
-
-    public LocalDate getCheckOutDate() {
-        return checkOutDate;
-    }
-
-    public Long getAccommodationId() {
-        return accommodationId;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public BookingStatus getStatus() {
-        return status;
     }
 
     private static void validateDates(LocalDate checkInDate, LocalDate checkOutDate) {

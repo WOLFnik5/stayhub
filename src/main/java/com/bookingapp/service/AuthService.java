@@ -6,6 +6,7 @@ import com.bookingapp.domain.repository.UserRepository;
 import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.infrastructure.security.JwtTokenService;
 import com.bookingapp.web.dto.AuthenticationResult;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

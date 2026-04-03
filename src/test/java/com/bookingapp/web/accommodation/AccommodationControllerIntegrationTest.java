@@ -71,7 +71,7 @@ class AccommodationControllerIntegrationTest extends AbstractControllerIntegrati
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.path").value("/accommodations"));
 
-        assertThat(jpaAccommodationRepository.count()).isZero();
+        assertThat(countEntities("AccommodationEntity")).isZero();
     }
 
     @Test
@@ -85,7 +85,7 @@ class AccommodationControllerIntegrationTest extends AbstractControllerIntegrati
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.path").value("/accommodations"));
 
-        assertThat(jpaAccommodationRepository.count()).isZero();
+        assertThat(countEntities("AccommodationEntity")).isZero();
     }
 
     @Test
@@ -106,7 +106,7 @@ class AccommodationControllerIntegrationTest extends AbstractControllerIntegrati
                 .andExpect(jsonPath("$.dailyRate").value(120))
                 .andExpect(jsonPath("$.availability").value(2));
 
-        assertThat(jpaAccommodationRepository.count()).isEqualTo(1);
+        assertThat(countEntities("AccommodationEntity")).isEqualTo(1);
         Accommodation savedAccommodation = accommodationRepository.findAll().get(0);
         assertThat(savedAccommodation.getLocation()).isEqualTo("Warsaw");
         assertThat(savedAccommodation.getAmenities()).containsExactly("wifi", "parking");
@@ -170,7 +170,7 @@ class AccommodationControllerIntegrationTest extends AbstractControllerIntegrati
                         .header("Authorization", authorizationHeader(admin)))
                 .andExpect(status().isNoContent());
 
-        assertThat(jpaAccommodationRepository.existsById(accommodation.getId())).isFalse();
+        assertThat(entityExists("AccommodationEntity", accommodation.getId())).isFalse();
     }
 
     @Test
@@ -196,7 +196,7 @@ class AccommodationControllerIntegrationTest extends AbstractControllerIntegrati
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.path").value("/accommodations"));
 
-        assertThat(jpaAccommodationRepository.count()).isZero();
+        assertThat(countEntities("AccommodationEntity")).isZero();
     }
 
     private CreateAccommodationRequest validCreateRequest() {

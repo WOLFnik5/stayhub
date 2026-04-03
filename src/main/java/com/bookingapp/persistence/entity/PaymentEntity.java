@@ -1,4 +1,4 @@
-package com.bookingapp.infrastructure.persistence.entity;
+package com.bookingapp.persistence.entity;
 
 import com.bookingapp.domain.model.enums.PaymentStatus;
 import jakarta.persistence.Column;

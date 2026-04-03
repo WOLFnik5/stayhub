@@ -2,10 +2,6 @@ package com.bookingapp.web.support;
 
 import com.bookingapp.domain.repository.AccommodationRepository;
 import com.bookingapp.domain.repository.BookingRepository;
-import com.bookingapp.infrastructure.persistence.repository.JpaAccommodationRepository;
-import com.bookingapp.infrastructure.persistence.repository.JpaBookingRepository;
-import com.bookingapp.infrastructure.persistence.repository.JpaPaymentRepository;
-import com.bookingapp.infrastructure.persistence.repository.JpaUserRepository;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
 import com.bookingapp.domain.repository.PaymentRepository;
 import com.bookingapp.domain.repository.UserRepository;
@@ -22,6 +18,8 @@ import com.bookingapp.infrastructure.stripe.StripePaymentProvider;
 import com.bookingapp.testsupport.PostgreSqlIntegrationTestSupport;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.mockito.Mockito;
@@ -32,6 +30,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -69,17 +68,8 @@ public abstract class AbstractControllerIntegrationTest extends PostgreSqlIntegr
     @Autowired
     protected PaymentRepository paymentRepository;
 
-    @Autowired
-    protected JpaUserRepository jpaUserRepository;
-
-    @Autowired
-    protected JpaAccommodationRepository jpaAccommodationRepository;
-
-    @Autowired
-    protected JpaBookingRepository jpaBookingRepository;
-
-    @Autowired
-    protected JpaPaymentRepository jpaPaymentRepository;
+    @PersistenceContext
+    protected EntityManager entityManager;
 
     @Autowired
     protected KafkaEventPublisher kafkaEventPublisher;
@@ -93,11 +83,12 @@ public abstract class AbstractControllerIntegrationTest extends PostgreSqlIntegr
     }
 
     @AfterEach
+    @Transactional
     void cleanDatabase() {
-        jpaPaymentRepository.deleteAllInBatch();
-        jpaBookingRepository.deleteAllInBatch();
-        jpaAccommodationRepository.deleteAllInBatch();
-        jpaUserRepository.deleteAllInBatch();
+        entityManager.createQuery("DELETE FROM PaymentEntity").executeUpdate();
+        entityManager.createQuery("DELETE FROM BookingEntity").executeUpdate();
+        entityManager.createQuery("DELETE FROM AccommodationEntity").executeUpdate();
+        entityManager.createQuery("DELETE FROM UserEntity").executeUpdate();
     }
 
     protected User persistAdmin(String email) {
@@ -161,5 +152,20 @@ public abstract class AbstractControllerIntegrationTest extends PostgreSqlIntegr
 
     protected LocalDate futureDate(int daysFromNow) {
         return LocalDate.now().plusDays(daysFromNow);
+    }
+
+    protected long countEntities(String entityName) {
+        return entityManager.createQuery(
+                "SELECT COUNT(e) FROM " + entityName + " e",
+                Long.class
+        ).getSingleResult();
+    }
+
+    protected boolean entityExists(String entityName, Long id) {
+        Long count = entityManager.createQuery(
+                "SELECT COUNT(e) FROM " + entityName + " e WHERE e.id = :id",
+                Long.class
+        ).setParameter("id", id).getSingleResult();
+        return count > 0;
     }
 }

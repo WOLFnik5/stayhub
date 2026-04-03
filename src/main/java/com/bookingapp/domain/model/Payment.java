@@ -3,9 +3,12 @@ package com.bookingapp.domain.model;
 import com.bookingapp.domain.model.enums.PaymentStatus;
 import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.exception.PaymentStateException;
+import lombok.Getter;
+
 import java.math.BigDecimal;
 import java.util.Objects;
 
+@Getter
 public final class Payment {
 
     private final Long id;
@@ -62,30 +65,6 @@ public final class Payment {
         return new Payment(
                 id, PaymentStatus.EXPIRED, bookingId, sessionUrl, sessionId, amountToPay
         );
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public PaymentStatus getStatus() {
-        return status;
-    }
-
-    public Long getBookingId() {
-        return bookingId;
-    }
-
-    public String getSessionUrl() {
-        return sessionUrl;
-    }
-
-    public String getSessionId() {
-        return sessionId;
-    }
-
-    public BigDecimal getAmountToPay() {
-        return amountToPay;
     }
 
     private static BigDecimal validateAmount(BigDecimal amountToPay) {

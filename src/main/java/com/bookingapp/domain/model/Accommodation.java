@@ -2,10 +2,13 @@ package com.bookingapp.domain.model;
 
 import com.bookingapp.domain.model.enums.AccommodationType;
 import com.bookingapp.exception.BusinessValidationException;
+import lombok.Getter;
+
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
 
+@Getter
 public final class Accommodation {
 
     private final Long id;
@@ -72,34 +75,6 @@ public final class Accommodation {
         return new Accommodation(
                 id, type, location, size, amenities, dailyRate, availability + units
         );
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public AccommodationType getType() {
-        return type;
-    }
-
-    public String getLocation() {
-        return location;
-    }
-
-    public String getSize() {
-        return size;
-    }
-
-    public List<String> getAmenities() {
-        return amenities;
-    }
-
-    public BigDecimal getDailyRate() {
-        return dailyRate;
-    }
-
-    public Integer getAvailability() {
-        return availability;
     }
 
     private static List<String> sanitizeAmenities(List<String> amenities) {

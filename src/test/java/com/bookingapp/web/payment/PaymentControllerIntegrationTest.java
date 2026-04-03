@@ -235,7 +235,7 @@ class PaymentControllerIntegrationTest extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$.sessionUrl").value("https://checkout.example/sess_created"))
                 .andExpect(jsonPath("$.amountToPay").value(600));
 
-        assertThat(jpaPaymentRepository.count()).isEqualTo(1);
+        assertThat(countEntities("PaymentEntity")).isEqualTo(1);
         Payment savedPayment = paymentRepository.findByBookingId(booking.getId()).orElseThrow();
         assertThat(savedPayment.getStatus()).isEqualTo(PaymentStatus.PENDING);
         assertThat(savedPayment.getSessionId()).isEqualTo("sess_created");
@@ -269,7 +269,7 @@ class PaymentControllerIntegrationTest extends AbstractControllerIntegrationTest
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.path").value("/payments"));
 
-        assertThat(jpaPaymentRepository.count()).isZero();
+        assertThat(countEntities("PaymentEntity")).isZero();
     }
 
     @Test
