@@ -1,7 +1,5 @@
 package com.bookingapp.web.controller;
 
-import com.bookingapp.domain.model.Accommodation;
-import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.service.BookingService;
 import com.bookingapp.web.dto.BookingDetailResponse;
@@ -15,6 +13,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -29,28 +29,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/bookings")
 @Tag(name = "Bookings", description = "Booking operations for customers and admins")
+@RequiredArgsConstructor
 public class BookingController {
 
     private final BookingService bookingService;
     private final BookingWebMapper bookingWebMapper;
 
-    public BookingController(
-            BookingService bookingService,
-            BookingWebMapper bookingWebMapper
-    ) {
-        this.bookingService = bookingService;
-        this.bookingWebMapper = bookingWebMapper;
-    }
-
     @PostMapping
     @Operation(summary = "Create booking", security = @SecurityRequirement(name = "bearerAuth"))
     public BookingResponse createBooking(@Valid @RequestBody CreateBookingRequest request) {
-        Booking createdBooking = bookingService.createBooking(
-                request.accommodationId(),
-                request.checkInDate(),
-                request.checkOutDate()
-        );
-        return bookingWebMapper.toResponse(createdBooking);
+        return bookingWebMapper.toResponse(bookingService.createBooking(request));
     }
 
     @GetMapping
@@ -77,9 +65,7 @@ public class BookingController {
     @GetMapping("/{id}")
     @Operation(summary = "Get booking by id", security = @SecurityRequirement(name = "bearerAuth"))
     public BookingDetailResponse getBookingById(@PathVariable("id") Long id) {
-        Booking booking = bookingService.getBookingById(id);
-        Accommodation accommodation = bookingService.getAccommodationByBookingId(id);
-        return bookingWebMapper.toDetailResponse(booking, accommodation);
+        return bookingWebMapper.toDetailResponse(bookingService.getBookingDetail(id));
     }
 
     @PutMapping("/{id}")
@@ -89,9 +75,7 @@ public class BookingController {
             @PathVariable("id") Long id,
             @Valid @RequestBody UpdateBookingRequest request
     ) {
-        Booking updatedBooking = bookingService.updateBooking(id,
-                request.checkInDate(), request.checkOutDate());
-        return bookingWebMapper.toResponse(updatedBooking);
+        return bookingWebMapper.toResponse(bookingService.updateBooking(id, request));
     }
 
     @PatchMapping("/{id}")
@@ -101,14 +85,12 @@ public class BookingController {
             @PathVariable("id") Long id,
             @Valid @RequestBody PatchBookingRequest request
     ) {
-        Booking updatedBooking = bookingService.patchBooking(id, request);
-        return bookingWebMapper.toResponse(updatedBooking);
+        return bookingWebMapper.toResponse(bookingService.patchBooking(id, request));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Cancel booking", security = @SecurityRequirement(name = "bearerAuth"))
     public BookingResponse cancelBooking(@PathVariable("id") Long id) {
-        Booking canceledBooking = bookingService.cancelBooking(id);
-        return bookingWebMapper.toResponse(canceledBooking);
+        return bookingWebMapper.toResponse(bookingService.cancelBooking(id));
     }
 }

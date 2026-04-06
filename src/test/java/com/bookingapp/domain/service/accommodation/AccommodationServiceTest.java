@@ -10,6 +10,8 @@ import com.bookingapp.domain.model.enums.AccommodationType;
 import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.exception.EntityNotFoundDomainException;
 import com.bookingapp.domain.model.Accommodation;
+import com.bookingapp.web.dto.CreateAccommodationRequest;
+import com.bookingapp.web.dto.UpdateAccommodationRequest;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -35,21 +37,8 @@ class AccommodationServiceTest {
 
     @Test
     void createAccommodation_shouldSaveAndPublishEvent() {
-
-        Accommodation savedAccommodation =
-                new Accommodation(
-                        1L,
-                        AccommodationType.APARTMENT,
-                        "Kyiv",
-                        "55m2",
-                        List.of("WiFi"),
-                        new BigDecimal("100"),
-                        3
-                );
-
-        when(accommodationRepository.save(any())).thenReturn(savedAccommodation);
-
-        Accommodation result = accommodationService.createAccommodation(
+        Accommodation savedAccommodation = new Accommodation(
+                1L,
                 AccommodationType.APARTMENT,
                 "Kyiv",
                 "55m2",
@@ -58,44 +47,54 @@ class AccommodationServiceTest {
                 3
         );
 
-        assertEquals(savedAccommodation, result);
+        when(accommodationRepository.save(any())).thenReturn(savedAccommodation);
 
+        CreateAccommodationRequest request = new CreateAccommodationRequest(
+                AccommodationType.APARTMENT,
+                "Kyiv",
+                "55m2",
+                List.of("WiFi"),
+                new BigDecimal("100"),
+                3
+        );
+
+        Accommodation result = accommodationService.createAccommodation(request);
+
+        assertEquals(savedAccommodation, result);
         verify(accommodationRepository).save(any());
         verify(kafkaEventPublisher).publishAccommodationCreated(savedAccommodation);
     }
 
     @Test
     void createAccommodationShouldRejectBlankLocation() {
+        CreateAccommodationRequest request = new CreateAccommodationRequest(
+                AccommodationType.APARTMENT,
+                "   ",
+                "55m2",
+                List.of("WiFi"),
+                new BigDecimal("100"),
+                1
+        );
 
         assertThrows(
                 BusinessValidationException.class,
-                () -> accommodationService.createAccommodation(
-                        AccommodationType.APARTMENT,
-                        "   ",
-                        "55m2",
-                        List.of("WiFi"),
-                        new BigDecimal("100"),
-                        1
-                )
+                () -> accommodationService.createAccommodation(request)
         );
     }
 
     @Test
     void getAccommodationById_shouldReturnAccommodation() {
+        Accommodation accommodation = new Accommodation(
+                1L,
+                AccommodationType.HOUSE,
+                "Lviv",
+                "80m2",
+                List.of("Parking"),
+                new BigDecimal("200"),
+                2
+        );
 
-        Accommodation accommodation =
-                new Accommodation(
-                        1L,
-                        AccommodationType.HOUSE,
-                        "Lviv",
-                        "80m2",
-                        List.of("Parking"),
-                        new BigDecimal("200"),
-                        2
-                );
-
-        when(accommodationRepository.findById(1L))
-                .thenReturn(Optional.of(accommodation));
+        when(accommodationRepository.findById(1L)).thenReturn(Optional.of(accommodation));
 
         Accommodation result = accommodationService.getAccommodationById(1L);
 
@@ -104,9 +103,7 @@ class AccommodationServiceTest {
 
     @Test
     void getAccommodationById_shouldThrow_whenNotFound() {
-
-        when(accommodationRepository.findById(1L))
-                .thenReturn(Optional.empty());
+        when(accommodationRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThrows(
                 EntityNotFoundDomainException.class,
@@ -116,31 +113,27 @@ class AccommodationServiceTest {
 
     @Test
     void listAccommodations_shouldReturnOnlyAvailable() {
+        Accommodation available = new Accommodation(
+                1L,
+                AccommodationType.APARTMENT,
+                "Kyiv",
+                "55m2",
+                List.of("WiFi"),
+                new BigDecimal("100"),
+                2
+        );
 
-        Accommodation available =
-                new Accommodation(
-                        1L,
-                        AccommodationType.APARTMENT,
-                        "Kyiv",
-                        "55m2",
-                        List.of("WiFi"),
-                        new BigDecimal("100"),
-                        2
-                );
+        Accommodation unavailable = new Accommodation(
+                2L,
+                AccommodationType.HOUSE,
+                "Lviv",
+                "100m2",
+                List.of("Parking"),
+                new BigDecimal("200"),
+                0
+        );
 
-        Accommodation unavailable =
-                new Accommodation(
-                        2L,
-                        AccommodationType.HOUSE,
-                        "Lviv",
-                        "100m2",
-                        List.of("Parking"),
-                        new BigDecimal("200"),
-                        0
-                );
-
-        when(accommodationRepository.findAll())
-                .thenReturn(List.of(available, unavailable));
+        when(accommodationRepository.findAll()).thenReturn(List.of(available, unavailable));
 
         List<Accommodation> result = accommodationService.listAccommodations();
 
@@ -150,54 +143,46 @@ class AccommodationServiceTest {
 
     @Test
     void updateAccommodation_shouldSaveUpdatedAccommodation() {
+        Accommodation existing = new Accommodation(
+                1L,
+                AccommodationType.APARTMENT,
+                "Kyiv",
+                "55m2",
+                List.of("WiFi"),
+                new BigDecimal("100"),
+                1
+        );
 
-        Accommodation existing =
-                new Accommodation(
-                        1L,
-                        AccommodationType.APARTMENT,
-                        "Kyiv",
-                        "55m2",
-                        List.of("WiFi"),
-                        new BigDecimal("100"),
-                        1
-                );
+        Accommodation updated = new Accommodation(
+                1L,
+                AccommodationType.HOUSE,
+                "Krakow",
+                "80m2",
+                List.of("WiFi"),
+                new BigDecimal("150"),
+                2
+        );
 
-        Accommodation updated =
-                new Accommodation(
-                        1L,
-                        AccommodationType.HOUSE,
-                        "Krakow",
-                        "80m2",
-                        List.of("WiFi"),
-                        new BigDecimal("150"),
-                        2
-                );
+        when(accommodationRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(accommodationRepository.save(any())).thenReturn(updated);
 
-        when(accommodationRepository.findById(1L))
-                .thenReturn(Optional.of(existing));
+        UpdateAccommodationRequest request = new UpdateAccommodationRequest(
+                AccommodationType.HOUSE,
+                "Krakow",
+                "80m2",
+                List.of("WiFi"),
+                new BigDecimal("150"),
+                2
+        );
 
-        when(accommodationRepository.save(any()))
-                .thenReturn(updated);
-
-        Accommodation result =
-                accommodationService.updateAccommodation(
-                        1L,
-                        AccommodationType.HOUSE,
-                        "Krakow",
-                        "80m2",
-                        List.of("WiFi"),
-                        new BigDecimal("150"),
-                        2
-                );
+        Accommodation result = accommodationService.updateAccommodation(1L, request);
 
         assertEquals(updated, result);
-
         verify(accommodationRepository).save(any());
     }
 
     @Test
     void deleteAccommodation_shouldDelete_whenExists() {
-
         when(accommodationRepository.existsById(1L)).thenReturn(true);
 
         accommodationService.deleteAccommodation(1L);
@@ -207,7 +192,6 @@ class AccommodationServiceTest {
 
     @Test
     void deleteAccommodation_shouldThrow_whenNotExists() {
-
         when(accommodationRepository.existsById(1L)).thenReturn(false);
 
         assertThrows(

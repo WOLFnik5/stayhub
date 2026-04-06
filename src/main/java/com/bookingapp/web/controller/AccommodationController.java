@@ -1,6 +1,5 @@
 package com.bookingapp.web.controller;
 
-import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.service.AccommodationService;
 import com.bookingapp.web.dto.AccommodationDetailResponse;
 import com.bookingapp.web.dto.AccommodationListResponse;
@@ -13,6 +12,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,18 +29,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/accommodations")
 @Tag(name = "Accommodations", description = "Accommodation catalog management")
+@RequiredArgsConstructor
 public class AccommodationController {
 
     private final AccommodationService accommodationService;
     private final AccommodationWebMapper accommodationWebMapper;
-
-    public AccommodationController(
-            AccommodationService accommodationService,
-            AccommodationWebMapper accommodationWebMapper
-    ) {
-        this.accommodationService = accommodationService;
-        this.accommodationWebMapper = accommodationWebMapper;
-    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -48,15 +42,9 @@ public class AccommodationController {
     public AccommodationDetailResponse createAccommodation(
             @Valid @RequestBody CreateAccommodationRequest request
     ) {
-        Accommodation createdAccommodation = accommodationService.createAccommodation(
-                request.type(),
-                request.location(),
-                request.size(),
-                request.amenities(),
-                request.dailyRate(),
-                request.availability()
+        return accommodationWebMapper.toDetailResponse(
+                accommodationService.createAccommodation(request)
         );
-        return accommodationWebMapper.toDetailResponse(createdAccommodation);
     }
 
     @GetMapping
@@ -70,8 +58,9 @@ public class AccommodationController {
     @GetMapping("/{id}")
     @Operation(summary = "Get accommodation by id")
     public AccommodationDetailResponse getAccommodationById(@PathVariable("id") Long id) {
-        return accommodationWebMapper
-                .toDetailResponse(accommodationService.getAccommodationById(id));
+        return accommodationWebMapper.toDetailResponse(
+                accommodationService.getAccommodationById(id)
+        );
     }
 
     @PutMapping("/{id}")
@@ -81,16 +70,9 @@ public class AccommodationController {
             @PathVariable("id") Long id,
             @Valid @RequestBody UpdateAccommodationRequest request
     ) {
-        Accommodation updatedAccommodation = accommodationService.updateAccommodation(
-                id,
-                request.type(),
-                request.location(),
-                request.size(),
-                request.amenities(),
-                request.dailyRate(),
-                request.availability()
+        return accommodationWebMapper.toDetailResponse(
+                accommodationService.updateAccommodation(id, request)
         );
-        return accommodationWebMapper.toDetailResponse(updatedAccommodation);
     }
 
     @PatchMapping("/{id}")
@@ -100,8 +82,9 @@ public class AccommodationController {
             @PathVariable("id") Long id,
             @Valid @RequestBody PatchAccommodationRequest request
     ) {
-        Accommodation updatedAccommodation = accommodationService.patchAccommodation(id, request);
-        return accommodationWebMapper.toDetailResponse(updatedAccommodation);
+        return accommodationWebMapper.toDetailResponse(
+                accommodationService.patchAccommodation(id, request)
+        );
     }
 
     @DeleteMapping("/{id}")

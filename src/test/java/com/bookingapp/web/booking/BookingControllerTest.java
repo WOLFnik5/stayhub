@@ -1,30 +1,5 @@
 package com.bookingapp.web.booking;
 
-import com.bookingapp.persistence.BookingFilterQuery;
-import com.bookingapp.web.ControllerTestSecurityConfig;
-import com.bookingapp.web.controller.BookingController;
-import com.bookingapp.web.mapper.BookingWebMapperImpl;
-import com.bookingapp.service.BookingService;
-import com.bookingapp.exception.GlobalExceptionHandler;
-import com.bookingapp.domain.model.enums.AccommodationType;
-import com.bookingapp.domain.model.enums.BookingStatus;
-import com.bookingapp.domain.model.Accommodation;
-import com.bookingapp.domain.model.Booking;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.FilterType;
-import org.springframework.context.annotation.Import;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
-
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -34,6 +9,31 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.bookingapp.persistence.BookingFilterQuery;
+import com.bookingapp.web.ControllerTestSecurityConfig;
+import com.bookingapp.web.controller.BookingController;
+import com.bookingapp.web.dto.BookingDetail;
+import com.bookingapp.web.dto.CreateBookingRequest;
+import com.bookingapp.web.mapper.BookingWebMapperImpl;
+import com.bookingapp.service.BookingService;
+import com.bookingapp.exception.GlobalExceptionHandler;
+import com.bookingapp.domain.model.enums.AccommodationType;
+import com.bookingapp.domain.model.enums.BookingStatus;
+import com.bookingapp.domain.model.Accommodation;
+import com.bookingapp.domain.model.Booking;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(
         controllers = BookingController.class,
@@ -61,7 +61,7 @@ class BookingControllerTest {
 
     @Test
     void createBookingShouldReturnCreatedBookingForAuthenticatedUser() throws Exception {
-        when(bookingService.createBooking(anyLong(), any(LocalDate.class), any(LocalDate.class))).thenReturn(
+        when(bookingService.createBooking(any(CreateBookingRequest.class))).thenReturn(
                 new Booking(9L, LocalDate.of(2099, 4, 10), LocalDate.of(2099, 4, 12), 3L, 15L, BookingStatus.PENDING)
         );
 
@@ -150,11 +150,11 @@ class BookingControllerTest {
 
     @Test
     void getBookingByIdShouldReturnDetailedJson() throws Exception {
-        when(bookingService.getBookingById(9L)).thenReturn(
-                new Booking(9L, LocalDate.of(2099, 4, 10), LocalDate.of(2099, 4, 12), 3L, 15L, BookingStatus.PENDING)
-        );
-        when(bookingService.getAccommodationByBookingId(9L)).thenReturn(
-                new Accommodation(3L, AccommodationType.HOUSE, "Warsaw", "2 rooms", List.of("wifi"), BigDecimal.valueOf(120), 2)
+        when(bookingService.getBookingDetail(9L)).thenReturn(
+                new BookingDetail(
+                        new Booking(9L, LocalDate.of(2099, 4, 10), LocalDate.of(2099, 4, 12), 3L, 15L, BookingStatus.PENDING),
+                        new Accommodation(3L, AccommodationType.HOUSE, "Warsaw", "2 rooms", List.of("wifi"), BigDecimal.valueOf(120), 2)
+                )
         );
 
         mockMvc.perform(get("/bookings/9").with(user("customer@example.com").roles("CUSTOMER")))

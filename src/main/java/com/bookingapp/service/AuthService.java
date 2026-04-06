@@ -8,6 +8,8 @@ import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.infrastructure.security.JwtTokenService;
 import com.bookingapp.persistence.UserRepositoryImpl;
 import com.bookingapp.web.dto.AuthenticationResult;
+import com.bookingapp.web.dto.LoginRequest;
+import com.bookingapp.web.dto.RegisterRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,25 +33,22 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthenticationResult register(
-            String email,
-            String firstName,
-            String lastName,
-            String password
-    ) {
-        String normalizedEmail = requireNonBlank(email, "User email must not be blank");
+    public AuthenticationResult register(RegisterRequest request) {
+        String normalizedEmail = requireNonBlank(
+                request.email(), "User email must not be blank"
+        );
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw new BusinessValidationException(
                     "User with email '" + normalizedEmail + "' already exists"
             );
         }
 
-        String encodedPassword = passwordEncoder.encode(password);
+        String encodedPassword = passwordEncoder.encode(request.password());
         User userToSave = new User(
                 null,
                 normalizedEmail,
-                requireNonBlank(firstName, "User first name must not be blank"),
-                requireNonBlank(lastName, "User last name must not be blank"),
+                requireNonBlank(request.firstName(), "User first name must not be blank"),
+                requireNonBlank(request.lastName(), "User last name must not be blank"),
                 requireNonBlank(encodedPassword, "User password must not be blank"),
                 UserRole.CUSTOMER
         );
@@ -61,15 +60,17 @@ public class AuthService {
         );
     }
 
-    public AuthenticationResult login(String email, String password) {
-        User user = userRepository.findByEmail(email)
+    public AuthenticationResult login(LoginRequest request) {
+        User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new BusinessValidationException("Invalid email or password"));
 
-        if (!passwordEncoder.matches(password, user.getPassword())) {
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new BusinessValidationException("Invalid email or password");
         }
 
         String accessToken = jwtTokenService.generateToken(user);
-        return new AuthenticationResult(accessToken, user.getId(), user.getEmail(), user.getRole());
+        return new AuthenticationResult(
+                accessToken, user.getId(), user.getEmail(), user.getRole()
+        );
     }
 }

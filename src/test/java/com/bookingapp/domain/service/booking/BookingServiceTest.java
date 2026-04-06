@@ -2,6 +2,7 @@ package com.bookingapp.domain.service.booking;
 
 import com.bookingapp.persistence.BookingFilterQuery;
 import com.bookingapp.infrastructure.security.CurrentUser;
+import com.bookingapp.web.dto.BookingDetail;
 import com.bookingapp.service.BookingService;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
 import com.bookingapp.infrastructure.security.CurrentUserService;
@@ -19,6 +20,8 @@ import com.bookingapp.exception.InvalidBookingStateException;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.Payment;
+import com.bookingapp.web.dto.CreateBookingRequest;
+import com.bookingapp.web.dto.UpdateBookingRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -87,11 +90,13 @@ class BookingServiceTest {
             );
         });
 
-        Booking result = bookingService.createBooking(
+        CreateBookingRequest request = new CreateBookingRequest(
                 3L,
                 LocalDate.now().plusDays(5),
                 LocalDate.now().plusDays(8)
         );
+
+        Booking result = bookingService.createBooking(request);
 
         assertThat(result.getId()).isEqualTo(101L);
         assertThat(result.getAccommodationId()).isEqualTo(3L);
@@ -102,7 +107,6 @@ class BookingServiceTest {
 
     @Test
     void createBookingShouldRejectOverlap() {
-        CurrentUser currentUser = new CurrentUser(15L, "customer@example.com", UserRole.CUSTOMER);
         Accommodation accommodation = new Accommodation(
                 3L,
                 AccommodationType.HOUSE,
@@ -116,11 +120,13 @@ class BookingServiceTest {
         when(bookingRepository.existsActiveBookingOverlap(eq(3L), any(LocalDate.class), any(LocalDate.class), eq(null)))
                 .thenReturn(true);
 
-        assertThatThrownBy(() -> bookingService.createBooking(
+        CreateBookingRequest request = new CreateBookingRequest(
                 3L,
                 LocalDate.now().plusDays(5),
                 LocalDate.now().plusDays(8)
-        ))
+        );
+
+        assertThatThrownBy(() -> bookingService.createBooking(request))
                 .isInstanceOf(BookingConflictException.class)
                 .hasMessageContaining("already booked");
 
@@ -129,7 +135,6 @@ class BookingServiceTest {
 
     @Test
     void createBookingShouldRejectWhenAccommodationAvailabilityIsZero() {
-        CurrentUser currentUser = new CurrentUser(15L, "customer@example.com", UserRole.CUSTOMER);
         Accommodation accommodation = new Accommodation(
                 3L,
                 AccommodationType.HOUSE,
@@ -141,11 +146,13 @@ class BookingServiceTest {
         );
         when(accommodationRepository.findById(3L)).thenReturn(Optional.of(accommodation));
 
-        assertThatThrownBy(() -> bookingService.createBooking(
+        CreateBookingRequest request = new CreateBookingRequest(
                 3L,
                 LocalDate.now().plusDays(5),
                 LocalDate.now().plusDays(8)
-        ))
+        );
+
+        assertThatThrownBy(() -> bookingService.createBooking(request))
                 .isInstanceOf(BusinessValidationException.class)
                 .hasMessageContaining("not available");
 
@@ -233,6 +240,57 @@ class BookingServiceTest {
         when(bookingRepository.findById(8L)).thenReturn(Optional.of(booking));
 
         assertThatThrownBy(() -> bookingService.getBookingById(8L))
+                .isInstanceOf(ForbiddenOperationException.class)
+                .hasMessageContaining("Access denied");
+    }
+
+    @Test
+    void getBookingDetailShouldReturnBookingAndAccommodation() {
+        CurrentUser currentUser = new CurrentUser(15L, "customer@example.com", UserRole.CUSTOMER);
+        Booking booking = new Booking(
+                8L,
+                LocalDate.now().plusDays(2),
+                LocalDate.now().plusDays(4),
+                3L,
+                15L,
+                BookingStatus.PENDING
+        );
+        Accommodation accommodation = new Accommodation(
+                3L,
+                AccommodationType.HOUSE,
+                "Warsaw",
+                "2 rooms",
+                List.of("wifi"),
+                BigDecimal.valueOf(120),
+                2
+        );
+
+        when(currentUserService.getCurrentUser()).thenReturn(currentUser);
+        when(bookingRepository.findById(8L)).thenReturn(Optional.of(booking));
+        when(accommodationRepository.findById(3L)).thenReturn(Optional.of(accommodation));
+
+        BookingDetail result = bookingService.getBookingDetail(8L);
+
+        assertThat(result.booking()).isEqualTo(booking);
+        assertThat(result.accommodation()).isEqualTo(accommodation);
+    }
+
+    @Test
+    void getBookingDetailShouldRejectForeignCustomer() {
+        CurrentUser intruder = new CurrentUser(99L, "intruder@example.com", UserRole.CUSTOMER);
+        Booking booking = new Booking(
+                8L,
+                LocalDate.now().plusDays(2),
+                LocalDate.now().plusDays(4),
+                3L,
+                15L,
+                BookingStatus.PENDING
+        );
+
+        when(currentUserService.getCurrentUser()).thenReturn(intruder);
+        when(bookingRepository.findById(8L)).thenReturn(Optional.of(booking));
+
+        assertThatThrownBy(() -> bookingService.getBookingDetail(8L))
                 .isInstanceOf(ForbiddenOperationException.class)
                 .hasMessageContaining("Access denied");
     }
@@ -353,11 +411,12 @@ class BookingServiceTest {
                 .thenReturn(false);
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Booking result = bookingService.updateBooking(
-                8L,
+        UpdateBookingRequest request = new UpdateBookingRequest(
                 LocalDate.now().plusDays(5),
                 LocalDate.now().plusDays(7)
         );
+
+        Booking result = bookingService.updateBooking(8L, request);
 
         assertThat(result.getCheckInDate()).isEqualTo(LocalDate.now().plusDays(5));
         assertThat(result.getCheckOutDate()).isEqualTo(LocalDate.now().plusDays(7));
@@ -388,11 +447,12 @@ class BookingServiceTest {
         when(bookingRepository.findById(8L)).thenReturn(Optional.of(existingBooking));
         when(paymentRepository.findByBookingId(8L)).thenReturn(Optional.of(paidPayment));
 
-        assertThatThrownBy(() -> bookingService.updateBooking(
-                8L,
+        UpdateBookingRequest request = new UpdateBookingRequest(
                 LocalDate.now().plusDays(5),
                 LocalDate.now().plusDays(7)
-        ))
+        );
+
+        assertThatThrownBy(() -> bookingService.updateBooking(8L, request))
                 .isInstanceOf(BusinessValidationException.class)
                 .hasMessageContaining("Paid booking cannot be updated");
     }

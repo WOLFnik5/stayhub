@@ -11,6 +11,7 @@ import com.bookingapp.infrastructure.security.CurrentUser;
 import com.bookingapp.infrastructure.security.CurrentUserService;
 import com.bookingapp.persistence.UserRepositoryImpl;
 import com.bookingapp.web.dto.PatchCurrentUserRequest;
+import com.bookingapp.web.dto.UpdateCurrentUserRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,10 +36,10 @@ public class UserService {
     }
 
     @Transactional
-    public User updateCurrentUserProfile(String email, String firstName, String lastName) {
+    public User updateCurrentUserProfile(UpdateCurrentUserRequest request) {
         CurrentUser currentUser = currentUserService.getCurrentUser();
         User existingUser = getUserById(currentUser.id());
-        String normalizedEmail = requireNonBlank(email, "User email must not be blank");
+        String normalizedEmail = requireNonBlank(request.email(), "User email must not be blank");
 
         if (!existingUser.getEmail().equals(normalizedEmail)
                 && userRepository.existsByEmail(normalizedEmail)) {
@@ -48,11 +49,11 @@ public class UserService {
         }
 
         String normalizedFirstName = requireNonBlank(
-                firstName,
+                request.firstName(),
                 "User first name must not be blank"
         );
         String normalizedLastName = requireNonBlank(
-                lastName,
+                request.lastName(),
                 "User last name must not be blank"
         );
         existingUser.setEmail(normalizedEmail);
@@ -69,13 +70,6 @@ public class UserService {
         }
         existingUser.setRole(role);
         return userRepository.save(existingUser);
-    }
-
-    private User getUserById(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundDomainException("User with id '"
-                        + userId
-                        + "' was not found"));
     }
 
     @Transactional
@@ -103,5 +97,12 @@ public class UserService {
         existing.setFirstName(firstName);
         existing.setLastName(lastName);
         return userRepository.save(existing);
+    }
+
+    private User getUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundDomainException("User with id '"
+                        + userId
+                        + "' was not found"));
     }
 }

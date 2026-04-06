@@ -9,6 +9,7 @@ import com.bookingapp.persistence.outbox.OutboxStatus;
 import com.bookingapp.service.AccommodationService;
 import com.bookingapp.domain.model.enums.AccommodationType;
 import com.bookingapp.domain.model.Accommodation;
+import com.bookingapp.web.dto.CreateAccommodationRequest;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.util.List;
@@ -32,7 +33,7 @@ class AccommodationOutboxIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void createAccommodation_shouldSaveOutboxEvent() {
-        Accommodation savedAccommodation = accommodationService.createAccommodation(
+        CreateAccommodationRequest request = new CreateAccommodationRequest(
                 AccommodationType.APARTMENT,
                 "Kyiv",
                 "55m2",
@@ -40,6 +41,8 @@ class AccommodationOutboxIntegrationTest extends AbstractIntegrationTest {
                 new BigDecimal("120.00"),
                 5
         );
+
+        Accommodation savedAccommodation = accommodationService.createAccommodation(request);
 
         assertNotNull(savedAccommodation.getId());
 

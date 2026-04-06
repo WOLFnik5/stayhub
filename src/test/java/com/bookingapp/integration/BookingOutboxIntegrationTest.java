@@ -13,6 +13,8 @@ import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.infrastructure.security.AuthenticatedUserPrincipal;
+import com.bookingapp.web.dto.CreateAccommodationRequest;
+import com.bookingapp.web.dto.CreateBookingRequest;
 import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
@@ -89,7 +91,7 @@ class BookingOutboxIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void createBooking_shouldSaveOutboxEvent() {
-        Accommodation accommodation = accommodationService.createAccommodation(
+        CreateAccommodationRequest accommodationRequest = new CreateAccommodationRequest(
                 AccommodationType.APARTMENT,
                 "Kyiv",
                 "55m2",
@@ -97,12 +99,14 @@ class BookingOutboxIntegrationTest extends AbstractIntegrationTest {
                 new BigDecimal("120.00"),
                 5
         );
+        Accommodation accommodation = accommodationService.createAccommodation(accommodationRequest);
 
-        Booking savedBooking = bookingService.createBooking(
+        CreateBookingRequest bookingRequest = new CreateBookingRequest(
                 accommodation.getId(),
                 LocalDate.of(2026, 1, 10),
                 LocalDate.of(2026, 1, 15)
         );
+        Booking savedBooking = bookingService.createBooking(bookingRequest);
 
         OutboxEventEntity event = outboxEventJpaRepository.findAll().stream()
                 .filter(e -> "Booking".equals(e.getAggregateType()))
