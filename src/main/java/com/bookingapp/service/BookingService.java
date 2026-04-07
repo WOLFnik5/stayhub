@@ -20,7 +20,10 @@ import com.bookingapp.persistence.AccommodationRepositoryImpl;
 import com.bookingapp.persistence.BookingFilterQuery;
 import com.bookingapp.persistence.BookingRepositoryImpl;
 import com.bookingapp.persistence.PaymentRepositoryImpl;
+import com.bookingapp.web.dto.BookingDetail;
+import com.bookingapp.web.dto.CreateBookingRequest;
 import com.bookingapp.web.dto.PatchBookingRequest;
+import com.bookingapp.web.dto.UpdateBookingRequest;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -51,21 +54,18 @@ public class BookingService {
     }
 
     @Transactional
-    public Booking createBooking(
-            Long accommodationId,
-            LocalDate checkInDate,
-            LocalDate checkOutDate
-    ) {
-        Accommodation accommodation = getAccommodation(accommodationId);
-        validateBookingDates(checkInDate, checkOutDate);
+    public Booking createBooking(CreateBookingRequest request) {
+        Accommodation accommodation = getAccommodation(request.accommodationId());
+        validateBookingDates(request.checkInDate(), request.checkOutDate());
         ensureAccommodationHasAvailability(accommodation);
-        ensureNoOverlap(accommodationId, checkInDate, checkOutDate, null);
+        ensureNoOverlap(request.accommodationId(), request.checkInDate(), request.checkOutDate(),
+                null);
         CurrentUser currentUser = currentUserService.getCurrentUser();
 
         Booking bookingToSave = new Booking(
                 null,
-                checkInDate,
-                checkOutDate,
+                request.checkInDate(),
+                request.checkOutDate(),
                 accommodation.getId(),
                 currentUser.id(),
                 BookingStatus.PENDING
@@ -76,24 +76,26 @@ public class BookingService {
         return savedBooking;
     }
 
+    public BookingDetail getBookingDetail(Long bookingId) {
+        Booking booking = findBookingById(bookingId);
+        ensureCurrentUserCanAccessBooking(booking);
+        Accommodation accommodation = getAccommodation(booking.getAccommodationId());
+        return new BookingDetail(booking, accommodation);
+    }
+
     public Booking getBookingById(Long bookingId) {
         Booking booking = findBookingById(bookingId);
         ensureCurrentUserCanAccessBooking(booking);
         return booking;
     }
 
-    public Accommodation getAccommodationByBookingId(Long bookingId) {
-        Booking booking = getBookingById(bookingId);
-        return getAccommodation(booking.getAccommodationId());
-    }
-
     public List<Booking> listBookings(BookingFilterQuery query) {
         CurrentUser currentUser = currentUserService.getCurrentUser();
 
         if (currentUser.role() == UserRole.ADMIN) {
-            BookingFilterQuery effectiveQuery = query == null ? new BookingFilterQuery(
-                    null,
-                    null) : query;
+            BookingFilterQuery effectiveQuery = query == null
+                    ? new BookingFilterQuery(null, null)
+                    : query;
             return bookingRepository.findAllByFilter(effectiveQuery);
         }
 
@@ -113,20 +115,20 @@ public class BookingService {
     }
 
     @Transactional
-    public Booking updateBooking(Long bookingId, LocalDate checkInDate, LocalDate checkOutDate) {
+    public Booking updateBooking(Long bookingId, UpdateBookingRequest request) {
         Booking existingBooking = findBookingById(bookingId);
         ensureCurrentUserCanAccessBooking(existingBooking);
         ensureBookingCanBeUpdated(existingBooking);
-        validateBookingDates(checkInDate, checkOutDate);
+        validateBookingDates(request.checkInDate(), request.checkOutDate());
         ensureNoOverlap(
                 existingBooking.getAccommodationId(),
-                checkInDate,
-                checkOutDate,
+                request.checkInDate(),
+                request.checkOutDate(),
                 existingBooking.getId()
         );
 
-        existingBooking.setCheckInDate(checkInDate);
-        existingBooking.setCheckOutDate(checkOutDate);
+        existingBooking.setCheckInDate(request.checkInDate());
+        existingBooking.setCheckOutDate(request.checkOutDate());
         return bookingRepository.save(existingBooking);
     }
 
@@ -140,6 +142,27 @@ public class BookingService {
         Booking savedBooking = bookingRepository.save(existingBooking);
         kafkaEventPublisher.publishBookingCanceled(savedBooking);
         return savedBooking;
+    }
+
+    @Transactional
+    public Booking patchBooking(Long id, PatchBookingRequest request) {
+        Booking current = findBookingById(id);
+        ensureCurrentUserCanAccessBooking(current);
+        ensureBookingCanBeUpdated(current);
+
+        LocalDate checkInDate = request.checkInDate() != null
+                ? request.checkInDate()
+                : current.getCheckInDate();
+        LocalDate checkOutDate = request.checkOutDate() != null
+                ? request.checkOutDate()
+                : current.getCheckOutDate();
+
+        validateBookingDates(checkInDate, checkOutDate);
+        ensureNoOverlap(current.getAccommodationId(), checkInDate, checkOutDate, current.getId());
+
+        current.setCheckInDate(checkInDate);
+        current.setCheckOutDate(checkOutDate);
+        return bookingRepository.save(current);
     }
 
     private void ensureNoOverlap(
@@ -215,24 +238,5 @@ public class BookingService {
                                 + accommodationId
                                 + "' was not found")
                 );
-    }
-
-    @Transactional
-    public Booking patchBooking(Long id, PatchBookingRequest request) {
-        Booking current = findBookingById(id);
-        ensureCurrentUserCanAccessBooking(current);
-        ensureBookingCanBeUpdated(current);
-
-        LocalDate checkInDate =
-                request.checkInDate() != null ? request.checkInDate() : current.getCheckInDate();
-        LocalDate checkOutDate =
-                request.checkOutDate() != null ? request.checkOutDate() : current.getCheckOutDate();
-
-        validateBookingDates(checkInDate, checkOutDate);
-        ensureNoOverlap(current.getAccommodationId(), checkInDate, checkOutDate, current.getId());
-
-        current.setCheckInDate(checkInDate);
-        current.setCheckOutDate(checkOutDate);
-        return bookingRepository.save(current);
     }
 }

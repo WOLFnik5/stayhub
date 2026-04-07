@@ -9,7 +9,9 @@ import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.exception.EntityNotFoundDomainException;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
 import com.bookingapp.persistence.AccommodationRepositoryImpl;
+import com.bookingapp.web.dto.CreateAccommodationRequest;
 import com.bookingapp.web.dto.PatchAccommodationRequest;
+import com.bookingapp.web.dto.UpdateAccommodationRequest;
 import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -31,22 +33,15 @@ public class AccommodationService {
     }
 
     @Transactional
-    public Accommodation createAccommodation(
-            AccommodationType type,
-            String location,
-            String size,
-            List<String> amenities,
-            BigDecimal dailyRate,
-            int availability
-    ) {
+    public Accommodation createAccommodation(CreateAccommodationRequest request) {
         Accommodation accommodationToSave = buildAccommodation(
                 null,
-                type,
-                location,
-                size,
-                amenities,
-                dailyRate,
-                availability
+                request.type(),
+                request.location(),
+                request.size(),
+                request.amenities(),
+                request.dailyRate(),
+                request.availability()
         );
 
         Accommodation savedAccommodation = accommodationRepository.save(accommodationToSave);
@@ -70,22 +65,17 @@ public class AccommodationService {
     @Transactional
     public Accommodation updateAccommodation(
             Long accommodationId,
-            AccommodationType type,
-            String location,
-            String size,
-            List<String> amenities,
-            BigDecimal dailyRate,
-            int availability
+            UpdateAccommodationRequest request
     ) {
         Accommodation existingAccommodation = getAccommodationById(accommodationId);
         Accommodation updatedAccommodation = buildAccommodation(
                 existingAccommodation.getId(),
-                type,
-                location,
-                size,
-                amenities,
-                dailyRate,
-                availability
+                request.type(),
+                request.location(),
+                request.size(),
+                request.amenities(),
+                request.dailyRate(),
+                request.availability()
         );
 
         return accommodationRepository.save(updatedAccommodation);
@@ -121,7 +111,7 @@ public class AccommodationService {
                 ? request.dailyRate()
                 : current.getDailyRate();
 
-        int availability = request.availability() != null // optional.ofnullable
+        int availability = request.availability() != null
                 ? request.availability()
                 : current.getAvailability();
 

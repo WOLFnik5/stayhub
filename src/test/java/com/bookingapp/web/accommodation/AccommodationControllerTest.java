@@ -2,6 +2,7 @@ package com.bookingapp.web.accommodation;
 
 import com.bookingapp.web.ControllerTestSecurityConfig;
 import com.bookingapp.web.controller.AccommodationController;
+import com.bookingapp.web.dto.CreateAccommodationRequest;
 import com.bookingapp.web.mapper.AccommodationWebMapperImpl;
 import com.bookingapp.service.AccommodationService;
 import com.bookingapp.exception.GlobalExceptionHandler;
@@ -21,9 +22,6 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -85,16 +83,18 @@ class AccommodationControllerTest {
 
     @Test
     void createAccommodationShouldReturnCreatedJsonForAdmin() throws Exception {
-        when(accommodationService.createAccommodation(
-                any(AccommodationType.class),
-                anyString(),
-                anyString(),
-                anyList(),
-                any(BigDecimal.class),
-                anyInt()
-        )).thenReturn(
-                new Accommodation(1L, AccommodationType.HOUSE, "Warsaw", "2 rooms", List.of("wifi", "parking"), BigDecimal.valueOf(120), 2)
-        );
+        when(accommodationService.createAccommodation(any(CreateAccommodationRequest.class)))
+                .thenReturn(
+                        new Accommodation(
+                                1L,
+                                AccommodationType.HOUSE,
+                                "Warsaw",
+                                "2 rooms",
+                                List.of("wifi", "parking"),
+                                BigDecimal.valueOf(120),
+                                2
+                        )
+                );
 
         mockMvc.perform(post("/accommodations")
                         .with(user("admin@example.com").roles("ADMIN"))

@@ -1,6 +1,5 @@
 package com.bookingapp.web.controller;
 
-import com.bookingapp.domain.model.User;
 import com.bookingapp.service.UserService;
 import com.bookingapp.web.dto.PatchCurrentUserRequest;
 import com.bookingapp.web.dto.UpdateCurrentUserRequest;
@@ -11,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,18 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/users")
 @Tag(name = "Users", description = "User profile and role management")
+@RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
     private final UserWebMapper userWebMapper;
-
-    public UserController(
-            UserService userService,
-            UserWebMapper userWebMapper
-    ) {
-        this.userService = userService;
-        this.userWebMapper = userWebMapper;
-    }
 
     @PutMapping("/{id}/role")
     @Operation(summary = "Update user role", security = @SecurityRequirement(name = "bearerAuth"))
@@ -41,8 +34,7 @@ public class UserController {
             @PathVariable("id") Long id,
             @Valid @RequestBody UpdateUserRoleRequest request
     ) {
-        User updatedUser = userService.updateUserRole(id, request.role());
-        return userWebMapper.toResponse(updatedUser);
+        return userWebMapper.toResponse(userService.updateUserRole(id, request.role()));
     }
 
     @GetMapping("/me")
@@ -58,12 +50,7 @@ public class UserController {
     public UserProfileResponse updateCurrentUserProfile(
             @Valid @RequestBody UpdateCurrentUserRequest request
     ) {
-        User updatedUser = userService.updateCurrentUserProfile(
-                request.email(),
-                request.firstName(),
-                request.lastName()
-        );
-        return userWebMapper.toResponse(updatedUser);
+        return userWebMapper.toResponse(userService.updateCurrentUserProfile(request));
     }
 
     @PatchMapping("/me")
@@ -72,7 +59,6 @@ public class UserController {
     public UserProfileResponse patchCurrentUserProfile(
             @Valid @RequestBody PatchCurrentUserRequest request
     ) {
-        User updatedUser = userService.patchCurrentUserProfile(request);
-        return userWebMapper.toResponse(updatedUser);
+        return userWebMapper.toResponse(userService.patchCurrentUserProfile(request));
     }
 }

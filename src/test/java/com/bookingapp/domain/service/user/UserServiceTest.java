@@ -7,6 +7,7 @@ import com.bookingapp.infrastructure.security.CurrentUserService;
 import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.domain.model.User;
+import com.bookingapp.web.dto.UpdateCurrentUserRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -53,7 +54,13 @@ class UserServiceTest {
         when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        User result = userService.updateCurrentUserProfile("new@example.com", "Jane", "Smith");
+        UpdateCurrentUserRequest request = new UpdateCurrentUserRequest(
+                "new@example.com",
+                "Jane",
+                "Smith"
+        );
+
+        User result = userService.updateCurrentUserProfile(request);
 
         assertThat(result.getEmail()).isEqualTo("new@example.com");
         assertThat(result.getFirstName()).isEqualTo("Jane");
@@ -68,7 +75,13 @@ class UserServiceTest {
         when(userRepository.findById(15L)).thenReturn(Optional.of(existingUser));
         when(userRepository.existsByEmail("taken@example.com")).thenReturn(true);
 
-        assertThatThrownBy(() -> userService.updateCurrentUserProfile("taken@example.com", "Jane", "Smith"))
+        UpdateCurrentUserRequest request = new UpdateCurrentUserRequest(
+                "taken@example.com",
+                "Jane",
+                "Smith"
+        );
+
+        assertThatThrownBy(() -> userService.updateCurrentUserProfile(request))
                 .isInstanceOf(BusinessValidationException.class)
                 .hasMessageContaining("already exists");
     }

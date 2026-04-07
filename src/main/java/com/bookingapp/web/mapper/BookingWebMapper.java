@@ -1,11 +1,10 @@
 package com.bookingapp.web.mapper;
 
-import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.infrastructure.config.MapStructConfig;
 import com.bookingapp.persistence.BookingFilterQuery;
-import com.bookingapp.web.dto.AccommodationSummaryResponse;
+import com.bookingapp.web.dto.BookingDetail;
 import com.bookingapp.web.dto.BookingDetailResponse;
 import com.bookingapp.web.dto.BookingResponse;
 import org.mapstruct.Mapper;
@@ -20,14 +19,12 @@ public interface BookingWebMapper {
 
     BookingResponse toResponse(Booking booking);
 
-    AccommodationSummaryResponse toAccommodationSummaryResponse(Accommodation accommodation);
-
-    @Mapping(target = "id", source = "booking.id")
-    @Mapping(target = "checkInDate", source = "booking.checkInDate")
-    @Mapping(target = "checkOutDate", source = "booking.checkOutDate")
-    @Mapping(target = "accommodationId", source = "booking.accommodationId")
-    @Mapping(target = "userId", source = "booking.userId")
-    @Mapping(target = "status", source = "booking.status")
-    @Mapping(target = "accommodation", source = "accommodation")
-    BookingDetailResponse toDetailResponse(Booking booking, Accommodation accommodation);
+    @Mapping(source = "detail.booking.id", target = "id")
+    @Mapping(source = "detail.booking.checkInDate", target = "checkInDate")
+    @Mapping(source = "detail.booking.checkOutDate", target = "checkOutDate")
+    @Mapping(source = "detail.booking.status", target = "status")
+    @Mapping(source = "detail.booking.userId", target = "userId")
+    @Mapping(source = "detail.accommodation", target = "accommodation")
+    @Mapping(source = "detail.booking.accommodationId", target = "accommodationId")
+    BookingDetailResponse toDetailResponse(BookingDetail detail);
 }

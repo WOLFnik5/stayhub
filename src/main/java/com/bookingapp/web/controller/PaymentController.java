@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,18 +24,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/payments")
 @Tag(name = "Payments", description = "Stripe payment session and callback operations")
+@RequiredArgsConstructor
 public class PaymentController {
 
     private final PaymentService paymentService;
     private final PaymentWebMapper paymentWebMapper;
-
-    public PaymentController(
-            PaymentService paymentService,
-            PaymentWebMapper paymentWebMapper
-    ) {
-        this.paymentService = paymentService;
-        this.paymentWebMapper = paymentWebMapper;
-    }
 
     @GetMapping
     @Operation(summary = "List payments", security = @SecurityRequirement(name = "bearerAuth"))

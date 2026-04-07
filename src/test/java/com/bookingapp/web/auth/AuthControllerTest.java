@@ -2,6 +2,8 @@ package com.bookingapp.web.auth;
 
 import com.bookingapp.web.controller.AuthController;
 import com.bookingapp.web.dto.AuthenticationResult;
+import com.bookingapp.web.dto.LoginRequest;
+import com.bookingapp.web.dto.RegisterRequest;
 import com.bookingapp.web.mapper.AuthWebMapperImpl;
 import com.bookingapp.service.AuthService;
 import com.bookingapp.exception.GlobalExceptionHandler;
@@ -17,7 +19,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -43,7 +44,7 @@ class AuthControllerTest {
 
     @Test
     void registerShouldReturnCreatedAuthResponse() throws Exception {
-        when(authService.register(anyString(), anyString(), anyString(), anyString())).thenReturn(
+        when(authService.register(any(RegisterRequest.class))).thenReturn(
                 new AuthenticationResult("jwt-token", 1L, "user@example.com", UserRole.CUSTOMER)
         );
 
@@ -65,12 +66,12 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.email").value("user@example.com"))
                 .andExpect(jsonPath("$.role").value("CUSTOMER"));
 
-        verify(authService).register(anyString(), anyString(), anyString(), anyString());
+        verify(authService).register(any(RegisterRequest.class));
     }
 
     @Test
     void loginShouldReturnAuthResponse() throws Exception {
-        when(authService.login(anyString(), anyString())).thenReturn(
+        when(authService.login(any(LoginRequest.class))).thenReturn(
                 new AuthenticationResult("login-token", 7L, "admin@example.com", UserRole.ADMIN)
         );
 
@@ -88,6 +89,8 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.userId").value(7))
                 .andExpect(jsonPath("$.email").value("admin@example.com"))
                 .andExpect(jsonPath("$.role").value("ADMIN"));
+
+        verify(authService).login(any(LoginRequest.class));
     }
 
     @Test
