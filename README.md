@@ -1,4 +1,4 @@
-# Accommodation Booking Service
+# StayHub Booking Service
 
 This project is a Java 21 / Spring Boot 4 backend for accommodation booking management. It provides JWT-secured REST APIs for authentication, accommodation catalog management, bookings, payments, and operational notifications, while keeping a layered architecture built around `domain`, `web`, and `infrastructure`.
 
