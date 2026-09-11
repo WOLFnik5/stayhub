@@ -27,6 +27,8 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
 
         registry.add("spring.liquibase.enabled", () -> true);
+        registry.add("app.security.jwt.secret", () ->
+                "c3VwZXItc2VjdXJlLWJhc2U2NC1zZWNyZXQtdGhhdC1pcy1sb25nLWVub3VnaA==");
         registry.add("spring.kafka.listener.auto-startup", () -> "false");
 
         registry.add("DB_URL", POSTGRES::getJdbcUrl);

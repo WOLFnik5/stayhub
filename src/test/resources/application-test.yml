@@ -12,6 +12,10 @@ spring:
       enabled: false
 
 app:
+  security:
+    jwt:
+      # Test-only key; never used by the packaged application.
+      secret: c3VwZXItc2VjdXJlLWJhc2U2NC1zZWNyZXQtdGhhdC1pcy1sb25nLWVub3VnaA==
   outbox:
     publisher:
       enabled: false

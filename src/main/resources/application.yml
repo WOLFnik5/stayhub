@@ -51,7 +51,7 @@ app:
     sent-retention-days: 7
   security:
     jwt:
-      secret: ${JWT_SECRET:VGhpc0lzQVN0cm9uZ0Jhc2U2NFNlY3JldEZvckpXVFRva2VuU2lnbmluZzEyMw==}
+      secret: ${JWT_SECRET:}
       expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
   kafka:
     topics:
