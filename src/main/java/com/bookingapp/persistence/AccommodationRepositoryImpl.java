@@ -4,6 +4,7 @@ import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.persistence.entity.AccommodationEntity;
 import com.bookingapp.persistence.mapper.AccommodationPersistenceMapper;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
 import java.util.List;
@@ -41,6 +42,17 @@ public class AccommodationRepositoryImpl {
 
     public Optional<Accommodation> findById(Long accommodationId) {
         AccommodationEntity entity = entityManager.find(AccommodationEntity.class, accommodationId);
+        return Optional.ofNullable(entity)
+                .map(accommodationPersistenceMapper::toDomain);
+    }
+
+    @Transactional
+    public Optional<Accommodation> findByIdForUpdate(Long accommodationId) {
+        AccommodationEntity entity = entityManager.find(
+                AccommodationEntity.class,
+                accommodationId,
+                LockModeType.PESSIMISTIC_WRITE
+        );
         return Optional.ofNullable(entity)
                 .map(accommodationPersistenceMapper::toDomain);
     }

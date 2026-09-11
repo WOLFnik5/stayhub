@@ -13,3 +13,5 @@ databaseChangeLog:
       file: db/changelog/changes/006-add-constraints-and-indexes.yaml
   - include:
       file: db/changelog/changes/007-create-outbox-events-table.yaml
+  - include:
+      file: db/changelog/changes/008-add-booking-overlap-exclusion-constraint.yaml

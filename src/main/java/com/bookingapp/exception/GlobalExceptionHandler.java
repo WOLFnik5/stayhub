@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
 import java.util.stream.Collectors;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -119,6 +120,24 @@ public class GlobalExceptionHandler {
         String message = "Required request parameter '%s' is missing"
                 .formatted(exception.getParameterName());
         return buildResponse(HttpStatus.BAD_REQUEST, message, request.getRequestURI());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleDataIntegrityViolation(
+            DataIntegrityViolationException exception,
+            HttpServletRequest request
+    ) {
+        String rootMessage = exception.getMostSpecificCause().getMessage();
+        if (rootMessage != null
+                && rootMessage.contains("excl_booking_accommodation_date_overlap")) {
+            return buildResponse(
+                    HttpStatus.CONFLICT,
+                    "Accommodation is already booked for the selected dates",
+                    request.getRequestURI()
+            );
+        }
+        return buildResponse(HttpStatus.CONFLICT, "Data integrity violation",
+                request.getRequestURI());
     }
 
     @ExceptionHandler(Exception.class)

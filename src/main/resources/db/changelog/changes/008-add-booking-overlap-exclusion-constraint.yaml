@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008-add-booking-overlap-exclusion-constraint
+      author: admin
+      changes:
+        - sql:
+            splitStatements: true
+            sql: |
+              CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+              ALTER TABLE bookings
+                  ADD CONSTRAINT excl_booking_accommodation_date_overlap
+                  EXCLUDE USING gist (
+                      accommodation_id WITH =,
+                      daterange(check_in_date, check_out_date, '[)') WITH &&
+                  )
+                  WHERE (status NOT IN ('CANCELED', 'EXPIRED'));
+      rollback:
+        - sql:
+            sql: |
+              ALTER TABLE bookings
+                  DROP CONSTRAINT excl_booking_accommodation_date_overlap;

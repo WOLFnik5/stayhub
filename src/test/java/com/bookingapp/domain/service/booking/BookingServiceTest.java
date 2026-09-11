@@ -75,7 +75,7 @@ class BookingServiceTest {
                 2
         );
         when(currentUserService.getCurrentUser()).thenReturn(currentUser);
-        when(accommodationRepository.findById(3L)).thenReturn(Optional.of(accommodation));
+        when(accommodationRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(accommodation));
         when(bookingRepository.existsActiveBookingOverlap(eq(3L), any(LocalDate.class), any(LocalDate.class), eq(null)))
                 .thenReturn(false);
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> {
@@ -116,7 +116,7 @@ class BookingServiceTest {
                 BigDecimal.valueOf(120),
                 2
         );
-        when(accommodationRepository.findById(3L)).thenReturn(Optional.of(accommodation));
+        when(accommodationRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(accommodation));
         when(bookingRepository.existsActiveBookingOverlap(eq(3L), any(LocalDate.class), any(LocalDate.class), eq(null)))
                 .thenReturn(true);
 
@@ -144,7 +144,7 @@ class BookingServiceTest {
                 BigDecimal.valueOf(120),
                 0
         );
-        when(accommodationRepository.findById(3L)).thenReturn(Optional.of(accommodation));
+        when(accommodationRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(accommodation));
 
         CreateBookingRequest request = new CreateBookingRequest(
                 3L,
@@ -407,6 +407,9 @@ class BookingServiceTest {
         when(currentUserService.getCurrentUser()).thenReturn(currentUser);
         when(bookingRepository.findById(8L)).thenReturn(Optional.of(existingBooking));
         when(paymentRepository.findByBookingId(8L)).thenReturn(Optional.empty());
+        when(accommodationRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(
+                new Accommodation(3L, AccommodationType.HOUSE, "Warsaw", "2 rooms",
+                        List.of("wifi"), BigDecimal.valueOf(120), 2)));
         when(bookingRepository.existsActiveBookingOverlap(eq(3L), any(LocalDate.class), any(LocalDate.class), eq(8L)))
                 .thenReturn(false);
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
