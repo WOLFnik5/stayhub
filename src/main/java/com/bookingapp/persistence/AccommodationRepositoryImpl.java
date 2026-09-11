@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.LockModeType;
 
 @Repository
 @Transactional(readOnly = true)
@@ -41,6 +42,17 @@ public class AccommodationRepositoryImpl {
 
     public Optional<Accommodation> findById(Long accommodationId) {
         AccommodationEntity entity = entityManager.find(AccommodationEntity.class, accommodationId);
+        return Optional.ofNullable(entity)
+                .map(accommodationPersistenceMapper::toDomain);
+    }
+
+    @Transactional
+    public Optional<Accommodation> findByIdForUpdate(Long accommodationId) {
+        AccommodationEntity entity = entityManager.find(
+                AccommodationEntity.class,
+                accommodationId,
+                LockModeType.PESSIMISTIC_WRITE
+        );
         return Optional.ofNullable(entity)
                 .map(accommodationPersistenceMapper::toDomain);
     }

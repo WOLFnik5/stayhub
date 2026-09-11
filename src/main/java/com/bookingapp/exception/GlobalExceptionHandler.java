@@ -16,6 +16,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -119,6 +120,22 @@ public class GlobalExceptionHandler {
         String message = "Required request parameter '%s' is missing"
                 .formatted(exception.getParameterName());
         return buildResponse(HttpStatus.BAD_REQUEST, message, request.getRequestURI());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleDataIntegrityViolation(
+            DataIntegrityViolationException exception,
+            HttpServletRequest request
+    ) {
+        String rootMessage = exception.getMostSpecificCause().getMessage();
+        if (rootMessage != null && rootMessage.contains("excl_booking_accommodation_date_overlap")) {
+            return buildResponse(
+                    HttpStatus.CONFLICT,
+                    "Accommodation is already booked for the selected dates",
+                    request.getRequestURI()
+            );
+        }
+        return buildResponse(HttpStatus.CONFLICT, "Data integrity violation", request.getRequestURI());
     }
 
     @ExceptionHandler(Exception.class)

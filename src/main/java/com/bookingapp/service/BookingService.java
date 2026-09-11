@@ -55,7 +55,7 @@ public class BookingService {
 
     @Transactional
     public Booking createBooking(CreateBookingRequest request) {
-        Accommodation accommodation = getAccommodation(request.accommodationId());
+        Accommodation accommodation = getAccommodationForUpdate(request.accommodationId());
         validateBookingDates(request.checkInDate(), request.checkOutDate());
         ensureAccommodationHasAvailability(accommodation);
         ensureNoOverlap(request.accommodationId(), request.checkInDate(), request.checkOutDate(),
@@ -119,6 +119,7 @@ public class BookingService {
         Booking existingBooking = findBookingById(bookingId);
         ensureCurrentUserCanAccessBooking(existingBooking);
         ensureBookingCanBeUpdated(existingBooking);
+        getAccommodationForUpdate(existingBooking.getAccommodationId()); // lock the accommodation row
         validateBookingDates(request.checkInDate(), request.checkOutDate());
         ensureNoOverlap(
                 existingBooking.getAccommodationId(),
@@ -149,6 +150,7 @@ public class BookingService {
         Booking current = findBookingById(id);
         ensureCurrentUserCanAccessBooking(current);
         ensureBookingCanBeUpdated(current);
+        getAccommodationForUpdate(current.getAccommodationId()); // lock the accommodation row
 
         LocalDate checkInDate = request.checkInDate() != null
                 ? request.checkInDate()
@@ -233,6 +235,15 @@ public class BookingService {
 
     private Accommodation getAccommodation(Long accommodationId) {
         return accommodationRepository.findById(accommodationId)
+                .orElseThrow(() -> new EntityNotFoundDomainException(
+                        "Accommodation with id '"
+                                + accommodationId
+                                + "' was not found")
+                );
+    }
+
+    private Accommodation getAccommodationForUpdate(Long accommodationId) {
+        return accommodationRepository.findByIdForUpdate(accommodationId)
                 .orElseThrow(() -> new EntityNotFoundDomainException(
                         "Accommodation with id '"
                                 + accommodationId

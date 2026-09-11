@@ -10,9 +10,15 @@ import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -435,5 +441,64 @@ class BookingControllerIntegrationTest extends AbstractControllerIntegrationTest
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Booking is already canceled"))
                 .andExpect(jsonPath("$.path").value("/bookings/" + booking.getId()));
+    }
+
+    @Test
+    void createBooking_shouldPreventOverlapUnderConcurrentRequests() throws Exception {
+        User firstCustomer = persistCustomer("booking-concurrent-1@example.com");
+        User secondCustomer = persistCustomer("booking-concurrent-2@example.com");
+        Accommodation accommodation = persistAccommodation(
+                AccommodationType.APARTMENT,
+                "Krakow",
+                "Overlap test apartment",
+                List.of("wifi"),
+                BigDecimal.valueOf(180),
+                2
+        );
+        LocalDate checkInDate = futureDate(20);
+        LocalDate checkOutDate = futureDate(23);
+
+        CreateBookingRequest request = new CreateBookingRequest(
+                accommodation.getId(),
+                checkInDate,
+                checkOutDate
+        );
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch go = new CountDownLatch(1);
+
+        Callable<Integer> firstCall = () -> submitCreateBooking(firstCustomer, request, ready, go);
+        Callable<Integer> secondCall = () -> submitCreateBooking(secondCustomer, request, ready, go);
+
+        Future<Integer> firstFuture = executor.submit(firstCall);
+        Future<Integer> secondFuture = executor.submit(secondCall);
+
+        ready.await();
+        go.countDown();
+
+        int firstStatus = firstFuture.get();
+        int secondStatus = secondFuture.get();
+        executor.shutdown();
+
+        List<Integer> statuses = List.of(firstStatus, secondStatus);
+        assertThat(statuses).containsExactlyInAnyOrder(200, 409);
+        assertThat(countEntities("BookingEntity")).isEqualTo(1);
+    }
+
+    private int submitCreateBooking(
+            User customer,
+            CreateBookingRequest request,
+            CountDownLatch ready,
+            CountDownLatch go
+    ) throws Exception {
+        ready.countDown();
+        go.await();
+        MvcResult result = mockMvc.perform(post("/bookings")
+                        .header("Authorization", authorizationHeader(customer))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJson(request)))
+                .andReturn();
+        return result.getResponse().getStatus();
     }
 }
