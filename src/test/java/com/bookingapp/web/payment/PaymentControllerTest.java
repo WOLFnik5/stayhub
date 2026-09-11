@@ -163,6 +163,7 @@ class PaymentControllerTest {
         );
 
         mockMvc.perform(get("/payments/cancel")
+                        .with(user("customer@example.com").roles("CUSTOMER"))
                         .param("session_id", "sess_123"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -186,6 +187,7 @@ class PaymentControllerTest {
         );
 
         mockMvc.perform(get("/payments/cancel")
+                        .with(user("customer@example.com").roles("CUSTOMER"))
                         .param("booking_id", "11"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))

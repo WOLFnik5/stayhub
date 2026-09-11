@@ -127,6 +127,10 @@ public class PaymentService {
     @Transactional
     public PaymentCancelResult handlePaymentCancel(String sessionId, Long bookingId) {
         Payment payment = resolvePaymentForCancel(sessionId, bookingId);
+        ensureCurrentUserCanAccessBooking(getBooking(payment.getBookingId()));
+        if (bookingId != null && !bookingId.equals(payment.getBookingId())) {
+            throw new BusinessValidationException("Payment session does not match booking id");
+        }
         String resolvedSessionId = payment.getSessionId();
 
         if (stripePaymentProvider.isPaymentSessionActive(resolvedSessionId)) {

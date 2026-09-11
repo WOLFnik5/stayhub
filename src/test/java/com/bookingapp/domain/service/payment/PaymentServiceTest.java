@@ -208,6 +208,8 @@ class PaymentServiceTest {
         when(paymentRepository.findBySessionId("sess_123")).thenReturn(Optional.of(pendingPayment));
         when(stripePaymentProvider.isPaymentSessionActive("sess_123")).thenReturn(true);
 
+        allowBookingOwner();
+
         var result = paymentService.handlePaymentCancel("sess_123");
 
         assertThat(result.paymentId()).isEqualTo(100L);
@@ -232,6 +234,8 @@ class PaymentServiceTest {
         when(stripePaymentProvider.isPaymentSessionActive("sess_123")).thenReturn(false);
         when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
+        allowBookingOwner();
+
         var result = paymentService.handlePaymentCancel("sess_123");
 
         assertThat(result.paymentStatus()).isEqualTo(PaymentStatus.EXPIRED);
@@ -253,6 +257,8 @@ class PaymentServiceTest {
 
         when(paymentRepository.findByBookingId(11L)).thenReturn(Optional.of(pendingPayment));
         when(stripePaymentProvider.isPaymentSessionActive("sess_123")).thenReturn(true);
+
+        allowBookingOwner();
 
         var result = paymentService.handlePaymentCancel(null, 11L);
 
@@ -278,5 +284,12 @@ class PaymentServiceTest {
         assertThatThrownBy(() -> paymentService.handlePaymentSuccess("sess_123"))
                 .isInstanceOf(PaymentStateException.class)
                 .hasMessageContaining("not confirmed as successful");
+    }
+    private void allowBookingOwner() {
+        when(currentUserService.getCurrentUser()).thenReturn(
+                new CurrentUser(15L, "customer@example.com", UserRole.CUSTOMER));
+        when(bookingRepository.findById(11L)).thenReturn(Optional.of(
+                new Booking(11L, LocalDate.now().plusDays(5), LocalDate.now().plusDays(8),
+                        3L, 15L, BookingStatus.PENDING)));
     }
 }

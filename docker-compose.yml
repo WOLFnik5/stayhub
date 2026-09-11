@@ -87,7 +87,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-booking_password}
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
       STRIPE_SUCCESS_URL: ${STRIPE_SUCCESS_URL:-http://localhost:8080/payments/success}
-      STRIPE_CANCEL_URL: ${STRIPE_CANCEL_URL:-http://localhost:8080/payments/cancel}
+      STRIPE_CANCEL_URL: ${STRIPE_CANCEL_URL:-http://localhost:8080/payments/cancel/return}
     ports:
       - "8080:8080"
     restart: unless-stopped

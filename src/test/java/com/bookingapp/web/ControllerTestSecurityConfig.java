@@ -29,7 +29,7 @@ public class ControllerTestSecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/health").permitAll()
-                        .requestMatchers("/payments/success", "/payments/cancel").permitAll()
+                        .requestMatchers("/payments/success", "/payments/cancel/return").permitAll()
                         .requestMatchers(HttpMethod.GET, "/accommodations", "/accommodations/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/accommodations").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/accommodations/*").hasRole("ADMIN")

@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -59,8 +60,16 @@ public class PaymentController {
         return paymentWebMapper.toSuccessResponse(payment);
     }
 
+    @GetMapping("/cancel/return")
+    @Operation(summary = "Return from canceled checkout without exposing payment details")
+    public Map<String, String> paymentCancelReturn() {
+        return Map.of("message", "You returned from checkout. "
+                + "Sign in to view your booking and payment options.");
+    }
+
     @GetMapping("/cancel")
-    @Operation(summary = "Handle canceled payment callback")
+    @Operation(summary = "Check canceled checkout for an accessible booking",
+            security = @SecurityRequirement(name = "bearerAuth"))
     public PaymentCancelResponse handlePaymentCancel(
             @RequestParam(name = "session_id", required = false) String sessionId,
             @RequestParam(name = "booking_id", required = false) Long bookingId

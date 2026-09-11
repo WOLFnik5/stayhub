@@ -211,7 +211,13 @@ Main business endpoints:
 - `GET /payments/success`
   Public Stripe success callback endpoint.
 - `GET /payments/cancel`
-  Public Stripe cancel callback endpoint.
+  Authenticated checkout status lookup. Only the booking owner or an admin can
+  retrieve the payment session, using `booking_id` or `session_id`. If both are
+  supplied, they must identify the same booking. Anonymous requests receive 401;
+  access to another customer's payment receives 403.
+- `GET /payments/cancel/return`
+  Public Stripe return endpoint with a generic message only. It exposes no
+  payment details and does not change payment state.
 - `GET /users/me`
   Authenticated current-user profile endpoint.
 - `PUT /users/{id}/role`
@@ -222,7 +228,9 @@ Swagger is available at [http://localhost:8080/swagger-ui.html](http://localhost
 ## Roles and Permissions
 
 - Anonymous users:
-  `POST /auth/**`, `GET /health`, `GET /actuator/health`, payment callback endpoints, Swagger/OpenAPI endpoints, and public accommodation reads.
+  `POST /auth/**`, `GET /health`, `GET /actuator/health`,
+  `GET /payments/success`, `GET /payments/cancel/return`, Swagger/OpenAPI
+  endpoints, and public accommodation reads.
 - `CUSTOMER`:
   authenticated booking/payment operations allowed by controller/service rules and access to their own profile.
 - `ADMIN`:
@@ -234,7 +242,13 @@ Stripe setup notes:
 
 - set `STRIPE_SECRET_KEY`
 - verify `STRIPE_SUCCESS_URL` and `STRIPE_CANCEL_URL`
-- local defaults point to `http://localhost:8080/payments/success` and `http://localhost:8080/payments/cancel`
+- local defaults point to `http://localhost:8080/payments/success` and `http://localhost:8080/payments/cancel/return`
+- update an existing `STRIPE_CANCEL_URL` in `.env` to the new return endpoint
+  (or your frontend return page). Existing Stripe sessions retain their original
+  return URL; the old `/payments/cancel` URL now requires a bearer token.
+- browser redirects from Stripe do not carry a bearer token. After returning,
+  the frontend must authenticate and call `/payments/cancel` to retrieve private
+  payment details. Never put the JWT in the return URL.
 
 Telegram setup notes:
 

@@ -12,6 +12,9 @@ import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.Payment;
 import com.bookingapp.domain.model.User;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.MediaType;
 
 import java.math.BigDecimal;
@@ -20,6 +23,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -331,7 +335,7 @@ class PaymentControllerIntegrationTest extends AbstractControllerIntegrationTest
     }
 
     @Test
-    void handlePaymentCancel_shouldBePublicAndExpireInactiveSession() throws Exception {
+    void handlePaymentCancel_shouldAllowOwnerAndExpireInactiveSession() throws Exception {
         User customer = persistCustomer("payment-cancel@example.com");
         Accommodation accommodation = persistAccommodation(
                 AccommodationType.HOUSE,
@@ -358,6 +362,7 @@ class PaymentControllerIntegrationTest extends AbstractControllerIntegrationTest
         when(stripePaymentProvider.isPaymentSessionActive("sess_cancel")).thenReturn(false);
 
         mockMvc.perform(get("/payments/cancel")
+                        .header("Authorization", authorizationHeader(customer))
                         .param("session_id", "sess_cancel"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -398,6 +403,7 @@ class PaymentControllerIntegrationTest extends AbstractControllerIntegrationTest
         when(stripePaymentProvider.isPaymentSessionActive("sess_cancel_later")).thenReturn(true);
 
         mockMvc.perform(get("/payments/cancel")
+                        .header("Authorization", authorizationHeader(customer))
                         .param("booking_id", booking.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -416,5 +422,100 @@ class PaymentControllerIntegrationTest extends AbstractControllerIntegrationTest
                         .param("session_id", "missing-session"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.path").value("/payments/success"));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"anonymous,booking,401", "anonymous,session,401",
+            "intruder,booking,403", "intruder,session,403", "intruder,mixed,403"})
+    void cancelShouldRejectUnauthorizedAccessWithoutReadingStripeOrChangingPayment(
+            String actor, String selector, int expectedStatus) throws Exception {
+        User owner = persistCustomer("cancel-owner@example.com");
+        User intruder = persistCustomer("cancel-intruder@example.com");
+        Payment payment = createCancelablePayment(owner);
+        var request = get("/payments/cancel");
+        if (!actor.equals("anonymous")) {
+            request.header("Authorization", authorizationHeader(intruder));
+        }
+        if (selector.equals("booking")) {
+            request.param("booking_id", payment.getBookingId().toString());
+        } else {
+            request.param("session_id", payment.getSessionId());
+            if (selector.equals("mixed")) {
+                Booking ownBooking = persistBooking(futureDate(30), futureDate(32),
+                        bookingRepository.findById(payment.getBookingId()).orElseThrow()
+                                .getAccommodationId(), intruder.getId(), BookingStatus.PENDING);
+                request.param("booking_id", ownBooking.getId().toString());
+            }
+        }
+
+        mockMvc.perform(request)
+                .andExpect(status().is(expectedStatus))
+                .andExpect(jsonPath("$.sessionId").doesNotExist())
+                .andExpect(jsonPath("$.sessionUrl").doesNotExist())
+                .andExpect(jsonPath("$.paymentId").doesNotExist());
+
+        verifyNoInteractions(stripePaymentProvider, kafkaEventPublisher);
+        assertThat(paymentRepository.findById(payment.getId()).orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.PENDING);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"booking", "session"})
+    void cancelShouldAllowAdminToAccessCustomerPayment(String selector) throws Exception {
+        User owner = persistCustomer("cancel-admin-owner@example.com");
+        User admin = persistAdmin("cancel-admin@example.com");
+        Payment payment = createCancelablePayment(owner);
+        when(stripePaymentProvider.isPaymentSessionActive(payment.getSessionId())).thenReturn(true);
+        var request = get("/payments/cancel")
+                .header("Authorization", authorizationHeader(admin));
+        if (selector.equals("booking")) {
+            request.param("booking_id", payment.getBookingId().toString());
+        } else {
+            request.param("session_id", payment.getSessionId());
+        }
+        mockMvc.perform(request)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paymentId").value(payment.getId()))
+                .andExpect(jsonPath("$.sessionId").value(payment.getSessionId()));
+    }
+
+    @Test
+    void cancelShouldRejectMismatchedIdentifiersForOwner() throws Exception {
+        User owner = persistCustomer("cancel-mismatch@example.com");
+        Payment payment = createCancelablePayment(owner);
+        mockMvc.perform(get("/payments/cancel")
+                        .header("Authorization", authorizationHeader(owner))
+                        .param("session_id", payment.getSessionId())
+                        .param("booking_id", "-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.sessionUrl").doesNotExist());
+        verifyNoInteractions(stripePaymentProvider, kafkaEventPublisher);
+        assertThat(paymentRepository.findById(payment.getId()).orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.PENDING);
+    }
+
+    @Test
+    void cancelReturnShouldBePublicAndIgnorePaymentIdentifiers() throws Exception {
+        User owner = persistCustomer("cancel-return@example.com");
+        Payment payment = createCancelablePayment(owner);
+        mockMvc.perform(get("/payments/cancel/return")
+                        .param("booking_id", payment.getBookingId().toString())
+                        .param("session_id", payment.getSessionId()))
+                .andExpect(status().isOk())
+                .andExpect(content().json("""
+                        {"message":"You returned from checkout. Sign in to view your booking and payment options."}
+                        """));
+        verifyNoInteractions(stripePaymentProvider, kafkaEventPublisher);
+        assertThat(paymentRepository.findById(payment.getId()).orElseThrow().getStatus())
+                .isEqualTo(PaymentStatus.PENDING);
+    }
+
+    private Payment createCancelablePayment(User owner) {
+        Accommodation accommodation = persistAccommodation(AccommodationType.HOUSE,
+                "Lublin", "Family house", List.of("parking"), BigDecimal.valueOf(175), 1);
+        Booking booking = persistBooking(futureDate(9), futureDate(11), accommodation.getId(),
+                owner.getId(), BookingStatus.PENDING);
+        return persistPayment(PaymentStatus.PENDING, booking.getId(),
+                "https://checkout.example/private", "sess_private", BigDecimal.valueOf(350));
     }
 }
