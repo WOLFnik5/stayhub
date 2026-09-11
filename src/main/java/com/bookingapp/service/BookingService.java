@@ -119,7 +119,7 @@ public class BookingService {
         Booking existingBooking = findBookingById(bookingId);
         ensureCurrentUserCanAccessBooking(existingBooking);
         ensureBookingCanBeUpdated(existingBooking);
-        getAccommodationForUpdate(existingBooking.getAccommodationId()); // lock the accommodation row
+        getAccommodationForUpdate(existingBooking.getAccommodationId());
         validateBookingDates(request.checkInDate(), request.checkOutDate());
         ensureNoOverlap(
                 existingBooking.getAccommodationId(),
@@ -150,7 +150,7 @@ public class BookingService {
         Booking current = findBookingById(id);
         ensureCurrentUserCanAccessBooking(current);
         ensureBookingCanBeUpdated(current);
-        getAccommodationForUpdate(current.getAccommodationId()); // lock the accommodation row
+        getAccommodationForUpdate(current.getAccommodationId());
 
         LocalDate checkInDate = request.checkInDate() != null
                 ? request.checkInDate()

@@ -9,6 +9,9 @@ import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.User;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -19,6 +22,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,6 +30,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -464,41 +469,88 @@ class BookingControllerIntegrationTest extends AbstractControllerIntegrationTest
                 checkOutDate
         );
 
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-        CountDownLatch ready = new CountDownLatch(2);
-        CountDownLatch go = new CountDownLatch(1);
-
-        Callable<Integer> firstCall = () -> submitCreateBooking(firstCustomer, request, ready, go);
-        Callable<Integer> secondCall = () -> submitCreateBooking(secondCustomer, request, ready, go);
-
-        Future<Integer> firstFuture = executor.submit(firstCall);
-        Future<Integer> secondFuture = executor.submit(secondCall);
-
-        ready.await();
-        go.countDown();
-
-        int firstStatus = firstFuture.get();
-        int secondStatus = secondFuture.get();
-        executor.shutdown();
-
-        List<Integer> statuses = List.of(firstStatus, secondStatus);
+        List<Integer> statuses = runConcurrently(
+                () -> submitCreateBooking(firstCustomer, request),
+                () -> submitCreateBooking(secondCustomer, request)
+        );
         assertThat(statuses).containsExactlyInAnyOrder(200, 409);
         assertThat(countEntities("BookingEntity")).isEqualTo(1);
     }
 
     private int submitCreateBooking(
             User customer,
-            CreateBookingRequest request,
-            CountDownLatch ready,
-            CountDownLatch go
+            CreateBookingRequest request
     ) throws Exception {
-        ready.countDown();
-        go.await();
         MvcResult result = mockMvc.perform(post("/bookings")
                         .header("Authorization", authorizationHeader(customer))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJson(request)))
                 .andReturn();
         return result.getResponse().getStatus();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"PUT", "PATCH"})
+    void rescheduleBooking_shouldPreventOverlapUnderConcurrentRequests(String method)
+            throws Exception {
+        User customer = persistCustomer("concurrent-reschedule@example.com");
+        Accommodation accommodation = persistAccommodation(AccommodationType.APARTMENT,
+                "Krakow", "Apartment", List.of("wifi"), BigDecimal.valueOf(180), 1);
+        Booking first = persistBooking(futureDate(5), futureDate(7), accommodation.getId(),
+                customer.getId(), BookingStatus.PENDING);
+        Booking second = persistBooking(futureDate(10), futureDate(12), accommodation.getId(),
+                customer.getId(), BookingStatus.PENDING);
+        LocalDate targetStart = futureDate(20);
+        LocalDate targetEnd = futureDate(23);
+        String body = asJson(new UpdateBookingRequest(targetStart, targetEnd));
+        String token = authorizationHeader(customer);
+
+        List<Integer> statuses = runConcurrently(
+                () -> submitReschedule(method, first.getId(), token, body),
+                () -> submitReschedule(method, second.getId(), token, body)
+        );
+
+        assertThat(statuses).containsExactlyInAnyOrder(200, 409);
+        List<Booking> bookings = bookingRepository.findAllByUserId(customer.getId());
+        assertThat(bookings).hasSize(2);
+        assertThat(bookings).filteredOn(b -> b.getCheckInDate().equals(targetStart)
+                && b.getCheckOutDate().equals(targetEnd)).hasSize(1);
+        assertThat(bookings).filteredOn(b -> b.getCheckInDate().equals(first.getCheckInDate())
+                || b.getCheckInDate().equals(second.getCheckInDate())).hasSize(1);
+    }
+
+    private int submitReschedule(String method, Long id, String token, String body)
+            throws Exception {
+        return mockMvc.perform(request(HttpMethod.valueOf(method), "/bookings/{id}", id)
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andReturn().getResponse().getStatus();
+    }
+
+    private List<Integer> runConcurrently(Callable<Integer> first, Callable<Integer> second)
+            throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch go = new CountDownLatch(1);
+        try {
+            Future<Integer> firstFuture = executor.submit(() -> awaitAndCall(first, ready, go));
+            Future<Integer> secondFuture = executor.submit(() -> awaitAndCall(second, ready, go));
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            go.countDown();
+            return List.of(firstFuture.get(20, TimeUnit.SECONDS),
+                    secondFuture.get(20, TimeUnit.SECONDS));
+        } finally {
+            go.countDown();
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    private int awaitAndCall(Callable<Integer> call, CountDownLatch ready, CountDownLatch go)
+            throws Exception {
+        ready.countDown();
+        assertThat(go.await(10, TimeUnit.SECONDS)).isTrue();
+        return call.call();
     }
 }

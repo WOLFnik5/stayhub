@@ -4,13 +4,13 @@ import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.persistence.entity.AccommodationEntity;
 import com.bookingapp.persistence.mapper.AccommodationPersistenceMapper;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
-import jakarta.persistence.LockModeType;
 
 @Repository
 @Transactional(readOnly = true)
