@@ -79,6 +79,28 @@ Required variables you should review before demo/use:
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 
+`JWT_SECRET` is required. Generate a separate random key for each environment,
+encoded as Base64 with at least 32 decoded bytes. The application refuses to
+start with a missing, empty, malformed, or shorter key. Plain-text keys are not
+supported. Do not reuse keys from examples or tests.
+
+For PowerShell, generate a key in the current terminal environment without
+printing it:
+
+```powershell
+$jwtKeyBytes = [byte[]]::new(32)
+$jwtKeyGenerator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$jwtKeyGenerator.GetBytes($jwtKeyBytes)
+$jwtKeyGenerator.Dispose()
+$env:JWT_SECRET = [Convert]::ToBase64String($jwtKeyBytes)
+```
+
+Run `mvn spring-boot:run` from that terminal. For Docker Compose, populate
+`JWT_SECRET` in the local, untracked `.env` file instead; `booking-app` receives
+it through `env_file`. Maven does not automatically load `.env`.
+Keep the key stable across restarts and shared by instances of the same
+environment. Rotating it invalidates existing access tokens.
+
 Database variables:
 
 - `DB_HOST`

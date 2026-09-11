@@ -5,11 +5,10 @@ import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.infrastructure.config.JwtProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 import java.util.Date;
 import javax.crypto.SecretKey;
 import org.springframework.stereotype.Component;
@@ -21,9 +20,11 @@ public class JwtTokenService {
     private static final String CLAIM_ROLE = "role";
 
     private final JwtProperties jwtProperties;
+    private final SecretKey signingKey;
 
     public JwtTokenService(JwtProperties jwtProperties) {
         this.jwtProperties = jwtProperties;
+        this.signingKey = createSigningKey(jwtProperties.getSecret());
     }
 
     public String generateToken(User user) {
@@ -36,13 +37,13 @@ public class JwtTokenService {
                 .claim(CLAIM_ROLE, user.getRole().name())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiresAt))
-                .signWith(getSigningKey())
+                .signWith(signingKey)
                 .compact();
     }
 
     public AuthenticatedUserPrincipal parsePrincipal(String token) {
         Claims claims = Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(signingKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
@@ -54,15 +55,19 @@ public class JwtTokenService {
         return new AuthenticatedUserPrincipal(userId, email, UserRole.valueOf(role));
     }
 
-    private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(decodeSecret(jwtProperties.getSecret()));
-    }
-
-    private byte[] decodeSecret(String secret) {
-        try {
-            return Decoders.BASE64.decode(secret);
-        } catch (IllegalArgumentException exception) {
-            return secret.getBytes(StandardCharsets.UTF_8);
+    private SecretKey createSigningKey(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalArgumentException("JWT_SECRET must be configured");
         }
+        byte[] decoded;
+        try {
+            decoded = Base64.getDecoder().decode(secret);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("JWT_SECRET must be valid Base64");
+        }
+        if (decoded.length < 32) {
+            throw new IllegalArgumentException("JWT_SECRET must contain at least 32 decoded bytes");
+        }
+        return Keys.hmacShaKeyFor(decoded);
     }
 }
