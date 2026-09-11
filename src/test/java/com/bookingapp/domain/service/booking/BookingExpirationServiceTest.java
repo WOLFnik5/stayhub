@@ -72,6 +72,8 @@ class BookingExpirationServiceTest {
         );
 
         when(bookingRepository.findBookingsToExpire(businessDate)).thenReturn(List.of(firstBooking, secondBooking));
+        when(bookingRepository.findByIdForUpdate(10L)).thenReturn(java.util.Optional.of(firstBooking));
+        when(bookingRepository.findByIdForUpdate(11L)).thenReturn(java.util.Optional.of(secondBooking));
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         BookingExpirationResult result = bookingExpirationService.expireBookings(businessDate);
@@ -81,5 +83,21 @@ class BookingExpirationServiceTest {
         verify(bookingRepository, times(2)).save(any(Booking.class));
         verify(kafkaEventPublisher, times(2)).publishBookingExpired(any(Booking.class));
         verify(telegramNotificationService, never()).notifyNoExpiredBookingsToday();
+    }
+
+    @Test
+    void expireBookingsShouldSkipBookingRescheduledAfterCandidateSelection() {
+        LocalDate date = LocalDate.of(2026, 4, 1);
+        Booking stale = new Booking(10L, date.minusDays(3), date, 5L, 15L, BookingStatus.PENDING);
+        Booking current = new Booking(10L, date.plusDays(5), date.plusDays(8),
+                5L, 15L, BookingStatus.PENDING);
+        when(bookingRepository.findBookingsToExpire(date)).thenReturn(List.of(stale));
+        when(bookingRepository.findByIdForUpdate(10L)).thenReturn(java.util.Optional.of(current));
+
+        BookingExpirationResult result = bookingExpirationService.expireBookings(date);
+
+        assertThat(result.expiredCount()).isZero();
+        verify(bookingRepository, never()).save(any());
+        verify(kafkaEventPublisher, never()).publishBookingExpired(any());
     }
 }

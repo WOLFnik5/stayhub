@@ -89,7 +89,7 @@ class PaymentServiceTest {
         CurrentUser currentUser = new CurrentUser(15L, "customer@example.com", UserRole.CUSTOMER);
 
         when(currentUserService.getCurrentUser()).thenReturn(currentUser);
-        when(bookingRepository.findById(11L)).thenReturn(Optional.of(booking));
+        when(bookingRepository.findByIdForUpdate(11L)).thenReturn(Optional.of(booking));
         when(accommodationRepository.findById(3L)).thenReturn(Optional.of(accommodation));
         when(userRepository.findById(15L)).thenReturn(Optional.of(bookingOwner));
         when(paymentRepository.findByBookingId(11L)).thenReturn(Optional.empty());

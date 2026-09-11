@@ -238,6 +238,12 @@ Swagger is available at [http://localhost:8080/swagger-ui.html](http://localhost
 
 ## Payments and Notifications
 
+Booking dates can be edited only before the first payment is created. Once
+checkout is created, PUT/PATCH cannot change the dates, including after a
+session expires. Create a new booking for a different period. Checkout creation
+and date changes are serialized per booking so simultaneous requests cannot
+leave a checkout amount based on old dates.
+
 Stripe setup notes:
 
 - set `STRIPE_SECRET_KEY`

@@ -172,7 +172,7 @@ class BookingServiceTest {
         );
 
         when(currentUserService.getCurrentUser()).thenReturn(currentUser);
-        when(bookingRepository.findById(8L)).thenReturn(Optional.of(existingBooking));
+        when(bookingRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(existingBooking));
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Booking result = bookingService.cancelBooking(8L);
@@ -194,7 +194,7 @@ class BookingServiceTest {
         );
 
         when(currentUserService.getCurrentUser()).thenReturn(currentUser);
-        when(bookingRepository.findById(8L)).thenReturn(Optional.of(canceledBooking));
+        when(bookingRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(canceledBooking));
 
         assertThatThrownBy(() -> bookingService.cancelBooking(8L))
                 .isInstanceOf(InvalidBookingStateException.class)
@@ -405,7 +405,7 @@ class BookingServiceTest {
         );
 
         when(currentUserService.getCurrentUser()).thenReturn(currentUser);
-        when(bookingRepository.findById(8L)).thenReturn(Optional.of(existingBooking));
+        when(bookingRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(existingBooking));
         when(paymentRepository.findByBookingId(8L)).thenReturn(Optional.empty());
         when(accommodationRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(
                 new Accommodation(3L, AccommodationType.HOUSE, "Warsaw", "2 rooms",
@@ -447,7 +447,7 @@ class BookingServiceTest {
         );
 
         when(currentUserService.getCurrentUser()).thenReturn(currentUser);
-        when(bookingRepository.findById(8L)).thenReturn(Optional.of(existingBooking));
+        when(bookingRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(existingBooking));
         when(paymentRepository.findByBookingId(8L)).thenReturn(Optional.of(paidPayment));
 
         UpdateBookingRequest request = new UpdateBookingRequest(

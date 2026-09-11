@@ -61,7 +61,9 @@ public class PaymentService {
 
     @Transactional
     public PaymentSessionResult createPaymentSession(Long bookingId) {
-        Booking booking = getBooking(bookingId);
+        Booking booking = bookingRepository.findByIdForUpdate(bookingId)
+                .orElseThrow(() -> new EntityNotFoundDomainException(
+                        "Booking with id '" + bookingId + "' was not found"));
         ensureCurrentUserCanAccessBooking(booking);
         Accommodation accommodation = getAccommodation(booking.getAccommodationId());
         User bookingOwner = getUser(booking.getUserId());

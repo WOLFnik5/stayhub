@@ -5,6 +5,7 @@ import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.persistence.entity.BookingEntity;
 import com.bookingapp.persistence.mapper.BookingPersistenceMapper;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
 import java.time.LocalDate;
@@ -50,6 +51,18 @@ public class BookingRepositoryImpl {
         BookingEntity entity = entityManager.find(BookingEntity.class, bookingId);
         return Optional.ofNullable(entity)
                 .map(bookingPersistenceMapper::toDomain);
+    }
+
+    @Transactional
+    public Optional<Booking> findByIdForUpdate(Long bookingId) {
+        BookingEntity entity = entityManager.find(
+                BookingEntity.class, bookingId, LockModeType.PESSIMISTIC_WRITE);
+        if (entity == null) {
+            return Optional.empty();
+        }
+        // Reload snapshots already present in the persistence context after taking the lock.
+        entityManager.refresh(entity, LockModeType.PESSIMISTIC_WRITE);
+        return Optional.of(bookingPersistenceMapper.toDomain(entity));
     }
 
     public List<Booking> findAllByFilter(BookingFilterQuery query) {

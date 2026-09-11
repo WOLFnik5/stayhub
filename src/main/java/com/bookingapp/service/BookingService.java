@@ -116,7 +116,7 @@ public class BookingService {
 
     @Transactional
     public Booking updateBooking(Long bookingId, UpdateBookingRequest request) {
-        Booking existingBooking = findBookingById(bookingId);
+        Booking existingBooking = findBookingForUpdate(bookingId);
         ensureCurrentUserCanAccessBooking(existingBooking);
         ensureBookingCanBeUpdated(existingBooking);
         getAccommodationForUpdate(existingBooking.getAccommodationId());
@@ -135,7 +135,7 @@ public class BookingService {
 
     @Transactional
     public Booking cancelBooking(Long bookingId) {
-        Booking existingBooking = findBookingById(bookingId);
+        Booking existingBooking = findBookingForUpdate(bookingId);
         ensureCurrentUserCanAccessBooking(existingBooking);
         ensureBookingCanBeCanceled(existingBooking);
 
@@ -147,7 +147,7 @@ public class BookingService {
 
     @Transactional
     public Booking patchBooking(Long id, PatchBookingRequest request) {
-        Booking current = findBookingById(id);
+        Booking current = findBookingForUpdate(id);
         ensureCurrentUserCanAccessBooking(current);
         ensureBookingCanBeUpdated(current);
         getAccommodationForUpdate(current.getAccommodationId());
@@ -193,6 +193,10 @@ public class BookingService {
         if (payment != null && payment.getStatus() == PaymentStatus.PAID) {
             throw new BusinessValidationException("Paid booking cannot be updated");
         }
+        if (payment != null) {
+            throw new BusinessValidationException(
+                    "Booking dates cannot be changed after checkout has been created");
+        }
 
         if (booking.getStatus() == BookingStatus.CANCELED
                 || booking.getStatus() == BookingStatus.EXPIRED) {
@@ -231,6 +235,12 @@ public class BookingService {
                                 + bookingId
                                 + "' was not found")
                 );
+    }
+
+    private Booking findBookingForUpdate(Long bookingId) {
+        return bookingRepository.findByIdForUpdate(bookingId)
+                .orElseThrow(() -> new EntityNotFoundDomainException(
+                        "Booking with id '" + bookingId + "' was not found"));
     }
 
     private Accommodation getAccommodation(Long accommodationId) {

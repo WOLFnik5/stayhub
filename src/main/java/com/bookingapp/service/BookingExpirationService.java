@@ -40,6 +40,11 @@ public class BookingExpirationService {
         }
 
         List<Long> expiredBookingIds = bookingsToExpire.stream()
+                .map(booking -> bookingRepository.findByIdForUpdate(booking.getId()))
+                .flatMap(java.util.Optional::stream)
+                .filter(booking -> !booking.getCheckOutDate().isAfter(effectiveDate))
+                .filter(booking -> booking.getStatus() != BookingStatus.CANCELED
+                        && booking.getStatus() != BookingStatus.EXPIRED)
                 .map(this::expireBooking)
                 .map(bookingRepository::save)
                 .peek(kafkaEventPublisher::publishBookingExpired)
