@@ -35,6 +35,9 @@ class BookingExpirationServiceTest {
     @Mock
     private TelegramNotificationService telegramNotificationService;
 
+    @Mock
+    private com.bookingapp.service.PaymentService paymentService;
+
     @InjectMocks
     private BookingExpirationService bookingExpirationService;
 

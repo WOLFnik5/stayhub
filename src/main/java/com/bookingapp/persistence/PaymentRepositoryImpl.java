@@ -47,10 +47,11 @@ public class PaymentRepositoryImpl {
 
     public Optional<Payment> findByBookingId(Long bookingId) {
         TypedQuery<PaymentEntity> query = entityManager.createQuery(
-                "SELECT p FROM PaymentEntity p WHERE p.bookingId = :bookingId",
+                "SELECT p FROM PaymentEntity p WHERE p.bookingId = :bookingId ORDER BY p.id DESC",
                 PaymentEntity.class
         );
         query.setParameter("bookingId", bookingId);
+        query.setMaxResults(1);
         return query.getResultStream()
                 .findFirst()
                 .map(paymentPersistenceMapper::toDomain);
@@ -65,6 +66,23 @@ public class PaymentRepositoryImpl {
         return query.getResultStream()
                 .findFirst()
                 .map(paymentPersistenceMapper::toDomain);
+    }
+
+    public List<Payment> findAllByBookingId(Long bookingId) {
+        return entityManager.createQuery(
+                "SELECT p FROM PaymentEntity p WHERE p.bookingId = :id ORDER BY p.id",
+                PaymentEntity.class).setParameter("id", bookingId).getResultList().stream()
+                .map(paymentPersistenceMapper::toDomain).toList();
+    }
+
+    public void flush() {
+        entityManager.flush();
+    }
+
+    public Payment refresh(Long id) {
+        PaymentEntity entity = entityManager.find(PaymentEntity.class, id);
+        entityManager.refresh(entity);
+        return paymentPersistenceMapper.toDomain(entity);
     }
 
     public List<Payment> findAllByFilter(PaymentFilterQuery query) {

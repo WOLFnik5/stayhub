@@ -360,6 +360,7 @@ class PaymentControllerIntegrationTest extends AbstractControllerIntegrationTest
                 BigDecimal.valueOf(350)
         );
         when(stripePaymentProvider.isPaymentSessionActive("sess_cancel")).thenReturn(false);
+        when(stripePaymentProvider.isPaymentSessionExpired("sess_cancel")).thenReturn(true);
 
         mockMvc.perform(get("/payments/cancel")
                         .header("Authorization", authorizationHeader(customer))

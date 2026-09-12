@@ -63,6 +63,11 @@ class PaymentServiceTest {
     @Mock
     private KafkaEventPublisher kafkaEventPublisher;
 
+    @Mock
+    private org.springframework.transaction.support.TransactionTemplate transactionTemplate;
+    @Mock
+    private com.bookingapp.infrastructure.config.StripeProperties stripeProperties;
+
     @InjectMocks
     private PaymentService paymentService;
 
@@ -70,8 +75,8 @@ class PaymentServiceTest {
     void createPaymentSessionShouldCalculateAmountFromBookingDaysAndRate() {
         Booking booking = new Booking(
                 11L,
-                LocalDate.of(2026, 4, 10),
-                LocalDate.of(2026, 4, 13),
+                LocalDate.now().plusDays(10),
+                LocalDate.now().plusDays(13),
                 3L,
                 15L,
                 BookingStatus.PENDING
@@ -114,13 +119,19 @@ class PaymentServiceTest {
             );
         });
 
+        when(stripeProperties.getCurrency()).thenReturn("usd");
+        when(transactionTemplate.execute(any())).thenAnswer(invocation ->
+                ((org.springframework.transaction.support.TransactionCallback<?>) invocation.getArgument(0))
+                        .doInTransaction(null));
+        when(paymentRepository.refresh(100L)).thenReturn(new Payment(100L, PaymentStatus.PENDING,
+                11L, null, null, BigDecimal.valueOf(450)));
         PaymentSessionResult result = paymentService.createPaymentSession(11L);
 
         assertThat(result.paymentId()).isEqualTo(100L);
         assertThat(result.amountToPay()).isEqualByComparingTo("450");
 
         ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
-        verify(paymentRepository).save(paymentCaptor.capture());
+        verify(paymentRepository, org.mockito.Mockito.times(2)).save(paymentCaptor.capture());
         assertThat(paymentCaptor.getValue().getAmountToPay()).isEqualByComparingTo("450");
         assertThat(paymentCaptor.getValue().getStatus()).isEqualTo(PaymentStatus.PENDING);
     }
@@ -137,6 +148,8 @@ class PaymentServiceTest {
         );
 
         when(paymentRepository.findBySessionId("sess_123")).thenReturn(Optional.of(pendingPayment));
+        when(paymentRepository.refresh(100L)).thenReturn(pendingPayment);
+        allowBookingLock();
         when(stripePaymentProvider.isPaymentSuccessful("sess_123")).thenReturn(true);
         when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -206,6 +219,7 @@ class PaymentServiceTest {
         );
 
         when(paymentRepository.findBySessionId("sess_123")).thenReturn(Optional.of(pendingPayment));
+        when(paymentRepository.refresh(100L)).thenReturn(pendingPayment);
         when(stripePaymentProvider.isPaymentSessionActive("sess_123")).thenReturn(true);
 
         allowBookingOwner();
@@ -231,7 +245,9 @@ class PaymentServiceTest {
         );
 
         when(paymentRepository.findBySessionId("sess_123")).thenReturn(Optional.of(pendingPayment));
+        when(paymentRepository.refresh(100L)).thenReturn(pendingPayment);
         when(stripePaymentProvider.isPaymentSessionActive("sess_123")).thenReturn(false);
+        when(stripePaymentProvider.isPaymentSessionExpired("sess_123")).thenReturn(true);
         when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         allowBookingOwner();
@@ -256,6 +272,7 @@ class PaymentServiceTest {
         );
 
         when(paymentRepository.findByBookingId(11L)).thenReturn(Optional.of(pendingPayment));
+        when(paymentRepository.refresh(100L)).thenReturn(pendingPayment);
         when(stripePaymentProvider.isPaymentSessionActive("sess_123")).thenReturn(true);
 
         allowBookingOwner();
@@ -279,6 +296,8 @@ class PaymentServiceTest {
         );
 
         when(paymentRepository.findBySessionId("sess_123")).thenReturn(Optional.of(pendingPayment));
+        when(paymentRepository.refresh(100L)).thenReturn(pendingPayment);
+        allowBookingLock();
         when(stripePaymentProvider.isPaymentSuccessful("sess_123")).thenReturn(false);
 
         assertThatThrownBy(() -> paymentService.handlePaymentSuccess("sess_123"))
@@ -288,7 +307,10 @@ class PaymentServiceTest {
     private void allowBookingOwner() {
         when(currentUserService.getCurrentUser()).thenReturn(
                 new CurrentUser(15L, "customer@example.com", UserRole.CUSTOMER));
-        when(bookingRepository.findById(11L)).thenReturn(Optional.of(
+        allowBookingLock();
+    }
+    private void allowBookingLock() {
+        when(bookingRepository.findByIdForUpdate(11L)).thenReturn(Optional.of(
                 new Booking(11L, LocalDate.now().plusDays(5), LocalDate.now().plusDays(8),
                         3L, 15L, BookingStatus.PENDING)));
     }

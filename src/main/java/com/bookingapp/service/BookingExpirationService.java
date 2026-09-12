@@ -18,15 +18,18 @@ public class BookingExpirationService {
     private final BookingRepositoryImpl bookingRepository;
     private final KafkaEventPublisher kafkaEventPublisher;
     private final TelegramNotificationService telegramNotificationService;
+    private final PaymentService paymentService;
 
     public BookingExpirationService(
             BookingRepositoryImpl bookingRepository,
             KafkaEventPublisher kafkaEventPublisher,
-            TelegramNotificationService telegramNotificationService
+            TelegramNotificationService telegramNotificationService,
+            PaymentService paymentService
     ) {
         this.bookingRepository = bookingRepository;
         this.kafkaEventPublisher = kafkaEventPublisher;
         this.telegramNotificationService = telegramNotificationService;
+        this.paymentService = paymentService;
     }
 
     @Transactional
@@ -55,6 +58,7 @@ public class BookingExpirationService {
     }
 
     private Booking expireBooking(Booking booking) {
+        paymentService.closeCheckoutForBooking(booking, false);
         if (booking.getStatus() == BookingStatus.CANCELED) {
             throw new InvalidBookingStateException("Canceled booking cannot be expired");
         }

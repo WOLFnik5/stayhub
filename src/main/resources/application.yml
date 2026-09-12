@@ -62,6 +62,7 @@ app:
       payment-succeeded: ${KAFKA_TOPIC_PAYMENT_SUCCEEDED:payment.succeeded}
   stripe:
     secret-key: ${STRIPE_SECRET_KEY:sk_test_replace_me}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
     success-url: ${STRIPE_SUCCESS_URL:http://localhost:8080/payments/success}
     cancel-url: ${STRIPE_CANCEL_URL:http://localhost:8080/payments/cancel/return}
     currency: ${STRIPE_CURRENCY:usd}

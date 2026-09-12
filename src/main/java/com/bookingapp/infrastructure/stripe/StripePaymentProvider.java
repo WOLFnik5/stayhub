@@ -10,9 +10,13 @@ import com.bookingapp.web.dto.PaymentSessionResult;
 import com.stripe.StripeClient;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
+import com.stripe.net.RequestOptions;
 import com.stripe.param.checkout.SessionCreateParams;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -42,12 +46,16 @@ public class StripePaymentProvider {
             Session session = stripeClient.checkout().sessions().create(
                     SessionCreateParams.builder()
                             .setMode(SessionCreateParams.Mode.PAYMENT)
+                            .setExpiresAt(checkoutDeadline(payment, booking))
                             .setSuccessUrl(buildSuccessUrl(booking))
                             .setCancelUrl(buildCancelUrl(booking))
                             .putMetadata("bookingId", String.valueOf(booking.getId()))
+                            .putMetadata("paymentId", String.valueOf(payment.getId()))
                             .putMetadata("userId", String.valueOf(user.getId()))
                             .addLineItem(buildLineItem(payment, accommodation, booking))
-                            .build()
+                            .build(),
+                    RequestOptions.builder()
+                            .setIdempotencyKey("booking-payment-" + payment.getId()).build()
             );
 
             return new PaymentSessionResult(
@@ -71,7 +79,61 @@ public class StripePaymentProvider {
     public boolean isPaymentSessionActive(String sessionId) {
         Session session = retrieveSession(sessionId);
         String status = session.getStatus();
-        return "open".equalsIgnoreCase(status) || "complete".equalsIgnoreCase(status);
+        return "open".equalsIgnoreCase(status);
+    }
+
+    private long checkoutDeadline(Payment payment, Booking booking) {
+        Instant bookingDeadline = booking.getCheckOutDate()
+                .atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant attemptDeadline = payment.getCreatedAt().plus(23, ChronoUnit.HOURS);
+        Instant deadline = bookingDeadline.isBefore(attemptDeadline)
+                ? bookingDeadline : attemptDeadline;
+        if (deadline.isBefore(Instant.now().plus(30, ChronoUnit.MINUTES))) {
+            throw new PaymentStateException("Too late to create or recover this checkout session");
+        }
+        return deadline.getEpochSecond();
+    }
+
+    public boolean isPaymentSessionExpired(String sessionId) {
+        return "expired".equalsIgnoreCase(retrieveSession(sessionId).getStatus());
+    }
+
+    public void validatePayment(Payment payment) {
+        Session session = retrieveSession(payment.getSessionId());
+        String currency = payment.getCurrency() == null
+                ? stripeProperties.getCurrency() : payment.getCurrency();
+        if (!Long.valueOf(toMinorUnits(payment.getAmountToPay())).equals(session.getAmountTotal())
+                || !currency.equalsIgnoreCase(session.getCurrency())
+                || session.getMetadata() == null
+                || !String.valueOf(payment.getBookingId())
+                        .equals(session.getMetadata().get("bookingId"))
+                || (session.getMetadata().containsKey("paymentId")
+                        && !String.valueOf(payment.getId())
+                                .equals(session.getMetadata().get("paymentId")))) {
+            throw new PaymentStateException("Stripe payment does not match the stored payment");
+        }
+    }
+
+    public boolean expireUnpaidSession(String sessionId) {
+        Session session = retrieveSession(sessionId);
+        if ("paid".equalsIgnoreCase(session.getPaymentStatus())) {
+            return false;
+        }
+        if ("expired".equalsIgnoreCase(session.getStatus())) {
+            return true;
+        }
+        if (!"open".equalsIgnoreCase(session.getStatus())) {
+            throw new PaymentStateException("Checkout payment is processing; retry later");
+        }
+        try {
+            Session expired = stripeClient.checkout().sessions().expire(sessionId);
+            if (!"expired".equalsIgnoreCase(expired.getStatus())) {
+                throw new PaymentStateException("Stripe checkout has not expired");
+            }
+            return true;
+        } catch (StripeException exception) {
+            throw new PaymentStateException("Unable to close Stripe checkout; retry later");
+        }
     }
 
     private SessionCreateParams.LineItem buildLineItem(
@@ -83,16 +145,12 @@ public class StripePaymentProvider {
                 .setQuantity(1L)
                 .setPriceData(
                         SessionCreateParams.LineItem.PriceData.builder()
-                                .setCurrency(stripeProperties.getCurrency())
+                                .setCurrency(payment.getCurrency() == null
+                                        ? stripeProperties.getCurrency() : payment.getCurrency())
                                 .setUnitAmount(toMinorUnits(payment.getAmountToPay()))
                                 .setProductData(
                                         SessionCreateParams.LineItem.PriceData.ProductData.builder()
                                                 .setName("Booking #" + booking.getId())
-                                                .setDescription(
-                                                        accommodation.getType()
-                                                                + " in "
-                                                                + accommodation.getLocation()
-                                                )
                                                 .build()
                                 )
                                 .build()

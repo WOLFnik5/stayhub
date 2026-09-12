@@ -12,6 +12,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
+import java.time.Instant;
 import lombok.Data;
 
 @Entity
@@ -47,4 +48,10 @@ public class PaymentEntity {
 
     @Column(name = "amount_to_pay", nullable = false, precision = 12, scale = 2)
     private BigDecimal amountToPay;
+
+    @Column(name = "currency", length = 3)
+    private String currency;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
 }

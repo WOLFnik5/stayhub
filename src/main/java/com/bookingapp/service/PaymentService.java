@@ -6,12 +6,14 @@ import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.Payment;
 import com.bookingapp.domain.model.User;
+import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.domain.model.enums.PaymentStatus;
 import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.exception.EntityNotFoundDomainException;
 import com.bookingapp.exception.ForbiddenOperationException;
 import com.bookingapp.exception.PaymentStateException;
+import com.bookingapp.infrastructure.config.StripeProperties;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
 import com.bookingapp.infrastructure.security.CurrentUser;
 import com.bookingapp.infrastructure.security.CurrentUserService;
@@ -24,10 +26,14 @@ import com.bookingapp.persistence.UserRepositoryImpl;
 import com.bookingapp.web.dto.PaymentCancelResult;
 import com.bookingapp.web.dto.PaymentSessionResult;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @Transactional(readOnly = true)
@@ -40,6 +46,8 @@ public class PaymentService {
     private final CurrentUserService currentUserService;
     private final StripePaymentProvider stripePaymentProvider;
     private final KafkaEventPublisher kafkaEventPublisher;
+    private final TransactionTemplate transactionTemplate;
+    private final StripeProperties stripeProperties;
 
     public PaymentService(
             PaymentRepositoryImpl paymentRepository,
@@ -48,7 +56,9 @@ public class PaymentService {
             UserRepositoryImpl userRepository,
             CurrentUserService currentUserService,
             StripePaymentProvider stripePaymentProvider,
-            KafkaEventPublisher kafkaEventPublisher
+            KafkaEventPublisher kafkaEventPublisher,
+            TransactionTemplate transactionTemplate,
+            StripeProperties stripeProperties
     ) {
         this.paymentRepository = paymentRepository;
         this.bookingRepository = bookingRepository;
@@ -57,33 +67,74 @@ public class PaymentService {
         this.currentUserService = currentUserService;
         this.stripePaymentProvider = stripePaymentProvider;
         this.kafkaEventPublisher = kafkaEventPublisher;
+        this.transactionTemplate = transactionTemplate;
+        this.stripeProperties = stripeProperties;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public PaymentSessionResult createPaymentSession(Long bookingId) {
-        Booking booking = bookingRepository.findByIdForUpdate(bookingId)
-                .orElseThrow(() -> new EntityNotFoundDomainException(
-                        "Booking with id '" + bookingId + "' was not found"));
+        // Commit the attempt before calling Stripe so retries reuse the same idempotency key.
+        Payment attempt = transactionTemplate.execute(status -> prepareCheckout(bookingId));
+        return transactionTemplate.execute(status -> {
+            Booking booking = lockBooking(bookingId);
+            ensureCurrentUserCanAccessBooking(booking);
+            ensureBookingPayable(booking);
+            Payment payment = paymentRepository.refresh(attempt.getId());
+            return sessionResult(attachOrRecoverSession(payment, booking));
+        });
+    }
+
+    private Payment prepareCheckout(Long bookingId) {
+        Booking booking = lockBooking(bookingId);
         ensureCurrentUserCanAccessBooking(booking);
-        Accommodation accommodation = getAccommodation(booking.getAccommodationId());
-        User bookingOwner = getUser(booking.getUserId());
+        ensureBookingPayable(booking);
+        if (paymentRepository.findAllByBookingId(bookingId).stream()
+                .anyMatch(payment -> payment.getStatus() == PaymentStatus.PAID)) {
+            throw new PaymentStateException("Payment has already been completed");
+        }
+        Payment previous = paymentRepository.findByBookingId(bookingId).orElse(null);
+        if (previous != null && previous.getStatus() == PaymentStatus.PAID) {
+            return previous;
+        }
+        if (previous != null && previous.getStatus() == PaymentStatus.PENDING) {
+            if (previous.getSessionId() == null) {
+                return previous;
+            }
+            if (stripePaymentProvider.isPaymentSuccessful(previous.getSessionId())) {
+                return confirmPayment(previous);
+            }
+            if (!stripePaymentProvider.isPaymentSessionExpired(previous.getSessionId())) {
+                return previous;
+            }
+            paymentRepository.save(expirePayment(previous));
+            paymentRepository.flush();
+        }
+        BigDecimal amount = previous == null
+                ? calculateTotalAmount(booking, getAccommodation(booking.getAccommodationId()))
+                : previous.getAmountToPay();
+        Payment next = new Payment(null, PaymentStatus.PENDING, bookingId, null, null,
+                validateAmount(amount));
+        next.setCurrency(previous != null && previous.getCurrency() != null
+                ? previous.getCurrency() : stripeProperties.getCurrency());
+        return paymentRepository.save(next);
+    }
 
-        BigDecimal totalAmount = calculateTotalAmount(booking, accommodation);
-        Payment pendingPayment = preparePaymentForCheckout(booking.getId(), totalAmount);
-        PaymentSessionResult providerSession = stripePaymentProvider.createPaymentSession(
-                pendingPayment,
-                booking,
-                accommodation,
-                bookingOwner
-        );
+    private Payment attachOrRecoverSession(Payment payment, Booking booking) {
+        if (payment.getSessionId() != null) {
+            return payment;
+        }
+        if (payment.getCreatedAt() == null
+                || payment.getCreatedAt().isBefore(Instant.now().minus(23, ChronoUnit.HOURS))) {
+            throw new PaymentStateException(
+                    "Unresolved checkout attempt requires Stripe reconciliation before retrying");
+        }
+        PaymentSessionResult session = stripePaymentProvider.createPaymentSession(payment, booking,
+                getAccommodation(booking.getAccommodationId()), getUser(booking.getUserId()));
+        return paymentRepository.save(
+                attachSession(payment, session.sessionId(), session.sessionUrl()));
+    }
 
-        Payment paymentToSave = attachSession(
-                pendingPayment,
-                providerSession.sessionId(),
-                providerSession.sessionUrl()
-        );
-        Payment savedPayment = paymentRepository.save(paymentToSave);
-
+    private PaymentSessionResult sessionResult(Payment savedPayment) {
         return new PaymentSessionResult(
                 savedPayment.getSessionId(),
                 savedPayment.getSessionUrl(),
@@ -108,14 +159,43 @@ public class PaymentService {
 
     @Transactional
     public Payment handlePaymentSuccess(String sessionId) {
-        Payment payment = getPaymentBySessionId(sessionId);
+        return completePayment(getPaymentBySessionId(sessionId), sessionId);
+    }
 
+    @Transactional
+    public Payment handleWebhookSuccess(String sessionId, Long paymentId) {
+        Payment payment = paymentRepository.findBySessionId(sessionId).orElseGet(() -> {
+            if (paymentId == null) {
+                throw new EntityNotFoundDomainException("Stripe payment is not recorded yet");
+            }
+            return paymentRepository.findById(paymentId).orElseThrow(() ->
+                    new EntityNotFoundDomainException("Stripe payment attempt was not found"));
+        });
+        return completePayment(payment, sessionId);
+    }
+
+    private Payment completePayment(Payment payment, String sessionId) {
+        lockBooking(payment.getBookingId());
+        payment = paymentRepository.refresh(payment.getId());
+        if (payment.getSessionId() != null && !payment.getSessionId().equals(sessionId)) {
+            throw new PaymentStateException("Stripe session does not match this attempt");
+        }
+        // Only a verified webhook can reach an attempt whose session ID was not committed yet.
+        payment.setSessionId(sessionId);
+        if (payment.getStatus() == PaymentStatus.PAID) {
+            return payment;
+        }
         if (!stripePaymentProvider.isPaymentSuccessful(sessionId)) {
             throw new PaymentStateException("Payment session '"
                     + sessionId
                     + "' is not confirmed as successful");
         }
 
+        return confirmPayment(payment);
+    }
+
+    private Payment confirmPayment(Payment payment) {
+        stripePaymentProvider.validatePayment(payment);
         Payment savedPayment = paymentRepository.save(markPaid(payment));
         kafkaEventPublisher.publishPaymentSucceeded(savedPayment);
         return savedPayment;
@@ -129,13 +209,26 @@ public class PaymentService {
     @Transactional
     public PaymentCancelResult handlePaymentCancel(String sessionId, Long bookingId) {
         Payment payment = resolvePaymentForCancel(sessionId, bookingId);
-        ensureCurrentUserCanAccessBooking(getBooking(payment.getBookingId()));
+        Booking booking = lockBooking(payment.getBookingId());
+        ensureCurrentUserCanAccessBooking(booking);
+        payment = paymentRepository.refresh(payment.getId());
         if (bookingId != null && !bookingId.equals(payment.getBookingId())) {
             throw new BusinessValidationException("Payment session does not match booking id");
         }
+        if (payment.getStatus() == PaymentStatus.PAID) {
+            return new PaymentCancelResult(payment.getId(), payment.getSessionId(),
+                    payment.getSessionUrl(), payment.getStatus(), false, "Payment is complete.");
+        }
+        payment = attachOrRecoverSession(payment, booking);
         String resolvedSessionId = payment.getSessionId();
+        if (stripePaymentProvider.isPaymentSuccessful(resolvedSessionId)) {
+            Payment paid = confirmPayment(payment);
+            return new PaymentCancelResult(paid.getId(), paid.getSessionId(), paid.getSessionUrl(),
+                    paid.getStatus(), false, "Payment is complete.");
+        }
 
-        if (stripePaymentProvider.isPaymentSessionActive(resolvedSessionId)) {
+        if (isBookingPayable(booking)
+                && stripePaymentProvider.isPaymentSessionActive(resolvedSessionId)) {
             return new PaymentCancelResult(
                     payment.getId(),
                     payment.getSessionId(),
@@ -147,6 +240,10 @@ public class PaymentService {
             );
         }
 
+        if (!stripePaymentProvider.isPaymentSessionExpired(resolvedSessionId)) {
+            return new PaymentCancelResult(payment.getId(), payment.getSessionId(),
+                    null, payment.getStatus(), false, "Payment is processing or unavailable.");
+        }
         Payment expiredPayment = expirePayment(payment);
         Payment savedPayment = paymentRepository.save(expiredPayment);
 
@@ -170,35 +267,6 @@ public class PaymentService {
         return accommodation.getDailyRate().multiply(BigDecimal.valueOf(bookedDays));
     }
 
-    private Payment preparePaymentForCheckout(Long bookingId, BigDecimal totalAmount) {
-        Payment existingPayment = paymentRepository.findByBookingId(bookingId).orElse(null);
-        if (existingPayment == null) {
-            return new Payment(
-                    null,
-                    PaymentStatus.PENDING,
-                    bookingId,
-                    null,
-                    null,
-                    validateAmount(totalAmount)
-            );
-        }
-
-        if (existingPayment.getStatus() == PaymentStatus.PAID) {
-            throw new PaymentStateException("Payment for booking id '"
-                    + bookingId
-                    + "' has already been completed");
-        }
-
-        return new Payment(
-                existingPayment.getId(),
-                PaymentStatus.PENDING,
-                bookingId,
-                null,
-                null,
-                totalAmount
-        );
-    }
-
     private Payment attachSession(Payment payment, String sessionId, String sessionUrl) {
         payment.setSessionId(requireNonBlank(sessionId, "Payment session id must not be blank"));
         payment.setSessionUrl(requireNonBlank(sessionUrl, "Payment session URL must not be blank"));
@@ -208,9 +276,6 @@ public class PaymentService {
     private Payment markPaid(Payment payment) {
         if (payment.getStatus() == PaymentStatus.PAID) {
             return payment;
-        }
-        if (payment.getStatus() == PaymentStatus.EXPIRED) {
-            throw new PaymentStateException("Expired payment cannot be marked as paid");
         }
         payment.setStatus(PaymentStatus.PAID);
         return payment;
@@ -250,11 +315,51 @@ public class PaymentService {
         }
     }
 
-    private Booking getBooking(Long bookingId) {
-        return bookingRepository.findById(bookingId)
+    private Booking lockBooking(Long bookingId) {
+        return bookingRepository.findByIdForUpdate(bookingId)
                 .orElseThrow(() -> new EntityNotFoundDomainException("Booking with id '"
                         + bookingId
                         + "' was not found"));
+    }
+
+    private boolean isBookingPayable(Booking booking) {
+        return booking.getStatus() != BookingStatus.CANCELED
+                && booking.getStatus() != BookingStatus.EXPIRED
+                && booking.getCheckOutDate().isAfter(LocalDate.now());
+    }
+
+    private void ensureBookingPayable(Booking booking) {
+        if (!isBookingPayable(booking)) {
+            throw new PaymentStateException("Canceled or expired booking cannot be paid");
+        }
+    }
+
+    @Transactional
+    public void closeCheckoutForBooking(Booking booking, boolean cancellation) {
+        lockBooking(booking.getId());
+        for (Payment snapshot : paymentRepository.findAllByBookingId(booking.getId())) {
+            Payment payment = paymentRepository.refresh(snapshot.getId());
+            if (payment.getStatus() == PaymentStatus.PAID) {
+                if (cancellation) {
+                    throw new PaymentStateException(
+                            "Paid booking requires a refund before cancellation");
+                }
+                continue;
+            }
+            if (payment.getStatus() == PaymentStatus.EXPIRED) {
+                continue;
+            }
+            payment = attachOrRecoverSession(payment, booking);
+            if (!stripePaymentProvider.expireUnpaidSession(payment.getSessionId())) {
+                if (cancellation) {
+                    throw new PaymentStateException(
+                            "Payment completed; refund before cancellation");
+                }
+                confirmPayment(payment);
+            } else {
+                paymentRepository.save(expirePayment(payment));
+            }
+        }
     }
 
     private Accommodation getAccommodation(Long accommodationId) {

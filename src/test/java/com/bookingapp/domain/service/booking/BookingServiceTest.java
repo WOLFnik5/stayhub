@@ -59,6 +59,9 @@ class BookingServiceTest {
     @Mock
     private KafkaEventPublisher kafkaEventPublisher;
 
+    @Mock
+    private com.bookingapp.service.PaymentService paymentService;
+
     @InjectMocks
     private BookingService bookingService;
 

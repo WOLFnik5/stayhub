@@ -1,0 +1,39 @@
+databaseChangeLog:
+  - changeSet:
+      id: 009-payment-attempts
+      author: admin
+      preConditions:
+        - onFail: HALT
+        - onFailMessage: Reconcile duplicate PENDING payments in Stripe before applying migration 009.
+        - sqlCheck:
+            expectedResult: 0
+            sql: >
+              SELECT COUNT(*) FROM
+              (SELECT booking_id FROM payments WHERE status = 'PENDING'
+               GROUP BY booking_id HAVING COUNT(*) > 1) duplicate_bookings
+      changes:
+        - addColumn:
+            tableName: payments
+            columns:
+              - column:
+                  name: currency
+                  type: VARCHAR(3)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uk_payments_pending_booking ON payments (booking_id)
+              WHERE status = 'PENDING';
+      rollback:
+        - sql:
+            sql: DROP INDEX uk_payments_pending_booking;
+        - dropColumn:
+            tableName: payments
+            columnName: created_at
+        - dropColumn:
+            tableName: payments
+            columnName: currency

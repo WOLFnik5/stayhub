@@ -16,6 +16,9 @@ public class StripeProperties {
     private String secretKey;
 
     @NotBlank
+    private String webhookSecret;
+
+    @NotBlank
     private String successUrl;
 
     @NotBlank

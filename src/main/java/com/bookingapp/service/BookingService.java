@@ -38,19 +38,22 @@ public class BookingService {
     private final PaymentRepositoryImpl paymentRepository;
     private final CurrentUserService currentUserService;
     private final KafkaEventPublisher kafkaEventPublisher;
+    private final PaymentService paymentService;
 
     public BookingService(
             BookingRepositoryImpl bookingRepository,
             AccommodationRepositoryImpl accommodationRepository,
             PaymentRepositoryImpl paymentRepository,
             CurrentUserService currentUserService,
-            KafkaEventPublisher kafkaEventPublisher
+            KafkaEventPublisher kafkaEventPublisher,
+            PaymentService paymentService
     ) {
         this.bookingRepository = bookingRepository;
         this.accommodationRepository = accommodationRepository;
         this.paymentRepository = paymentRepository;
         this.currentUserService = currentUserService;
         this.kafkaEventPublisher = kafkaEventPublisher;
+        this.paymentService = paymentService;
     }
 
     @Transactional
@@ -138,6 +141,7 @@ public class BookingService {
         Booking existingBooking = findBookingForUpdate(bookingId);
         ensureCurrentUserCanAccessBooking(existingBooking);
         ensureBookingCanBeCanceled(existingBooking);
+        paymentService.closeCheckoutForBooking(existingBooking, true);
 
         existingBooking.setStatus(BookingStatus.CANCELED);
         Booking savedBooking = bookingRepository.save(existingBooking);

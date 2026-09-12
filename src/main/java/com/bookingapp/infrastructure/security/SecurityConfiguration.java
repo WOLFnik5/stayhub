@@ -53,6 +53,7 @@ public class SecurityConfiguration {
                                 "/auth/**",
                                 "/health",
                                 "/payments/success",
+                                "/payments/webhook",
                                 "/payments/cancel/return",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",

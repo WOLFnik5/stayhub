@@ -76,6 +76,7 @@ Required variables you should review before demo/use:
 
 - `JWT_SECRET`
 - `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 
@@ -207,7 +208,12 @@ Main business endpoints:
 - `DELETE /bookings/{id}`
   Authenticated booking cancellation/deletion flow.
 - `POST /payments`
-  Authenticated payment/checkout session creation.
+  Authenticated checkout creation or reuse of the current session. An expired
+  session can be replaced with a new attempt; previous attempts remain stored.
+- `POST /payments/webhook`
+  Stripe payment notification endpoint. Requires a valid `Stripe-Signature`
+  header, not a bearer token. Supports `checkout.session.completed` and
+  `checkout.session.async_payment_succeeded`.
 - `GET /payments/success`
   Public Stripe success callback endpoint.
 - `GET /payments/cancel`
@@ -231,6 +237,7 @@ Swagger is available at [http://localhost:8080/swagger-ui.html](http://localhost
   `POST /auth/**`, `GET /health`, `GET /actuator/health`,
   `GET /payments/success`, `GET /payments/cancel/return`, Swagger/OpenAPI
   endpoints, and public accommodation reads.
+  `POST /payments/webhook` verifies Stripe's signature separately.
 - `CUSTOMER`:
   authenticated booking/payment operations allowed by controller/service rules and access to their own profile.
 - `ADMIN`:
@@ -244,9 +251,38 @@ session expires. Create a new booking for a different period. Checkout creation
 and date changes are serialized per booking so simultaneous requests cannot
 leave a checkout amount based on old dates.
 
+Each checkout attempt is committed before contacting Stripe and uses its stored
+payment ID as an idempotency key. Requests are serialized per booking. Retrying
+an open or processing session returns that session; renewing an expired session
+creates a new payment row with the original amount and currency. A paid booking
+cannot start another checkout. Session expiry is limited to 23 hours from the
+attempt creation and never exceeds the booking's checkout date (server timezone).
+Stripe requires at least 30 minutes of remaining session lifetime.
+
+Creating checkout for a canceled/expired booking, or after its checkout date,
+is rejected. Canceling a booking closes its unpaid Stripe sessions first. If
+Stripe cannot confirm closure, cancellation fails and can be retried. A paid
+booking requires a separate refund process before cancellation; refunds are not
+automatically issued. The expiration job also closes unpaid sessions and waits
+for processing payments to settle. A late successful payment is recorded without
+reactivating a canceled/expired booking.
+
+Successful callbacks verify the stored amount, currency, booking and attempt
+against Stripe. Payment status and the outbox event commit in one transaction;
+repeated or concurrent webhook/browser callbacks emit only one success event.
+A signed webhook can recover a durable attempt by Stripe's `paymentId` metadata
+if the session ID was not saved after a network failure.
+
 Stripe setup notes:
 
 - set `STRIPE_SECRET_KEY`
+- set `STRIPE_WEBHOOK_SECRET` to the endpoint signing secret (`whsec_...`);
+  the application will not start without it
+- register `https://YOUR_HOST/payments/webhook` in Stripe for
+  `checkout.session.completed` and `checkout.session.async_payment_succeeded`
+- for local development, run
+  `stripe listen --events checkout.session.completed,checkout.session.async_payment_succeeded --forward-to localhost:8080/payments/webhook`
+  and use the signing secret printed by that listener
 - verify `STRIPE_SUCCESS_URL` and `STRIPE_CANCEL_URL`
 - local defaults point to `http://localhost:8080/payments/success` and `http://localhost:8080/payments/cancel/return`
 - update an existing `STRIPE_CANCEL_URL` in `.env` to the new return endpoint
@@ -255,6 +291,25 @@ Stripe setup notes:
 - browser redirects from Stripe do not carry a bearer token. After returning,
   the frontend must authenticate and call `/payments/cancel` to retrieve private
   payment details. Never put the JWT in the return URL.
+
+Webhook processing returns 503 for temporary processing failures so Stripe can
+retry. The browser success URL remains a convenience; it is not required for
+confirmation. See [Stripe fulfillment](https://docs.stripe.com/checkout/fulfillment).
+
+Migration `009` adds attempt timestamps, currency and a unique index allowing
+one pending payment per booking. If existing data has multiple pending payments
+for one booking, migration stops with a reconciliation message. Check the related
+sessions in Stripe and reconcile them before retrying; migration never deletes
+payment history. Legacy rows without a stored currency use `STRIPE_CURRENCY`,
+which must match the currency used when those sessions were created.
+
+An attempt with no saved session ID is automatically retried only within 23 hours.
+Older unresolved attempts require reconciliation against Stripe request logs and
+`paymentId` metadata before another attempt is allowed, since Stripe's
+[idempotency keys can expire after 24 hours](https://docs.stripe.com/api/idempotent_requests).
+Do not change the configured Stripe account or return URLs while recovering an
+unfinished attempt; retries must use the same parameters. No live Stripe account
+or webhook registration is modified by the test suite.
 
 Telegram setup notes:
 

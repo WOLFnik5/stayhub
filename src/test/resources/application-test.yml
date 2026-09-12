@@ -20,6 +20,7 @@ app:
     publisher:
       enabled: false
   stripe:
+    webhook-secret: whsec_test_only
     secret-key: sk_test_integration
     success-url: http://localhost/payments/success
     cancel-url: http://localhost/payments/cancel/return
