@@ -5,6 +5,7 @@ import static com.bookingapp.service.validation.TextValidationUtils.selectNonBla
 
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.enums.AccommodationType;
+import com.bookingapp.domain.model.PageResult;
 import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.exception.EntityNotFoundDomainException;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
@@ -56,10 +57,10 @@ public class AccommodationService {
                 ));
     }
 
-    public List<Accommodation> listAccommodations() {
-        return accommodationRepository.findAll().stream()
-                .filter(accommodation -> accommodation.getAvailability() > 0)
-                .toList();
+    public PageResult<Accommodation> listAccommodations(int page, int size) {
+        validatePagination(page, size);
+
+        return accommodationRepository.findAvailablePage(page, size);
     }
 
     @Transactional
@@ -211,6 +212,20 @@ public class AccommodationService {
         if (units <= 0) {
             throw new BusinessValidationException(
                     "Availability change units must be greater than zero"
+            );
+        }
+    }
+
+    private static void validatePagination(int page, int size) {
+        if (page < 0) {
+            throw new BusinessValidationException(
+                    "Page must not be negative"
+            );
+        }
+
+        if (size < 1 || size > 100) {
+            throw new BusinessValidationException(
+                    "Page size must be between 1 and 100"
             );
         }
     }

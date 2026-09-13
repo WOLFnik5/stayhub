@@ -1,26 +1,5 @@
 package com.bookingapp.web.accommodation;
 
-import com.bookingapp.web.ControllerTestSecurityConfig;
-import com.bookingapp.web.controller.AccommodationController;
-import com.bookingapp.web.dto.CreateAccommodationRequest;
-import com.bookingapp.web.mapper.AccommodationWebMapperImpl;
-import com.bookingapp.service.AccommodationService;
-import com.bookingapp.exception.GlobalExceptionHandler;
-import com.bookingapp.domain.model.enums.AccommodationType;
-import com.bookingapp.domain.model.Accommodation;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.FilterType;
-import org.springframework.context.annotation.Import;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
-
-import java.math.BigDecimal;
-import java.util.List;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -31,6 +10,27 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.bookingapp.domain.model.Accommodation;
+import com.bookingapp.domain.model.PageResult;
+import com.bookingapp.domain.model.enums.AccommodationType;
+import com.bookingapp.exception.GlobalExceptionHandler;
+import com.bookingapp.service.AccommodationService;
+import com.bookingapp.web.ControllerTestSecurityConfig;
+import com.bookingapp.web.controller.AccommodationController;
+import com.bookingapp.web.dto.CreateAccommodationRequest;
+import com.bookingapp.web.mapper.AccommodationWebMapperImpl;
+import java.math.BigDecimal;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
 @WebMvcTest(
         controllers = AccommodationController.class,
         excludeFilters = @ComponentScan.Filter(
@@ -38,7 +38,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 pattern = "com\\.bookingapp\\.infrastructure\\.security\\..*"
         )
 )
-@Import({ControllerTestSecurityConfig.class, GlobalExceptionHandler.class, AccommodationWebMapperImpl.class})
+@Import({
+        ControllerTestSecurityConfig.class,
+        GlobalExceptionHandler.class,
+        AccommodationWebMapperImpl.class
+})
 class AccommodationControllerTest {
 
     @Autowired
@@ -48,24 +52,106 @@ class AccommodationControllerTest {
     private AccommodationService accommodationService;
 
     @Test
-    void listAccommodationsShouldBePublic() throws Exception {
-        when(accommodationService.listAccommodations()).thenReturn(List.of(
-                new Accommodation(1L, AccommodationType.HOUSE, "Warsaw", "2 rooms", List.of("wifi"), BigDecimal.valueOf(120), 2)
-        ));
+    void listAccommodationsShouldBePublicAndPaginated() throws Exception {
+        Accommodation accommodation = new Accommodation(
+                1L,
+                AccommodationType.HOUSE,
+                "Warsaw",
+                "2 rooms",
+                List.of("wifi"),
+                BigDecimal.valueOf(120),
+                2
+        );
+
+        PageResult<Accommodation> pageResult = new PageResult<>(
+                List.of(accommodation),
+                0,
+                20,
+                1
+        );
+
+        when(accommodationService.listAccommodations(0, 20))
+                .thenReturn(pageResult);
 
         mockMvc.perform(get("/accommodations"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].type").value("HOUSE"))
-                .andExpect(jsonPath("$[0].location").value("Warsaw"))
-                .andExpect(jsonPath("$[0].size").value("2 rooms"))
-                .andExpect(jsonPath("$[0].dailyRate").value(120))
-                .andExpect(jsonPath("$[0].availability").value(2));
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+
+                .andExpect(jsonPath("$.content.length()").value(1))
+
+                .andExpect(jsonPath("$.content[0].id").value(1))
+                .andExpect(jsonPath("$.content[0].type").value("HOUSE"))
+                .andExpect(jsonPath("$.content[0].location").value("Warsaw"))
+                .andExpect(jsonPath("$.content[0].size").value("2 rooms"))
+                .andExpect(jsonPath("$.content[0].dailyRate").value(120))
+                .andExpect(jsonPath("$.content[0].availability").value(2))
+
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
     }
 
     @Test
-    void createAccommodationShouldReturnUnauthorizedWhenAnonymous() throws Exception {
+    void listAccommodationsShouldUseProvidedPageAndSize() throws Exception {
+        Accommodation accommodation = new Accommodation(
+                11L,
+                AccommodationType.APARTMENT,
+                "Krakow",
+                "Studio",
+                List.of("wifi"),
+                BigDecimal.valueOf(150),
+                1
+        );
+
+        PageResult<Accommodation> pageResult = new PageResult<>(
+                List.of(accommodation),
+                1,
+                10,
+                25
+        );
+
+        when(accommodationService.listAccommodations(1, 10))
+                .thenReturn(pageResult);
+
+        mockMvc.perform(get("/accommodations")
+                        .param("page", "1")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(11))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.size").value(10))
+                .andExpect(jsonPath("$.totalElements").value(25))
+                .andExpect(jsonPath("$.totalPages").value(3));
+    }
+
+    @Test
+    void listAccommodationsShouldReturnEmptyPage() throws Exception {
+        PageResult<Accommodation> pageResult = new PageResult<>(
+                List.of(),
+                0,
+                20,
+                0
+        );
+
+        when(accommodationService.listAccommodations(0, 20))
+                .thenReturn(pageResult);
+
+        mockMvc.perform(get("/accommodations"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(0))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.totalPages").value(0));
+    }
+
+    @Test
+    void createAccommodationShouldReturnUnauthorizedWhenAnonymous()
+            throws Exception {
+
         mockMvc.perform(post("/accommodations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validCreateRequest()))
@@ -73,35 +159,43 @@ class AccommodationControllerTest {
     }
 
     @Test
-    void createAccommodationShouldReturnForbiddenForCustomer() throws Exception {
+    void createAccommodationShouldReturnForbiddenForCustomer()
+            throws Exception {
+
         mockMvc.perform(post("/accommodations")
-                        .with(user("customer@example.com").roles("CUSTOMER"))
+                        .with(user("customer@example.com")
+                                .roles("CUSTOMER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validCreateRequest()))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void createAccommodationShouldReturnCreatedJsonForAdmin() throws Exception {
-        when(accommodationService.createAccommodation(any(CreateAccommodationRequest.class)))
-                .thenReturn(
-                        new Accommodation(
-                                1L,
-                                AccommodationType.HOUSE,
-                                "Warsaw",
-                                "2 rooms",
-                                List.of("wifi", "parking"),
-                                BigDecimal.valueOf(120),
-                                2
-                        )
-                );
+    void createAccommodationShouldReturnCreatedJsonForAdmin()
+            throws Exception {
+
+        when(accommodationService.createAccommodation(
+                any(CreateAccommodationRequest.class)
+        )).thenReturn(
+                new Accommodation(
+                        1L,
+                        AccommodationType.HOUSE,
+                        "Warsaw",
+                        "2 rooms",
+                        List.of("wifi", "parking"),
+                        BigDecimal.valueOf(120),
+                        2
+                )
+        );
 
         mockMvc.perform(post("/accommodations")
-                        .with(user("admin@example.com").roles("ADMIN"))
+                        .with(user("admin@example.com")
+                                .roles("ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validCreateRequest()))
                 .andExpect(status().isCreated())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.type").value("HOUSE"))
                 .andExpect(jsonPath("$.location").value("Warsaw"))
@@ -110,18 +204,24 @@ class AccommodationControllerTest {
     }
 
     @Test
-    void updateAccommodationShouldReturnForbiddenForCustomer() throws Exception {
+    void updateAccommodationShouldReturnForbiddenForCustomer()
+            throws Exception {
+
         mockMvc.perform(put("/accommodations/1")
-                        .with(user("customer@example.com").roles("CUSTOMER"))
+                        .with(user("customer@example.com")
+                                .roles("CUSTOMER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validCreateRequest()))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void createAccommodationShouldReturnValidationError() throws Exception {
+    void createAccommodationShouldReturnValidationError()
+            throws Exception {
+
         mockMvc.perform(post("/accommodations")
-                        .with(user("admin@example.com").roles("ADMIN"))
+                        .with(user("admin@example.com")
+                                .roles("ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -133,7 +233,8 @@ class AccommodationControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").exists())

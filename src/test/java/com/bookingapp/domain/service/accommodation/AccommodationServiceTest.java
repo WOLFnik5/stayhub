@@ -1,22 +1,24 @@
 package com.bookingapp.domain.service.accommodation;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import com.bookingapp.persistence.AccommodationRepositoryImpl;
-import com.bookingapp.service.AccommodationService;
-import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
+import com.bookingapp.domain.model.Accommodation;
+import com.bookingapp.domain.model.PageResult;
 import com.bookingapp.domain.model.enums.AccommodationType;
 import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.exception.EntityNotFoundDomainException;
-import com.bookingapp.domain.model.Accommodation;
+import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
+import com.bookingapp.persistence.AccommodationRepositoryImpl;
+import com.bookingapp.service.AccommodationService;
 import com.bookingapp.web.dto.CreateAccommodationRequest;
 import com.bookingapp.web.dto.UpdateAccommodationRequest;
-
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -47,7 +49,8 @@ class AccommodationServiceTest {
                 3
         );
 
-        when(accommodationRepository.save(any())).thenReturn(savedAccommodation);
+        when(accommodationRepository.save(any()))
+                .thenReturn(savedAccommodation);
 
         CreateAccommodationRequest request = new CreateAccommodationRequest(
                 AccommodationType.APARTMENT,
@@ -61,8 +64,10 @@ class AccommodationServiceTest {
         Accommodation result = accommodationService.createAccommodation(request);
 
         assertEquals(savedAccommodation, result);
+
         verify(accommodationRepository).save(any());
-        verify(kafkaEventPublisher).publishAccommodationCreated(savedAccommodation);
+        verify(kafkaEventPublisher)
+                .publishAccommodationCreated(savedAccommodation);
     }
 
     @Test
@@ -94,16 +99,19 @@ class AccommodationServiceTest {
                 2
         );
 
-        when(accommodationRepository.findById(1L)).thenReturn(Optional.of(accommodation));
+        when(accommodationRepository.findById(1L))
+                .thenReturn(Optional.of(accommodation));
 
-        Accommodation result = accommodationService.getAccommodationById(1L);
+        Accommodation result =
+                accommodationService.getAccommodationById(1L);
 
         assertEquals(accommodation, result);
     }
 
     @Test
     void getAccommodationById_shouldThrow_whenNotFound() {
-        when(accommodationRepository.findById(1L)).thenReturn(Optional.empty());
+        when(accommodationRepository.findById(1L))
+                .thenReturn(Optional.empty());
 
         assertThrows(
                 EntityNotFoundDomainException.class,
@@ -112,8 +120,8 @@ class AccommodationServiceTest {
     }
 
     @Test
-    void listAccommodations_shouldReturnOnlyAvailable() {
-        Accommodation available = new Accommodation(
+    void listAccommodations_shouldReturnRequestedPage() {
+        Accommodation first = new Accommodation(
                 1L,
                 AccommodationType.APARTMENT,
                 "Kyiv",
@@ -123,22 +131,89 @@ class AccommodationServiceTest {
                 2
         );
 
-        Accommodation unavailable = new Accommodation(
+        Accommodation second = new Accommodation(
                 2L,
                 AccommodationType.HOUSE,
                 "Lviv",
                 "100m2",
                 List.of("Parking"),
                 new BigDecimal("200"),
-                0
+                1
         );
 
-        when(accommodationRepository.findAll()).thenReturn(List.of(available, unavailable));
+        PageResult<Accommodation> repositoryResult =
+                new PageResult<>(
+                        List.of(first, second),
+                        0,
+                        20,
+                        2
+                );
 
-        List<Accommodation> result = accommodationService.listAccommodations();
+        when(accommodationRepository.findAvailablePage(0, 20))
+                .thenReturn(repositoryResult);
 
-        assertEquals(1, result.size());
-        assertEquals(available, result.get(0));
+        PageResult<Accommodation> result =
+                accommodationService.listAccommodations(0, 20);
+
+        assertEquals(2, result.content().size());
+        assertEquals(first, result.content().get(0));
+        assertEquals(second, result.content().get(1));
+
+        assertEquals(0, result.page());
+        assertEquals(20, result.size());
+        assertEquals(2, result.totalElements());
+        assertEquals(1, result.totalPages());
+
+        verify(accommodationRepository)
+                .findAvailablePage(0, 20);
+    }
+
+    @Test
+    void listAccommodations_shouldReturnEmptyPage() {
+        PageResult<Accommodation> repositoryResult =
+                new PageResult<>(
+                        List.of(),
+                        0,
+                        20,
+                        0
+                );
+
+        when(accommodationRepository.findAvailablePage(0, 20))
+                .thenReturn(repositoryResult);
+
+        PageResult<Accommodation> result =
+                accommodationService.listAccommodations(0, 20);
+
+        assertEquals(0, result.content().size());
+        assertEquals(0, result.totalElements());
+        assertEquals(0, result.totalPages());
+
+        verify(accommodationRepository)
+                .findAvailablePage(0, 20);
+    }
+
+    @Test
+    void listAccommodations_shouldRejectNegativePage() {
+        assertThrows(
+                BusinessValidationException.class,
+                () -> accommodationService.listAccommodations(-1, 20)
+        );
+    }
+
+    @Test
+    void listAccommodations_shouldRejectZeroSize() {
+        assertThrows(
+                BusinessValidationException.class,
+                () -> accommodationService.listAccommodations(0, 0)
+        );
+    }
+
+    @Test
+    void listAccommodations_shouldRejectTooLargeSize() {
+        assertThrows(
+                BusinessValidationException.class,
+                () -> accommodationService.listAccommodations(0, 101)
+        );
     }
 
     @Test
@@ -163,27 +238,34 @@ class AccommodationServiceTest {
                 2
         );
 
-        when(accommodationRepository.findById(1L)).thenReturn(Optional.of(existing));
-        when(accommodationRepository.save(any())).thenReturn(updated);
+        when(accommodationRepository.findById(1L))
+                .thenReturn(Optional.of(existing));
 
-        UpdateAccommodationRequest request = new UpdateAccommodationRequest(
-                AccommodationType.HOUSE,
-                "Krakow",
-                "80m2",
-                List.of("WiFi"),
-                new BigDecimal("150"),
-                2
-        );
+        when(accommodationRepository.save(any()))
+                .thenReturn(updated);
 
-        Accommodation result = accommodationService.updateAccommodation(1L, request);
+        UpdateAccommodationRequest request =
+                new UpdateAccommodationRequest(
+                        AccommodationType.HOUSE,
+                        "Krakow",
+                        "80m2",
+                        List.of("WiFi"),
+                        new BigDecimal("150"),
+                        2
+                );
+
+        Accommodation result =
+                accommodationService.updateAccommodation(1L, request);
 
         assertEquals(updated, result);
+
         verify(accommodationRepository).save(any());
     }
 
     @Test
     void deleteAccommodation_shouldDelete_whenExists() {
-        when(accommodationRepository.existsById(1L)).thenReturn(true);
+        when(accommodationRepository.existsById(1L))
+                .thenReturn(true);
 
         accommodationService.deleteAccommodation(1L);
 
@@ -192,7 +274,8 @@ class AccommodationServiceTest {
 
     @Test
     void deleteAccommodation_shouldThrow_whenNotExists() {
-        when(accommodationRepository.existsById(1L)).thenReturn(false);
+        when(accommodationRepository.existsById(1L))
+                .thenReturn(false);
 
         assertThrows(
                 EntityNotFoundDomainException.class,

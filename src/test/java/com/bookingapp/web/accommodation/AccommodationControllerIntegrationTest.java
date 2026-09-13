@@ -1,17 +1,5 @@
 package com.bookingapp.web.accommodation;
 
-import com.bookingapp.web.dto.CreateAccommodationRequest;
-import com.bookingapp.web.dto.UpdateAccommodationRequest;
-import com.bookingapp.web.support.AbstractControllerIntegrationTest;
-import com.bookingapp.domain.model.enums.AccommodationType;
-import com.bookingapp.domain.model.Accommodation;
-import com.bookingapp.domain.model.User;
-import org.junit.jupiter.api.Test;
-import org.springframework.http.MediaType;
-
-import java.math.BigDecimal;
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -21,10 +9,27 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-class AccommodationControllerIntegrationTest extends AbstractControllerIntegrationTest {
+import com.bookingapp.domain.model.Accommodation;
+import com.bookingapp.domain.model.enums.AccommodationType;
+import com.bookingapp.domain.model.User;
+import com.bookingapp.web.dto.CreateAccommodationRequest;
+import com.bookingapp.web.dto.UpdateAccommodationRequest;
+import com.bookingapp.web.support.AbstractControllerIntegrationTest;
+import com.fasterxml.jackson.databind.JsonNode;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MvcResult;
+
+class AccommodationControllerIntegrationTest
+        extends AbstractControllerIntegrationTest {
 
     @Test
-    void listAccommodations_shouldBePublicAndReturnPersistedData() throws Exception {
+    void listAccommodations_shouldBePublicAndReturnPersistedData()
+            throws Exception {
+
         persistAccommodation(
                 AccommodationType.HOUSE,
                 "Warsaw",
@@ -33,6 +38,7 @@ class AccommodationControllerIntegrationTest extends AbstractControllerIntegrati
                 BigDecimal.valueOf(120),
                 2
         );
+
         persistAccommodation(
                 AccommodationType.APARTMENT,
                 "Krakow",
@@ -44,60 +50,114 @@ class AccommodationControllerIntegrationTest extends AbstractControllerIntegrati
 
         mockMvc.perform(get("/accommodations"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].id").exists())
-                .andExpect(jsonPath("$[0].type").value("HOUSE"))
-                .andExpect(jsonPath("$[0].location").value("Warsaw"))
-                .andExpect(jsonPath("$[0].size").value("2 rooms"))
-                .andExpect(jsonPath("$[0].dailyRate").value(120))
-                .andExpect(jsonPath("$[0].availability").value(2))
-                .andExpect(jsonPath("$[1]").doesNotExist());
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].id").exists())
+                .andExpect(jsonPath("$.content[0].type").value("HOUSE"))
+                .andExpect(jsonPath("$.content[0].location").value("Warsaw"))
+                .andExpect(jsonPath("$.content[0].size").value("2 rooms"))
+                .andExpect(jsonPath("$.content[0].dailyRate").value(120))
+                .andExpect(jsonPath("$.content[0].availability").value(2))
+
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
     }
 
     @Test
-    void getAccommodation_shouldReturn404WhenNotFound() throws Exception {
+    void listAccommodations_shouldRespectPageAndSize()
+            throws Exception {
+
+        for (int i = 0; i < 25; i++) {
+            persistAccommodation(
+                    AccommodationType.APARTMENT,
+                    "Krakow-" + i,
+                    "Apartment-" + i,
+                    List.of("wifi"),
+                    BigDecimal.valueOf(100 + i),
+                    1
+            );
+        }
+
+        mockMvc.perform(get("/accommodations")
+                        .param("page", "1")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(10))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.size").value(10))
+                .andExpect(jsonPath("$.totalElements").value(25))
+                .andExpect(jsonPath("$.totalPages").value(3));
+    }
+
+    @Test
+    void getAccommodation_shouldReturn404WhenNotFound()
+            throws Exception {
+
         mockMvc.perform(get("/accommodations/999999"))
                 .andExpect(status().isNotFound())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.path").value("/accommodations/999999"));
+                .andExpect(jsonPath("$.path")
+                        .value("/accommodations/999999"));
     }
 
     @Test
-    void createAccommodation_shouldReturn401WhenAnonymous() throws Exception {
+    void createAccommodation_shouldReturn401WhenAnonymous()
+            throws Exception {
+
         mockMvc.perform(post("/accommodations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJson(validCreateRequest())))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.path").value("/accommodations"));
+                .andExpect(jsonPath("$.path")
+                        .value("/accommodations"));
 
         assertThat(countEntities("AccommodationEntity")).isZero();
     }
 
     @Test
-    void createAccommodation_shouldReturn403ForCustomer() throws Exception {
-        User customer = persistCustomer("customer-accommodation@example.com");
+    void createAccommodation_shouldReturn403ForCustomer()
+            throws Exception {
+
+        User customer =
+                persistCustomer("customer-accommodation@example.com");
 
         mockMvc.perform(post("/accommodations")
-                        .header("Authorization", authorizationHeader(customer))
+                        .header(
+                                "Authorization",
+                                authorizationHeader(customer)
+                        )
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJson(validCreateRequest())))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.path").value("/accommodations"));
+                .andExpect(jsonPath("$.path")
+                        .value("/accommodations"));
 
         assertThat(countEntities("AccommodationEntity")).isZero();
     }
 
     @Test
-    void createAccommodation_shouldCreateForAdmin() throws Exception {
-        User admin = persistAdmin("admin-accommodation@example.com");
+    void createAccommodation_shouldCreateForAdmin()
+            throws Exception {
+
+        User admin =
+                persistAdmin("admin-accommodation@example.com");
 
         mockMvc.perform(post("/accommodations")
-                        .header("Authorization", authorizationHeader(admin))
+                        .header(
+                                "Authorization",
+                                authorizationHeader(admin)
+                        )
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJson(validCreateRequest())))
                 .andExpect(status().isCreated())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.type").value("HOUSE"))
                 .andExpect(jsonPath("$.location").value("Warsaw"))
@@ -106,17 +166,35 @@ class AccommodationControllerIntegrationTest extends AbstractControllerIntegrati
                 .andExpect(jsonPath("$.dailyRate").value(120))
                 .andExpect(jsonPath("$.availability").value(2));
 
-        assertThat(countEntities("AccommodationEntity")).isEqualTo(1);
-        Accommodation savedAccommodation = accommodationRepository.findAll().get(0);
-        assertThat(savedAccommodation.getLocation()).isEqualTo("Warsaw");
-        assertThat(savedAccommodation.getAmenities()).containsExactly("wifi", "parking");
-        assertThat(savedAccommodation.getDailyRate()).isEqualByComparingTo("120");
-        assertThat(savedAccommodation.getAvailability()).isEqualTo(2);
+        assertThat(countEntities("AccommodationEntity"))
+                .isEqualTo(1);
+
+        Accommodation savedAccommodation =
+                accommodationRepository
+                        .findAvailablePage(0, 20)
+                        .content()
+                        .getFirst();
+
+        assertThat(savedAccommodation.getLocation())
+                .isEqualTo("Warsaw");
+
+        assertThat(savedAccommodation.getAmenities())
+                .containsExactly("wifi", "parking");
+
+        assertThat(savedAccommodation.getDailyRate())
+                .isEqualByComparingTo("120");
+
+        assertThat(savedAccommodation.getAvailability())
+                .isEqualTo(2);
     }
 
     @Test
-    void updateAccommodation_shouldPersistChangesForAdmin() throws Exception {
-        User admin = persistAdmin("admin-accommodation-update@example.com");
+    void updateAccommodation_shouldPersistChangesForAdmin()
+            throws Exception {
+
+        User admin =
+                persistAdmin("admin-accommodation-update@example.com");
+
         Accommodation accommodation = persistAccommodation(
                 AccommodationType.HOUSE,
                 "Warsaw",
@@ -126,37 +204,70 @@ class AccommodationControllerIntegrationTest extends AbstractControllerIntegrati
                 2
         );
 
-        mockMvc.perform(put("/accommodations/{id}", accommodation.getId())
-                        .header("Authorization", authorizationHeader(admin))
+        mockMvc.perform(put(
+                        "/accommodations/{id}",
+                        accommodation.getId()
+                )
+                        .header(
+                                "Authorization",
+                                authorizationHeader(admin)
+                        )
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJson(new UpdateAccommodationRequest(
-                                AccommodationType.CONDO,
-                                "Gdansk",
-                                "Sea view apartment",
-                                List.of("wifi", "spa"),
-                                BigDecimal.valueOf(220),
-                                4
-                        ))))
+                        .content(asJson(
+                                new UpdateAccommodationRequest(
+                                        AccommodationType.CONDO,
+                                        "Gdansk",
+                                        "Sea view apartment",
+                                        List.of("wifi", "spa"),
+                                        BigDecimal.valueOf(220),
+                                        4
+                                )
+                        )))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(accommodation.getId()))
-                .andExpect(jsonPath("$.type").value("CONDO"))
-                .andExpect(jsonPath("$.location").value("Gdansk"))
-                .andExpect(jsonPath("$.amenities[1]").value("spa"))
-                .andExpect(jsonPath("$.dailyRate").value(220))
-                .andExpect(jsonPath("$.availability").value(4));
+                .andExpect(jsonPath("$.id")
+                        .value(accommodation.getId()))
+                .andExpect(jsonPath("$.type")
+                        .value("CONDO"))
+                .andExpect(jsonPath("$.location")
+                        .value("Gdansk"))
+                .andExpect(jsonPath("$.amenities[1]")
+                        .value("spa"))
+                .andExpect(jsonPath("$.dailyRate")
+                        .value(220))
+                .andExpect(jsonPath("$.availability")
+                        .value(4));
 
-        Accommodation updatedAccommodation = accommodationRepository.findById(accommodation.getId()).orElseThrow();
-        assertThat(updatedAccommodation.getType()).isEqualTo(AccommodationType.CONDO);
-        assertThat(updatedAccommodation.getLocation()).isEqualTo("Gdansk");
-        assertThat(updatedAccommodation.getSize()).isEqualTo("Sea view apartment");
-        assertThat(updatedAccommodation.getAmenities()).containsExactly("wifi", "spa");
-        assertThat(updatedAccommodation.getDailyRate()).isEqualByComparingTo("220");
-        assertThat(updatedAccommodation.getAvailability()).isEqualTo(4);
+        Accommodation updatedAccommodation =
+                accommodationRepository
+                        .findById(accommodation.getId())
+                        .orElseThrow();
+
+        assertThat(updatedAccommodation.getType())
+                .isEqualTo(AccommodationType.CONDO);
+
+        assertThat(updatedAccommodation.getLocation())
+                .isEqualTo("Gdansk");
+
+        assertThat(updatedAccommodation.getSize())
+                .isEqualTo("Sea view apartment");
+
+        assertThat(updatedAccommodation.getAmenities())
+                .containsExactly("wifi", "spa");
+
+        assertThat(updatedAccommodation.getDailyRate())
+                .isEqualByComparingTo("220");
+
+        assertThat(updatedAccommodation.getAvailability())
+                .isEqualTo(4);
     }
 
     @Test
-    void deleteAccommodation_shouldRemovePersistedEntityForAdmin() throws Exception {
-        User admin = persistAdmin("admin-accommodation-delete@example.com");
+    void deleteAccommodation_shouldRemovePersistedEntityForAdmin()
+            throws Exception {
+
+        User admin =
+                persistAdmin("admin-accommodation-delete@example.com");
+
         Accommodation accommodation = persistAccommodation(
                 AccommodationType.HOUSE,
                 "Poznan",
@@ -166,19 +277,36 @@ class AccommodationControllerIntegrationTest extends AbstractControllerIntegrati
                 1
         );
 
-        mockMvc.perform(delete("/accommodations/{id}", accommodation.getId())
-                        .header("Authorization", authorizationHeader(admin)))
+        mockMvc.perform(delete(
+                        "/accommodations/{id}",
+                        accommodation.getId()
+                )
+                        .header(
+                                "Authorization",
+                                authorizationHeader(admin)
+                        ))
                 .andExpect(status().isNoContent());
 
-        assertThat(entityExists("AccommodationEntity", accommodation.getId())).isFalse();
+        assertThat(
+                entityExists(
+                        "AccommodationEntity",
+                        accommodation.getId()
+                )
+        ).isFalse();
     }
 
     @Test
-    void createAccommodation_shouldReturn400ForValidationErrors() throws Exception {
-        User admin = persistAdmin("admin-accommodation-validation@example.com");
+    void createAccommodation_shouldReturn400ForValidationErrors()
+            throws Exception {
+
+        User admin =
+                persistAdmin("admin-accommodation-validation@example.com");
 
         mockMvc.perform(post("/accommodations")
-                        .header("Authorization", authorizationHeader(admin))
+                        .header(
+                                "Authorization",
+                                authorizationHeader(admin)
+                        )
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -191,12 +319,87 @@ class AccommodationControllerIntegrationTest extends AbstractControllerIntegrati
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.path").value("/accommodations"));
+                .andExpect(jsonPath("$.error")
+                        .value("Bad Request"))
+                .andExpect(jsonPath("$.path")
+                        .value("/accommodations"));
 
         assertThat(countEntities("AccommodationEntity")).isZero();
+    }
+
+    @Test
+    void listAccommodations_shouldBeProfiledForNPlusOneAndPagination()
+            throws Exception {
+
+        int accommodationsCount = 100;
+        int pageSize = 20;
+
+        for (int i = 0; i < accommodationsCount; i++) {
+            persistAccommodation(
+                    AccommodationType.APARTMENT,
+                    "Krakow-" + i,
+                    "Apartment-" + i,
+                    List.of(
+                            "wifi",
+                            "parking",
+                            "kitchen",
+                            "air-conditioning"
+                    ),
+                    BigDecimal.valueOf(100 + i),
+                    1
+            );
+        }
+
+        long start = System.nanoTime();
+
+        MvcResult result = mockMvc.perform(
+                        get("/accommodations")
+                                .param("page", "0")
+                                .param("size", String.valueOf(pageSize))
+                )
+                .andExpect(status().isOk())
+                .andReturn();
+
+        long durationMs =
+                TimeUnit.NANOSECONDS.toMillis(
+                        System.nanoTime() - start
+                );
+
+        JsonNode response = objectMapper.readTree(
+                result.getResponse().getContentAsString()
+        );
+
+        assertThat(response.isObject()).isTrue();
+
+        JsonNode content = response.get("content");
+
+        assertThat(content).isNotNull();
+        assertThat(content.isArray()).isTrue();
+        assertThat(content.size()).isEqualTo(pageSize);
+
+        assertThat(response.get("page").asInt())
+                .isEqualTo(0);
+
+        assertThat(response.get("size").asInt())
+                .isEqualTo(pageSize);
+
+        assertThat(response.get("totalElements").asLong())
+                .isEqualTo(accommodationsCount);
+
+        assertThat(response.get("totalPages").asInt())
+                .isEqualTo(5);
+
+        System.out.println(
+                "Loaded page of %d from %d accommodations in %d ms"
+                        .formatted(
+                                pageSize,
+                                accommodationsCount,
+                                durationMs
+                        )
+        );
     }
 
     private CreateAccommodationRequest validCreateRequest() {
