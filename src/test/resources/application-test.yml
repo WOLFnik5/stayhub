@@ -1,7 +1,8 @@
 spring:
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      # The disposable PostgreSQL container owns cleanup; it may stop before Spring.
+      ddl-auto: create
   liquibase:
     enabled: false
   kafka:

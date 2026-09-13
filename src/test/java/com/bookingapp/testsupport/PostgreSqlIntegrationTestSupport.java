@@ -27,7 +27,8 @@ public abstract class PostgreSqlIntegrationTestSupport {
         registry.add("spring.datasource.username", POSTGRESQL_CONTAINER::getUsername);
         registry.add("spring.datasource.password", POSTGRESQL_CONTAINER::getPassword);
         registry.add("spring.datasource.driver-class-name", POSTGRESQL_CONTAINER::getDriverClassName);
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
+        // Container cleanup removes the database without shutdown DDL against a stopped server.
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create");
         registry.add("spring.liquibase.enabled", () -> "false");
         registry.add("spring.kafka.bootstrap-servers", () -> "localhost:9092");
         registry.add("spring.kafka.listener.auto-startup", () -> "false");
