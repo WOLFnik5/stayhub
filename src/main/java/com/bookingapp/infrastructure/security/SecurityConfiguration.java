@@ -1,6 +1,7 @@
 package com.bookingapp.infrastructure.security;
 
 import com.bookingapp.domain.model.enums.UserRole;
+import com.bookingapp.infrastructure.config.AuthRateLimitProperties;
 import com.bookingapp.infrastructure.config.JwtProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -20,7 +21,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({JwtProperties.class, AuthRateLimitProperties.class})
 public class SecurityConfiguration {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;

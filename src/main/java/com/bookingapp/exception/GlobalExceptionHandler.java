@@ -49,6 +49,15 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, exception.getMessage(), request.getRequestURI());
     }
 
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleRateLimitExceeded(
+            RateLimitExceededException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(HttpStatus.TOO_MANY_REQUESTS, exception.getMessage(),
+                request.getRequestURI());
+    }
+
     @ExceptionHandler(ForbiddenOperationException.class)
     public ResponseEntity<ApiErrorResponse> handleForbiddenOperation(
             ForbiddenOperationException exception,
@@ -129,10 +138,11 @@ public class GlobalExceptionHandler {
     ) {
         String rootMessage = exception.getMostSpecificCause().getMessage();
         if (rootMessage != null
-                && rootMessage.contains("excl_booking_accommodation_date_overlap")) {
+                && (rootMessage.contains("excl_booking_accommodation_date_overlap")
+                || rootMessage.contains("accommodation_capacity_exceeded"))) {
             return buildResponse(
                     HttpStatus.CONFLICT,
-                    "Accommodation is already booked for the selected dates",
+                    "Accommodation capacity is exhausted for the selected dates",
                     request.getRequestURI()
             );
         }

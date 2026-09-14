@@ -1,0 +1,43 @@
+databaseChangeLog:
+  - changeSet:
+      id: 011-create-processed-events-table
+      author: admin
+
+      changes:
+        - createTable:
+            tableName: processed_events
+            columns:
+              - column:
+                  name: event_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: consumer
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: processed_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - addPrimaryKey:
+            tableName: processed_events
+            columnNames: event_id, consumer
+            constraintName: pk_processed_events
+
+        - createIndex:
+            tableName: processed_events
+            indexName: idx_processed_events_processed_at
+            columns:
+              - column:
+                  name: processed_at
+
+      rollback:
+        - dropTable:
+            tableName: processed_events

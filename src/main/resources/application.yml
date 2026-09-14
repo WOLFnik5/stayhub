@@ -46,10 +46,19 @@ springdoc:
 app:
   outbox:
     publish-fixed-delay-ms: 5000
+    recovery-fixed-delay-ms: 60000
     cleanup-cron: "0 0 3 * * *"
     max-attempts: 5
     sent-retention-days: 7
+    batch-size: 100
+    claim-timeout-minutes: 10
+
   security:
+    auth-rate-limit:
+      login-attempts: ${AUTH_RATE_LIMIT_LOGIN_ATTEMPTS:10}
+      register-attempts: ${AUTH_RATE_LIMIT_REGISTER_ATTEMPTS:5}
+      window-seconds: ${AUTH_RATE_LIMIT_WINDOW_SECONDS:60}
+      max-tracked-clients: ${AUTH_RATE_LIMIT_MAX_CLIENTS:100000}
     jwt:
       secret: ${JWT_SECRET:}
       expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}

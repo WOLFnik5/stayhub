@@ -147,6 +147,31 @@ class BookingControllerIntegrationTest extends AbstractControllerIntegrationTest
     }
 
     @Test
+    void createBooking_shouldAllowCheckInToday() throws Exception {
+        User customer = persistCustomer("booking-today@example.com");
+        LocalDate today = LocalDate.now();
+        Accommodation accommodation = persistAccommodation(
+                AccommodationType.APARTMENT,
+                "Warsaw",
+                "Same-day booking",
+                List.of("wifi"),
+                BigDecimal.valueOf(180),
+                1
+        );
+
+        mockMvc.perform(post("/bookings")
+                        .header("Authorization", authorizationHeader(customer))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJson(new CreateBookingRequest(
+                                accommodation.getId(),
+                                today,
+                                today.plusDays(1)
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.checkInDate").value(today.toString()));
+    }
+
+    @Test
     void listMyBookings_shouldReturnPersistedDataForCurrentUser() throws Exception {
         User currentUser = persistCustomer("booking-my-list@example.com");
         User otherUser = persistCustomer("booking-my-list-other@example.com");
@@ -370,9 +395,10 @@ class BookingControllerIntegrationTest extends AbstractControllerIntegrationTest
     }
 
     @Test
-    void createBooking_shouldRejectOverlappingDatesEvenWhenAvailabilityIsGreaterThanOne() throws Exception {
+    void createBooking_shouldAllowOverlapsUpToAvailabilityAndRejectTheNextOne() throws Exception {
         User firstCustomer = persistCustomer("booking-overlap-first@example.com");
         User secondCustomer = persistCustomer("booking-overlap-second@example.com");
+        User thirdCustomer = persistCustomer("booking-overlap-third@example.com");
         Accommodation accommodation = persistAccommodation(
                 AccommodationType.APARTMENT,
                 "Gdynia",
@@ -393,7 +419,19 @@ class BookingControllerIntegrationTest extends AbstractControllerIntegrationTest
                                 checkInDate.plusDays(1),
                                 checkOutDate.plusDays(1)
                         ))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/bookings")
+                        .header("Authorization", authorizationHeader(thirdCustomer))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJson(new CreateBookingRequest(
+                                accommodation.getId(),
+                                checkInDate.plusDays(1),
+                                checkOutDate.plusDays(1)
+                        ))))
                 .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("Accommodation capacity is exhausted for the selected dates"))
                 .andExpect(jsonPath("$.path").value("/bookings"));
     }
 
@@ -458,7 +496,7 @@ class BookingControllerIntegrationTest extends AbstractControllerIntegrationTest
                 "Overlap test apartment",
                 List.of("wifi"),
                 BigDecimal.valueOf(180),
-                2
+                1
         );
         LocalDate checkInDate = futureDate(20);
         LocalDate checkOutDate = futureDate(23);

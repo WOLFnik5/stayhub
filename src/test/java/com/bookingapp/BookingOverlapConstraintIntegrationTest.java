@@ -48,7 +48,7 @@ class BookingOverlapConstraintIntegrationTest extends PostgreSqlLiquibaseIntegra
 
         assertThatThrownBy(() -> insertBooking(accommodationId, 12, 17, "CONFIRMED"))
                 .isInstanceOf(DataIntegrityViolationException.class)
-                .hasStackTraceContaining("excl_booking_accommodation_date_overlap");
+                .hasStackTraceContaining("accommodation_capacity_exceeded");
         assertThat(bookingCount()).isEqualTo(1);
     }
 
@@ -60,7 +60,7 @@ class BookingOverlapConstraintIntegrationTest extends PostgreSqlLiquibaseIntegra
         assertThatThrownBy(() -> jdbc.update(
                 "UPDATE bookings SET check_in_date = ? WHERE id = ?", date(12), bookingId))
                 .isInstanceOf(DataIntegrityViolationException.class)
-                .hasStackTraceContaining("excl_booking_accommodation_date_overlap");
+                .hasStackTraceContaining("accommodation_capacity_exceeded");
         assertThat(jdbc.queryForObject("SELECT check_in_date FROM bookings WHERE id = ?",
                 LocalDate.class, bookingId)).isEqualTo(date(20));
     }
@@ -85,7 +85,7 @@ class BookingOverlapConstraintIntegrationTest extends PostgreSqlLiquibaseIntegra
         assertThatThrownBy(() -> jdbc.update(
                 "UPDATE bookings SET status = 'PENDING' WHERE id = ?", canceledId))
                 .isInstanceOf(DataIntegrityViolationException.class)
-                .hasStackTraceContaining("excl_booking_accommodation_date_overlap");
+                .hasStackTraceContaining("accommodation_capacity_exceeded");
         assertThat(jdbc.queryForObject("SELECT status FROM bookings WHERE id = ?",
                 String.class, canceledId)).isEqualTo("CANCELED");
     }

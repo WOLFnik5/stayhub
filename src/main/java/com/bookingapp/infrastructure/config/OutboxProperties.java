@@ -7,6 +7,9 @@ public record OutboxProperties(
         int maxAttempts,
         int sentRetentionDays,
         long publishFixedDelayMs,
-        String cleanupCron
+        String cleanupCron,
+        int batchSize,
+        int claimTimeoutMinutes,
+        long recoveryFixedDelayMs
 ) {
 }

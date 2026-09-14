@@ -16,6 +16,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class OutboxEventEntity {
+
     @Id
     private UUID id;
 
@@ -50,6 +51,12 @@ public class OutboxEventEntity {
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
 
+    @Column(name = "claimed_at")
+    private LocalDateTime claimedAt;
+
+    @Column(name = "claim_token")
+    private UUID claimToken;
+
     @Column(name = "last_error", columnDefinition = "TEXT")
     private String lastError;
 
@@ -68,6 +75,8 @@ public class OutboxEventEntity {
             int attempts,
             LocalDateTime createdAt,
             LocalDateTime publishedAt,
+            LocalDateTime claimedAt,
+            UUID claimToken,
             String lastError
     ) {
         this.id = id;
@@ -81,6 +90,8 @@ public class OutboxEventEntity {
         this.attempts = attempts;
         this.createdAt = createdAt;
         this.publishedAt = publishedAt;
+        this.claimedAt = claimedAt;
+        this.claimToken = claimToken;
         this.lastError = lastError;
     }
 
@@ -104,27 +115,42 @@ public class OutboxEventEntity {
                 0,
                 LocalDateTime.now(),
                 null,
+                null,
+                null,
                 null
         );
     }
 
+    public void markProcessing() {
+        status = OutboxStatus.PROCESSING;
+        claimedAt = LocalDateTime.now();
+        claimToken = UUID.randomUUID();
+        lastError = null;
+    }
+
     public void incrementAttempts() {
-        this.attempts++;
+        attempts++;
     }
 
     public void markSent() {
-        this.status = OutboxStatus.SENT;
-        this.publishedAt = LocalDateTime.now();
-        this.lastError = null;
+        status = OutboxStatus.SENT;
+        publishedAt = LocalDateTime.now();
+        claimedAt = null;
+        claimToken = null;
+        lastError = null;
     }
 
     public void markFailed(String errorMessage) {
-        this.status = OutboxStatus.FAILED;
-        this.lastError = errorMessage;
+        status = OutboxStatus.FAILED;
+        claimedAt = null;
+        claimToken = null;
+        lastError = errorMessage;
     }
 
     public void markDead(String errorMessage) {
-        this.status = OutboxStatus.DEAD;
-        this.lastError = errorMessage;
+        status = OutboxStatus.DEAD;
+        claimedAt = null;
+        claimToken = null;
+        lastError = errorMessage;
     }
 }

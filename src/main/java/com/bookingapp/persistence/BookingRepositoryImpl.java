@@ -99,7 +99,7 @@ public class BookingRepositoryImpl {
                 .toList();
     }
 
-    public boolean existsActiveBookingOverlap(
+    public long countActiveBookingOverlaps(
             Long accommodationId,
             LocalDate checkInDate,
             LocalDate checkOutDate,
@@ -122,7 +122,7 @@ public class BookingRepositoryImpl {
         query.setParameter("checkOutDate", checkOutDate);
         query.setParameter("excludedBookingId", excludedBookingId);
         query.setParameter("inactiveStatuses", INACTIVE_BOOKING_STATUSES);
-        return query.getSingleResult() > 0;
+        return query.getSingleResult();
     }
 
     public List<Booking> findBookingsToExpire(LocalDate businessDate) {

@@ -4,8 +4,8 @@ import static com.bookingapp.service.validation.TextValidationUtils.requireNonBl
 import static com.bookingapp.service.validation.TextValidationUtils.selectNonBlank;
 
 import com.bookingapp.domain.model.Accommodation;
-import com.bookingapp.domain.model.enums.AccommodationType;
 import com.bookingapp.domain.model.PageResult;
+import com.bookingapp.domain.model.enums.AccommodationType;
 import com.bookingapp.exception.BusinessValidationException;
 import com.bookingapp.exception.EntityNotFoundDomainException;
 import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;

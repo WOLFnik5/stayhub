@@ -5,8 +5,7 @@ import com.bookingapp.domain.model.Booking;
 import com.bookingapp.persistence.BookingRepositoryImpl;
 import com.bookingapp.service.BookingExpirationService;
 import com.bookingapp.service.BookingExpirationResult;
-import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
-import com.bookingapp.infrastructure.telegram.TelegramNotificationService;
+import com.bookingapp.service.BookingExpirationTransactionService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -30,13 +29,7 @@ class BookingExpirationServiceTest {
     private BookingRepositoryImpl bookingRepository;
 
     @Mock
-    private KafkaEventPublisher kafkaEventPublisher;
-
-    @Mock
-    private TelegramNotificationService telegramNotificationService;
-
-    @Mock
-    private com.bookingapp.service.PaymentService paymentService;
+    private BookingExpirationTransactionService transactionService;
 
     @InjectMocks
     private BookingExpirationService bookingExpirationService;
@@ -50,8 +43,7 @@ class BookingExpirationServiceTest {
 
         assertThat(result.expiredCount()).isZero();
         assertThat(result.expiredBookingIds()).isEmpty();
-        verify(telegramNotificationService).notifyNoExpiredBookingsToday();
-        verify(kafkaEventPublisher, never()).publishBookingExpired(any(Booking.class));
+        verify(transactionService, never()).expireIfEligible(any(), any());
     }
 
     @Test
@@ -75,17 +67,16 @@ class BookingExpirationServiceTest {
         );
 
         when(bookingRepository.findBookingsToExpire(businessDate)).thenReturn(List.of(firstBooking, secondBooking));
-        when(bookingRepository.findByIdForUpdate(10L)).thenReturn(java.util.Optional.of(firstBooking));
-        when(bookingRepository.findByIdForUpdate(11L)).thenReturn(java.util.Optional.of(secondBooking));
-        when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(transactionService.expireIfEligible(10L, businessDate))
+                .thenReturn(java.util.Optional.of(10L));
+        when(transactionService.expireIfEligible(11L, businessDate))
+                .thenReturn(java.util.Optional.of(11L));
 
         BookingExpirationResult result = bookingExpirationService.expireBookings(businessDate);
 
         assertThat(result.expiredCount()).isEqualTo(2);
         assertThat(result.expiredBookingIds()).containsExactly(10L, 11L);
-        verify(bookingRepository, times(2)).save(any(Booking.class));
-        verify(kafkaEventPublisher, times(2)).publishBookingExpired(any(Booking.class));
-        verify(telegramNotificationService, never()).notifyNoExpiredBookingsToday();
+        verify(transactionService, times(2)).expireIfEligible(any(), any());
     }
 
     @Test
@@ -95,12 +86,32 @@ class BookingExpirationServiceTest {
         Booking current = new Booking(10L, date.plusDays(5), date.plusDays(8),
                 5L, 15L, BookingStatus.PENDING);
         when(bookingRepository.findBookingsToExpire(date)).thenReturn(List.of(stale));
-        when(bookingRepository.findByIdForUpdate(10L)).thenReturn(java.util.Optional.of(current));
+        when(transactionService.expireIfEligible(10L, date))
+                .thenReturn(java.util.Optional.empty());
 
         BookingExpirationResult result = bookingExpirationService.expireBookings(date);
 
         assertThat(result.expiredCount()).isZero();
-        verify(bookingRepository, never()).save(any());
-        verify(kafkaEventPublisher, never()).publishBookingExpired(any());
+        verify(transactionService).expireIfEligible(10L, date);
+    }
+
+    @Test
+    void expireBookingsShouldContinueWhenOneBookingFails() {
+        LocalDate date = LocalDate.of(2026, 4, 1);
+        Booking first = new Booking(10L, date.minusDays(3), date.minusDays(1),
+                5L, 15L, BookingStatus.PENDING);
+        Booking second = new Booking(11L, date.minusDays(2), date,
+                6L, 16L, BookingStatus.CONFIRMED);
+        when(bookingRepository.findBookingsToExpire(date)).thenReturn(List.of(first, second));
+        when(transactionService.expireIfEligible(10L, date))
+                .thenThrow(new IllegalStateException("payment provider unavailable"));
+        when(transactionService.expireIfEligible(11L, date))
+                .thenReturn(java.util.Optional.of(11L));
+
+        BookingExpirationResult result = bookingExpirationService.expireBookings(date);
+
+        assertThat(result.expiredBookingIds()).containsExactly(11L);
+        assertThat(result.failedBookingIds()).containsExactly(10L);
+        verify(transactionService, times(2)).expireIfEligible(any(), any());
     }
 }

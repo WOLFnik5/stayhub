@@ -80,6 +80,11 @@ Required variables you should review before demo/use:
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 
+Authentication endpoints limit login and registration attempts per client address.
+The defaults can be tuned with `AUTH_RATE_LIMIT_LOGIN_ATTEMPTS`,
+`AUTH_RATE_LIMIT_REGISTER_ATTEMPTS`, `AUTH_RATE_LIMIT_WINDOW_SECONDS`, and
+`AUTH_RATE_LIMIT_MAX_CLIENTS`.
+
 `JWT_SECRET` is required. Generate a separate random key for each environment,
 encoded as Base64 with at least 32 decoded bytes. The application refuses to
 start with a missing, empty, malformed, or shorter key. Plain-text keys are not

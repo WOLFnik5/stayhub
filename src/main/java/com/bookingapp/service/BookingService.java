@@ -61,8 +61,7 @@ public class BookingService {
         Accommodation accommodation = getAccommodationForUpdate(request.accommodationId());
         validateBookingDates(request.checkInDate(), request.checkOutDate());
         ensureAccommodationHasAvailability(accommodation);
-        ensureNoOverlap(request.accommodationId(), request.checkInDate(), request.checkOutDate(),
-                null);
+        ensureCapacityAvailable(accommodation, request.checkInDate(), request.checkOutDate(), null);
         CurrentUser currentUser = currentUserService.getCurrentUser();
 
         Booking bookingToSave = new Booking(
@@ -122,10 +121,11 @@ public class BookingService {
         Booking existingBooking = findBookingForUpdate(bookingId);
         ensureCurrentUserCanAccessBooking(existingBooking);
         ensureBookingCanBeUpdated(existingBooking);
-        getAccommodationForUpdate(existingBooking.getAccommodationId());
+        Accommodation accommodation = getAccommodationForUpdate(
+                existingBooking.getAccommodationId());
         validateBookingDates(request.checkInDate(), request.checkOutDate());
-        ensureNoOverlap(
-                existingBooking.getAccommodationId(),
+        ensureCapacityAvailable(
+                accommodation,
                 request.checkInDate(),
                 request.checkOutDate(),
                 existingBooking.getId()
@@ -154,7 +154,7 @@ public class BookingService {
         Booking current = findBookingForUpdate(id);
         ensureCurrentUserCanAccessBooking(current);
         ensureBookingCanBeUpdated(current);
-        getAccommodationForUpdate(current.getAccommodationId());
+        Accommodation accommodation = getAccommodationForUpdate(current.getAccommodationId());
 
         LocalDate checkInDate = request.checkInDate() != null
                 ? request.checkInDate()
@@ -164,24 +164,25 @@ public class BookingService {
                 : current.getCheckOutDate();
 
         validateBookingDates(checkInDate, checkOutDate);
-        ensureNoOverlap(current.getAccommodationId(), checkInDate, checkOutDate, current.getId());
+        ensureCapacityAvailable(accommodation, checkInDate, checkOutDate, current.getId());
 
         current.setCheckInDate(checkInDate);
         current.setCheckOutDate(checkOutDate);
         return bookingRepository.save(current);
     }
 
-    private void ensureNoOverlap(
-            Long accommodationId,
+    private void ensureCapacityAvailable(
+            Accommodation accommodation,
             LocalDate checkInDate,
             LocalDate checkOutDate,
             Long excludedBookingId
     ) {
-        if (bookingRepository.existsActiveBookingOverlap(
-                accommodationId, checkInDate, checkOutDate, excludedBookingId
-        )) {
+        long overlaps = bookingRepository.countActiveBookingOverlaps(
+                accommodation.getId(), checkInDate, checkOutDate, excludedBookingId
+        );
+        if (overlaps >= accommodation.getAvailability()) {
             throw new BookingConflictException(
-                    "Accommodation is already booked for the selected dates"
+                    "Accommodation capacity is exhausted for the selected dates"
             );
         }
     }

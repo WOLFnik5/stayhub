@@ -1,0 +1,37 @@
+databaseChangeLog:
+  - changeSet:
+      id: 010-outbox-processing-lease
+      author: admin
+
+      changes:
+        - addColumn:
+            tableName: outbox_events
+            columns:
+              - column:
+                  name: claimed_at
+                  type: TIMESTAMP
+              - column:
+                  name: claim_token
+                  type: UUID
+
+        - createIndex:
+            tableName: outbox_events
+            indexName: idx_outbox_events_status_claimed_at
+            columns:
+              - column:
+                  name: status
+              - column:
+                  name: claimed_at
+
+      rollback:
+        - dropIndex:
+            tableName: outbox_events
+            indexName: idx_outbox_events_status_claimed_at
+
+        - dropColumn:
+            tableName: outbox_events
+            columnName: claim_token
+
+        - dropColumn:
+            tableName: outbox_events
+            columnName: claimed_at

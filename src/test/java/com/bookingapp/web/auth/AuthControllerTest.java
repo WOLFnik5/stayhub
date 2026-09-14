@@ -6,7 +6,9 @@ import com.bookingapp.web.dto.LoginRequest;
 import com.bookingapp.web.dto.RegisterRequest;
 import com.bookingapp.web.mapper.AuthWebMapperImpl;
 import com.bookingapp.service.AuthService;
+import com.bookingapp.infrastructure.security.AuthRateLimiter;
 import com.bookingapp.exception.GlobalExceptionHandler;
+import com.bookingapp.exception.RateLimitExceededException;
 import com.bookingapp.domain.model.enums.UserRole;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +21,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -41,6 +46,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private AuthService authService;
+
+    @MockitoBean
+    private AuthRateLimiter authRateLimiter;
 
     @Test
     void registerShouldReturnCreatedAuthResponse() throws Exception {
@@ -109,5 +117,26 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").exists())
                 .andExpect(jsonPath("$.path").value("/auth/login"));
+    }
+
+    @Test
+    void loginShouldReturnTooManyRequestsWhenClientExceedsLimit() throws Exception {
+        doThrow(new RateLimitExceededException("Too many authentication attempts. Try again later."))
+                .when(authRateLimiter).checkLogin(anyString());
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "admin@example.com",
+                                  "password": "password123"
+                                }
+                                """))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.status").value(429))
+                .andExpect(jsonPath("$.message")
+                        .value("Too many authentication attempts. Try again later."));
+
+        verify(authService, never()).login(any(LoginRequest.class));
     }
 }

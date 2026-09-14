@@ -1,0 +1,103 @@
+databaseChangeLog:
+  - changeSet:
+      id: 012-enforce-accommodation-capacity
+      author: admin
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              ALTER TABLE bookings
+                  DROP CONSTRAINT excl_booking_accommodation_date_overlap;
+
+              ALTER TABLE accommodations
+                  ADD CONSTRAINT chk_accommodations_availability_nonnegative
+                  CHECK (availability >= 0);
+
+              CREATE OR REPLACE FUNCTION enforce_booking_accommodation_capacity()
+              RETURNS trigger AS $$
+              DECLARE
+                  capacity integer;
+                  overlapping_bookings bigint;
+              BEGIN
+                  IF NEW.status IN ('CANCELED', 'EXPIRED') THEN
+                      RETURN NEW;
+                  END IF;
+
+                  SELECT availability INTO capacity
+                  FROM accommodations
+                  WHERE id = NEW.accommodation_id
+                  FOR UPDATE;
+
+                  IF capacity IS NULL THEN
+                      RETURN NEW;
+                  END IF;
+
+                  SELECT COUNT(*) INTO overlapping_bookings
+                  FROM bookings b
+                  WHERE b.accommodation_id = NEW.accommodation_id
+                    AND b.status NOT IN ('CANCELED', 'EXPIRED')
+                    AND b.id IS DISTINCT FROM NEW.id
+                    AND b.check_in_date < NEW.check_out_date
+                    AND NEW.check_in_date < b.check_out_date;
+
+                  IF overlapping_bookings >= capacity THEN
+                      RAISE EXCEPTION 'accommodation_capacity_exceeded'
+                          USING ERRCODE = '23P01';
+                  END IF;
+                  RETURN NEW;
+              END;
+              $$ LANGUAGE plpgsql;
+
+              CREATE TRIGGER trg_booking_accommodation_capacity
+              BEFORE INSERT OR UPDATE OF accommodation_id, check_in_date, check_out_date, status
+              ON bookings
+              FOR EACH ROW EXECUTE FUNCTION enforce_booking_accommodation_capacity();
+
+              CREATE OR REPLACE FUNCTION enforce_accommodation_capacity_reduction()
+              RETURNS trigger AS $$
+              BEGIN
+                  IF NEW.availability >= OLD.availability THEN
+                      RETURN NEW;
+                  END IF;
+
+                  IF EXISTS (
+                      SELECT 1
+                      FROM bookings anchor
+                      WHERE anchor.accommodation_id = NEW.id
+                        AND anchor.status NOT IN ('CANCELED', 'EXPIRED')
+                        AND (
+                            SELECT COUNT(*)
+                            FROM bookings b
+                            WHERE b.accommodation_id = NEW.id
+                              AND b.status NOT IN ('CANCELED', 'EXPIRED')
+                              AND b.check_in_date <= anchor.check_in_date
+                              AND anchor.check_in_date < b.check_out_date
+                        ) > NEW.availability
+                  ) THEN
+                      RAISE EXCEPTION 'accommodation_capacity_exceeded'
+                          USING ERRCODE = '23P01';
+                  END IF;
+                  RETURN NEW;
+              END;
+              $$ LANGUAGE plpgsql;
+
+              CREATE TRIGGER trg_accommodation_capacity_reduction
+              BEFORE UPDATE OF availability ON accommodations
+              FOR EACH ROW EXECUTE FUNCTION enforce_accommodation_capacity_reduction();
+      rollback:
+        - sql:
+            splitStatements: false
+            sql: |
+              DROP TRIGGER trg_accommodation_capacity_reduction ON accommodations;
+              DROP FUNCTION enforce_accommodation_capacity_reduction();
+              DROP TRIGGER trg_booking_accommodation_capacity ON bookings;
+              DROP FUNCTION enforce_booking_accommodation_capacity();
+              ALTER TABLE accommodations
+                  DROP CONSTRAINT chk_accommodations_availability_nonnegative;
+              ALTER TABLE bookings
+                  ADD CONSTRAINT excl_booking_accommodation_date_overlap
+                  EXCLUDE USING gist (
+                      accommodation_id WITH =,
+                      daterange(check_in_date, check_out_date, '[)') WITH &&
+                  )
+                  WHERE (status NOT IN ('CANCELED', 'EXPIRED'));

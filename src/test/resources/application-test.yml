@@ -14,6 +14,9 @@ spring:
 
 app:
   security:
+    auth-rate-limit:
+      login-attempts: 1000
+      register-attempts: 1000
     jwt:
       # Test-only key; never used by the packaged application.
       secret: c3VwZXItc2VjdXJlLWJhc2U2NC1zZWNyZXQtdGhhdC1pcy1sb25nLWVub3VnaA==

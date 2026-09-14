@@ -17,3 +17,9 @@ databaseChangeLog:
       file: db/changelog/changes/008-add-booking-overlap-exclusion-constraint.yaml
   - include:
       file: db/changelog/changes/009-payment-attempts.yaml
+  - include:
+      file: db/changelog/changes/010-outbox-processing-lease.yaml
+  - include:
+      file: db/changelog/changes/011-create-processed-events-table.yaml
+  - include:
+      file: db/changelog/changes/012-enforce-accommodation-capacity.yaml

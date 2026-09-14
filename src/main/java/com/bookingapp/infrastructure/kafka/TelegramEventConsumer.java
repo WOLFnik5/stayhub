@@ -5,29 +5,39 @@ import com.bookingapp.domain.event.BookingCanceledEvent;
 import com.bookingapp.domain.event.BookingCreatedEvent;
 import com.bookingapp.domain.event.BookingExpiredEvent;
 import com.bookingapp.domain.event.PaymentSucceededEvent;
+import com.bookingapp.infrastructure.outbox.OutboxKafkaPublisher;
 import com.bookingapp.infrastructure.telegram.TelegramMessageFormatter;
 import com.bookingapp.infrastructure.telegram.TelegramNotificationService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.UUID;
 import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 @Profile("!test")
 @Component
 public class TelegramEventConsumer {
+
+    private static final String CONSUMER_NAME =
+            "telegram-notification";
+
     private final ObjectMapper objectMapper;
     private final TelegramMessageFormatter telegramMessageFormatter;
     private final TelegramNotificationService telegramNotificationService;
+    private final KafkaEventDeduplicationService deduplicationService;
 
     public TelegramEventConsumer(
             ObjectMapper objectMapper,
             TelegramMessageFormatter telegramMessageFormatter,
-            TelegramNotificationService telegramNotificationService
+            TelegramNotificationService telegramNotificationService,
+            KafkaEventDeduplicationService deduplicationService
     ) {
         this.objectMapper = objectMapper;
         this.telegramMessageFormatter = telegramMessageFormatter;
         this.telegramNotificationService = telegramNotificationService;
+        this.deduplicationService = deduplicationService;
     }
 
     @KafkaListener(
@@ -35,10 +45,28 @@ public class TelegramEventConsumer {
             groupId = "${spring.kafka.consumer.group-id:booking-app}-telegram",
             containerFactory = "telegramKafkaListenerContainerFactory"
     )
-    public void consumeBookingCreated(String payload) {
-        BookingCreatedEvent event = readValue(payload, BookingCreatedEvent.class);
-        telegramNotificationService
-                .sendMessage(telegramMessageFormatter.formatBookingCreatedEvent(event));
+    public void consumeBookingCreated(
+            String payload,
+            @Header(OutboxKafkaPublisher.EVENT_ID_HEADER)
+            String eventIdHeader
+    ) {
+        UUID eventId = parseEventId(eventIdHeader);
+
+        if (deduplicationService.isProcessed(
+                eventId,
+                CONSUMER_NAME
+        )) {
+            return;
+        }
+
+        BookingCreatedEvent event =
+                readValue(payload, BookingCreatedEvent.class);
+
+        telegramNotificationService.sendMessage(
+                telegramMessageFormatter
+                        .formatBookingCreatedEvent(event)
+        );
+        deduplicationService.markProcessed(eventId, CONSUMER_NAME);
     }
 
     @KafkaListener(
@@ -46,10 +74,28 @@ public class TelegramEventConsumer {
             groupId = "${spring.kafka.consumer.group-id:booking-app}-telegram",
             containerFactory = "telegramKafkaListenerContainerFactory"
     )
-    public void consumeBookingCanceled(String payload) {
-        BookingCanceledEvent event = readValue(payload, BookingCanceledEvent.class);
-        telegramNotificationService
-                .sendMessage(telegramMessageFormatter.formatBookingCanceledEvent(event));
+    public void consumeBookingCanceled(
+            String payload,
+            @Header(OutboxKafkaPublisher.EVENT_ID_HEADER)
+            String eventIdHeader
+    ) {
+        UUID eventId = parseEventId(eventIdHeader);
+
+        if (deduplicationService.isProcessed(
+                eventId,
+                CONSUMER_NAME
+        )) {
+            return;
+        }
+
+        BookingCanceledEvent event =
+                readValue(payload, BookingCanceledEvent.class);
+
+        telegramNotificationService.sendMessage(
+                telegramMessageFormatter
+                        .formatBookingCanceledEvent(event)
+        );
+        deduplicationService.markProcessed(eventId, CONSUMER_NAME);
     }
 
     @KafkaListener(
@@ -57,11 +103,31 @@ public class TelegramEventConsumer {
             groupId = "${spring.kafka.consumer.group-id:booking-app}-telegram",
             containerFactory = "telegramKafkaListenerContainerFactory"
     )
-    public void consumeAccommodationCreated(String payload) {
-        AccommodationCreatedEvent event = readValue(payload, AccommodationCreatedEvent.class);
+    public void consumeAccommodationCreated(
+            String payload,
+            @Header(OutboxKafkaPublisher.EVENT_ID_HEADER)
+            String eventIdHeader
+    ) {
+        UUID eventId = parseEventId(eventIdHeader);
+
+        if (deduplicationService.isProcessed(
+                eventId,
+                CONSUMER_NAME
+        )) {
+            return;
+        }
+
+        AccommodationCreatedEvent event =
+                readValue(
+                        payload,
+                        AccommodationCreatedEvent.class
+                );
+
         telegramNotificationService.sendMessage(
-                telegramMessageFormatter.formatAccommodationCreatedEvent(event)
+                telegramMessageFormatter
+                        .formatAccommodationCreatedEvent(event)
         );
+        deduplicationService.markProcessed(eventId, CONSUMER_NAME);
     }
 
     @KafkaListener(
@@ -69,11 +135,28 @@ public class TelegramEventConsumer {
             groupId = "${spring.kafka.consumer.group-id:booking-app}-telegram",
             containerFactory = "telegramKafkaListenerContainerFactory"
     )
-    public void consumePaymentSucceeded(String payload) {
-        PaymentSucceededEvent event = readValue(payload, PaymentSucceededEvent.class);
+    public void consumePaymentSucceeded(
+            String payload,
+            @Header(OutboxKafkaPublisher.EVENT_ID_HEADER)
+            String eventIdHeader
+    ) {
+        UUID eventId = parseEventId(eventIdHeader);
+
+        if (deduplicationService.isProcessed(
+                eventId,
+                CONSUMER_NAME
+        )) {
+            return;
+        }
+
+        PaymentSucceededEvent event =
+                readValue(payload, PaymentSucceededEvent.class);
+
         telegramNotificationService.sendMessage(
-                telegramMessageFormatter.formatPaymentSucceededEvent(event)
+                telegramMessageFormatter
+                        .formatPaymentSucceededEvent(event)
         );
+        deduplicationService.markProcessed(eventId, CONSUMER_NAME);
     }
 
     @KafkaListener(
@@ -81,19 +164,55 @@ public class TelegramEventConsumer {
             groupId = "${spring.kafka.consumer.group-id:booking-app}-telegram",
             containerFactory = "telegramKafkaListenerContainerFactory"
     )
-    public void consumeBookingExpired(String payload) {
-        BookingExpiredEvent event = readValue(payload, BookingExpiredEvent.class);
+    public void consumeBookingExpired(
+            String payload,
+            @Header(OutboxKafkaPublisher.EVENT_ID_HEADER)
+            String eventIdHeader
+    ) {
+        UUID eventId = parseEventId(eventIdHeader);
+
+        if (deduplicationService.isProcessed(
+                eventId,
+                CONSUMER_NAME
+        )) {
+            return;
+        }
+
+        BookingExpiredEvent event =
+                readValue(payload, BookingExpiredEvent.class);
+
         telegramNotificationService.sendMessage(
-                telegramMessageFormatter.formatBookingExpiredEvent(event)
+                telegramMessageFormatter
+                        .formatBookingExpiredEvent(event)
         );
+        deduplicationService.markProcessed(eventId, CONSUMER_NAME);
     }
 
-    private <T> T readValue(String payload, Class<T> targetType) {
+    private UUID parseEventId(String eventIdHeader) {
         try {
-            return objectMapper.readValue(payload, targetType);
+            return UUID.fromString(eventIdHeader);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException(
+                    "Invalid Kafka eventId header: "
+                            + eventIdHeader,
+                    exception
+            );
+        }
+    }
+
+    private <T> T readValue(
+            String payload,
+            Class<T> targetType
+    ) {
+        try {
+            return objectMapper.readValue(
+                    payload,
+                    targetType
+            );
         } catch (JsonProcessingException exception) {
             throw new IllegalArgumentException(
-                    "Failed to deserialize Kafka payload to " + targetType.getSimpleName(),
+                    "Failed to deserialize Kafka payload to "
+                            + targetType.getSimpleName(),
                     exception
             );
         }
