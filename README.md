@@ -52,6 +52,32 @@ Main asynchronous flow:
 
 `Service -> outbox event persistence -> OutboxKafkaPublisher -> Kafka -> Telegram consumer/notification service`
 
+```mermaid
+flowchart LR
+    subgraph app["Spring Boot application"]
+        api["REST API<br/>Controllers → Services"]
+        publisher["Outbox publisher"]
+        consumer["Telegram consumer<br/>Deduplication"]
+    end
+    db[("PostgreSQL<br/>Business data, outbox, inbox")]
+    kafka["Kafka"]
+    telegram["Telegram API"]
+    stripe["Stripe"]
+
+    api -->|"Transaction via repositories"| db
+    db -->|"Claim pending events"| publisher
+    publisher -->|"Publish events"| kafka
+    kafka -->|"Consume events"| consumer
+    consumer -->|"Check / record processed event"| db
+    consumer -->|"Send notification"| telegram
+    api -->|"Create checkout"| stripe
+    stripe -->|"Payment webhook"| api
+```
+
+Business changes and their outbox events commit in the same database transaction.
+The publisher and consumer run within the application; Kafka decouples event
+publication from notification processing.
+
 ## Environment Configuration
 
 Secrets and integration settings are externalized through environment variables. Start by copying `.env.sample` to `.env` and adjusting values if needed.
@@ -84,6 +110,11 @@ Authentication endpoints limit login and registration attempts per client addres
 The defaults can be tuned with `AUTH_RATE_LIMIT_LOGIN_ATTEMPTS`,
 `AUTH_RATE_LIMIT_REGISTER_ATTEMPTS`, `AUTH_RATE_LIMIT_WINDOW_SECONDS`, and
 `AUTH_RATE_LIMIT_MAX_CLIENTS`.
+
+**Known limitation:** authentication rate-limit counters are stored in memory
+per application instance and reset on restart. Replicas do not share counters,
+so this is not a cluster-wide limit; a multi-instance deployment needs a shared
+limiter (for example, at an API gateway or backed by Redis).
 
 `JWT_SECRET` is required. Generate a separate random key for each environment,
 encoded as Base64 with at least 32 decoded bytes. The application refuses to
