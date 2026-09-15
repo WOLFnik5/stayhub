@@ -23,3 +23,7 @@ databaseChangeLog:
       file: db/changelog/changes/011-create-processed-events-table.yaml
   - include:
       file: db/changelog/changes/012-enforce-accommodation-capacity.yaml
+  - include:
+      file: db/changelog/changes/013-outbox-correlation.yaml
+  - include:
+      file: db/changelog/changes/014-outbox-trace-context.yaml

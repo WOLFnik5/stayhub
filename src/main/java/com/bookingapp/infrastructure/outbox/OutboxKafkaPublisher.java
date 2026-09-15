@@ -1,11 +1,17 @@
 package com.bookingapp.infrastructure.outbox;
 
 import com.bookingapp.infrastructure.config.OutboxProperties;
+import com.bookingapp.infrastructure.observability.CorrelationContext;
+import com.bookingapp.infrastructure.observability.FlowTelemetry;
+import com.bookingapp.infrastructure.observability.FlowTracing;
+import com.bookingapp.infrastructure.observability.SafeFailure;
 import com.bookingapp.persistence.outbox.OutboxEventEntity;
+import io.opentelemetry.api.trace.SpanKind;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.slf4j.MDC;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -15,17 +21,17 @@ public class OutboxKafkaPublisher {
 
     public static final String EVENT_ID_HEADER = "eventId";
 
-    private static final int ERROR_MESSAGE_MAX_LENGTH = 2000;
-
+    private final FlowTelemetry telemetry;
+    private final FlowTracing tracing;
     private final OutboxTransactionService outboxTransactionService;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final OutboxProperties outboxProperties;
 
-    public OutboxKafkaPublisher(
-            OutboxTransactionService outboxTransactionService,
-            KafkaTemplate<String, String> kafkaTemplate,
-            OutboxProperties outboxProperties
-    ) {
+    public OutboxKafkaPublisher(OutboxTransactionService outboxTransactionService,
+            KafkaTemplate<String, String> kafkaTemplate, OutboxProperties outboxProperties,
+            FlowTelemetry telemetry, FlowTracing tracing) {
+        this.telemetry = telemetry;
+        this.tracing = tracing;
         this.outboxTransactionService = outboxTransactionService;
         this.kafkaTemplate = kafkaTemplate;
         this.outboxProperties = outboxProperties;
@@ -56,7 +62,8 @@ public class OutboxKafkaPublisher {
                         outboxProperties.claimTimeoutMinutes()
                 );
 
-        outboxTransactionService.recoverStaleClaims(threshold);
+        telemetry.count("outbox", "recovered",
+                outboxTransactionService.recoverStaleClaims(threshold));
     }
 
     @Scheduled(
@@ -72,22 +79,55 @@ public class OutboxKafkaPublisher {
     }
 
     private void publishSingleEvent(OutboxEventEntity event) {
+        String correlationId = event.getCorrelationId() == null
+                ? event.getId().toString() : event.getCorrelationId();
+        try (CorrelationContext ignored = CorrelationContext.open(
+                correlationId, event.getId().toString())) {
+            MDC.put("eventType", event.getEventType());
+            MDC.put("topic", event.getTopic());
+            MDC.put("attempt", Integer.toString(event.getAttempts() + 1));
+            try (var trace = tracing.resume("outbox.publish", SpanKind.PRODUCER,
+                    event.getTraceParent(), event.getTraceState())) {
+                trace.tag("messaging.system", "kafka");
+                trace.tag("messaging.destination.name", event.getTopic());
+                trace.tag("messaging.operation.type", "send");
+                trace.tag("outbox.attempt", Integer.toString(event.getAttempts() + 1));
+                trace.tag("outbox.age.ms", Long.toString(Math.max(0,
+                        java.time.Duration.between(event.getCreatedAt(),
+                                LocalDateTime.now()).toMillis())));
+                try {
+                    publishWithContext(event, trace);
+                } catch (RuntimeException exception) {
+                    trace.error(exception);
+                    throw exception;
+                }
+            }
+        }
+    }
+
+    private void publishWithContext(OutboxEventEntity event, FlowTracing.TraceScope trace) {
+        long started = System.nanoTime();
+        telemetry.count("outbox", "attempt", 1);
         try {
             sendToKafka(event);
-
-            outboxTransactionService.markSent(event.getId(), event.getClaimToken());
+            boolean updated = outboxTransactionService.markSent(
+                    event.getId(), event.getClaimToken());
+            telemetry.record("outbox", updated ? "published" : "claim_lost", started, null);
+            trace.tag("outbox.outcome", updated ? "published" : "claim_lost");
         } catch (Exception exception) {
             Throwable cause = unwrap(exception);
+            trace.error(cause);
 
-            outboxTransactionService.markFailed(
+            boolean updated = outboxTransactionService.markFailed(
                     event.getId(),
                     event.getClaimToken(),
-                    truncate(
-                            cause.getMessage(),
-                            ERROR_MESSAGE_MAX_LENGTH
-                    ),
+                    SafeFailure.describe(cause),
                     outboxProperties.maxAttempts()
             );
+            String outcome = !updated ? "claim_lost"
+                    : event.getAttempts() + 1 >= outboxProperties.maxAttempts() ? "dead" : "failed";
+            telemetry.record("outbox", outcome, started, SafeFailure.describe(cause));
+            trace.tag("outbox.outcome", outcome);
         }
     }
 
@@ -100,12 +140,18 @@ public class OutboxKafkaPublisher {
                 );
 
         record.headers().add(
+                CorrelationContext.HEADER,
+                CorrelationContext.currentOrNew().getBytes(StandardCharsets.UTF_8)
+        );
+        record.headers().add(
                 EVENT_ID_HEADER,
                 event.getId()
                         .toString()
                         .getBytes(StandardCharsets.UTF_8)
         );
 
+        tracing.headers().forEach((key, value) ->
+                record.headers().add(key, value.getBytes(StandardCharsets.UTF_8)));
         kafkaTemplate.send(record).join();
     }
 
@@ -119,11 +165,4 @@ public class OutboxKafkaPublisher {
         return exception;
     }
 
-    private String truncate(String value, int maxLength) {
-        if (value == null || value.length() <= maxLength) {
-            return value;
-        }
-
-        return value.substring(0, maxLength);
-    }
 }

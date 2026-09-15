@@ -11,6 +11,7 @@ public class TelegramConfiguration {
 
     @Bean
     public RestClient telegramRestClient(TelegramProperties telegramProperties) {
+        // TelegramBotClient owns the CLIENT span, omitting the secret-bearing URL and raw errors.
         return RestClient.builder()
                 .baseUrl(telegramProperties.getBaseUrl())
                 .build();

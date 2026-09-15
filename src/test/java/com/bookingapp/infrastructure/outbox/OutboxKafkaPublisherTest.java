@@ -48,7 +48,9 @@ class OutboxKafkaPublisherTest {
         publisher = new OutboxKafkaPublisher(
                 outboxTransactionService,
                 kafkaTemplate,
-                properties
+                properties, new com.bookingapp.infrastructure.observability.FlowTelemetry(
+                        new io.micrometer.core.instrument.simple.SimpleMeterRegistry()),
+                new com.bookingapp.infrastructure.observability.FlowTracing(io.opentelemetry.api.OpenTelemetry.noop())
         );
     }
 
@@ -63,6 +65,7 @@ class OutboxKafkaPublisherTest {
                 "{\"id\":1}"
         );
 
+        event.setCorrelationId("persisted-request");
         event.markProcessing();
 
         when(outboxTransactionService.claimBatch(100))
@@ -102,6 +105,7 @@ class OutboxKafkaPublisherTest {
                 "{\"id\":10}"
         );
 
+        event.setCorrelationId("persisted-request");
         event.markProcessing();
 
         when(outboxTransactionService.claimBatch(100))
@@ -123,7 +127,7 @@ class OutboxKafkaPublisherTest {
         verify(outboxTransactionService).markFailed(
                 eq(event.getId()),
                 eq(event.getClaimToken()),
-                eq("Kafka unavailable"),
+                eq("RuntimeException"),
                 eq(5)
         );
 
@@ -144,6 +148,7 @@ class OutboxKafkaPublisherTest {
                 "{\"id\":10}"
         );
 
+        event.setCorrelationId("persisted-request");
         event.markProcessing();
 
         when(outboxTransactionService.claimBatch(100))
@@ -165,6 +170,10 @@ class OutboxKafkaPublisherTest {
 
         ProducerRecord<String, String> record =
                 captor.getValue();
+
+        assertThat(new String(record.headers().lastHeader("X-Correlation-ID").value(),
+                StandardCharsets.UTF_8)).isEqualTo("persisted-request");
+        assertThat(org.slf4j.MDC.get("correlationId")).isNull();
 
         assertThat(record.topic())
                 .isEqualTo("booking-created");

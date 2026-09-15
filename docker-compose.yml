@@ -1,4 +1,14 @@
 services:
+  jaeger:
+    image: jaegertracing/jaeger:2.20.0
+    profiles: [tracing]
+    command: ["--config", "/etc/jaeger/config.yaml"]
+    volumes:
+      - ./ops/jaeger.yaml:/etc/jaeger/config.yaml:ro
+    ports:
+      - "127.0.0.1:16686:16686"
+      - "127.0.0.1:4318:4318"
+
   postgres:
     image: postgres:17-alpine
     container_name: booking-app-postgres
@@ -79,6 +89,7 @@ services:
       - .env
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      TRACING_ENDPOINT: ${TRACING_ENDPOINT:-http://jaeger:4318/v1/traces}
       SERVER_PORT: 8080
       DB_HOST: postgres
       DB_PORT: 5432

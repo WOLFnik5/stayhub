@@ -33,7 +33,8 @@ class OutboxKafkaEventPublisherTest {
         OutboxKafkaEventPublisher publisher = new OutboxKafkaEventPublisher(
                 repository,
                 kafkaTopicsProperties,
-                new ObjectMapper().findAndRegisterModules()
+                new ObjectMapper().findAndRegisterModules(),
+                new com.bookingapp.infrastructure.observability.FlowTracing(io.opentelemetry.api.OpenTelemetry.noop())
         );
 
         Accommodation accommodation = new Accommodation(
@@ -46,13 +47,17 @@ class OutboxKafkaEventPublisherTest {
                 5
         );
 
-        publisher.publishAccommodationCreated(accommodation);
+        try (var ignored = com.bookingapp.infrastructure.observability.CorrelationContext
+                .open("http-request-123", null)) {
+            publisher.publishAccommodationCreated(accommodation);
+        }
 
         ArgumentCaptor<OutboxEventEntity> captor = ArgumentCaptor.forClass(OutboxEventEntity.class);
         verify(repository).save(captor.capture());
 
         OutboxEventEntity savedEvent = captor.getValue();
 
+        assertEquals("http-request-123", savedEvent.getCorrelationId());
         assertNotNull(savedEvent.getId());
         assertEquals("Accommodation", savedEvent.getAggregateType());
         assertEquals(5L, savedEvent.getAggregateId());

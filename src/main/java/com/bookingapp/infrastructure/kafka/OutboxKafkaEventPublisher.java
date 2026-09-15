@@ -9,27 +9,38 @@ import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.Payment;
 import com.bookingapp.infrastructure.config.KafkaTopicsProperties;
+import com.bookingapp.infrastructure.observability.CorrelationContext;
+import com.bookingapp.infrastructure.observability.FlowTracing;
 import com.bookingapp.persistence.outbox.OutboxEventEntity;
 import com.bookingapp.persistence.outbox.OutboxEventJpaRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.opentelemetry.api.trace.SpanKind;
 import java.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Component
 public class OutboxKafkaEventPublisher implements KafkaEventPublisher {
+    private static final Logger LOGGER = LoggerFactory.getLogger(OutboxKafkaEventPublisher.class);
     private final OutboxEventJpaRepository outboxEventJpaRepository;
     private final KafkaTopicsProperties kafkaTopicsProperties;
     private final ObjectMapper objectMapper;
+    private final FlowTracing tracing;
 
     public OutboxKafkaEventPublisher(
             OutboxEventJpaRepository outboxEventJpaRepository,
             KafkaTopicsProperties kafkaTopicsProperties,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            FlowTracing tracing
     ) {
         this.outboxEventJpaRepository = outboxEventJpaRepository;
         this.kafkaTopicsProperties = kafkaTopicsProperties;
         this.objectMapper = objectMapper;
+        this.tracing = tracing;
     }
 
     @Override
@@ -134,7 +145,7 @@ public class OutboxKafkaEventPublisher implements KafkaEventPublisher {
         try {
             String payload = objectMapper.writeValueAsString(payloadObject);
 
-            outboxEventJpaRepository.save(
+            OutboxEventEntity storedEvent =
                     OutboxEventEntity.newEvent(
                             aggregateType,
                             aggregateId,
@@ -142,8 +153,23 @@ public class OutboxKafkaEventPublisher implements KafkaEventPublisher {
                             topic,
                             eventKey,
                             payload
-                    )
-            );
+                    );
+            storedEvent.setCorrelationId(CorrelationContext.currentOrNew());
+            try (CorrelationContext ignored = CorrelationContext.open(
+                    storedEvent.getCorrelationId(), storedEvent.getId().toString());
+                    var trace = tracing.start("outbox.enqueue", SpanKind.INTERNAL)) {
+                var headers = tracing.headers();
+                storedEvent.setTraceParent(headers.get("traceparent"));
+                storedEvent.setTraceState(headers.get("tracestate"));
+                trace.tag("event.type", eventType);
+                try {
+                    outboxEventJpaRepository.save(storedEvent);
+                } catch (RuntimeException exception) {
+                    trace.error(exception);
+                    throw exception;
+                }
+            }
+            logAfterCommit(storedEvent);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize outbox payload for "
                     + eventType, e);
@@ -152,5 +178,29 @@ public class OutboxKafkaEventPublisher implements KafkaEventPublisher {
 
     private String buildKey(Long id) {
         return id == null ? "unknown" : id.toString();
+    }
+
+    private void logAfterCommit(OutboxEventEntity event) {
+        Runnable log = () -> {
+            try (CorrelationContext ignored = CorrelationContext.open(
+                    event.getCorrelationId(), event.getId().toString())) {
+                LOGGER.atInfo().addKeyValue("stage", "outbox")
+                        .addKeyValue("outcome", "committed")
+                        .addKeyValue("eventType", event.getEventType())
+                        .log("Outbox event committed");
+            }
+        };
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronization synchronization = new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    log.run();
+                }
+            };
+            TransactionSynchronizationManager.registerSynchronization(synchronization);
+        } else {
+            log.run();
+        }
     }
 }

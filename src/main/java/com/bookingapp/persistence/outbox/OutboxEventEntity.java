@@ -38,6 +38,15 @@ public class OutboxEventEntity {
     @Column(name = "payload", nullable = false, columnDefinition = "TEXT")
     private String payload;
 
+    @Column(name = "correlation_id", length = 64)
+    private String correlationId;
+
+    @Column(name = "trace_parent", length = 55)
+    private String traceParent;
+
+    @Column(name = "trace_state", length = 512)
+    private String traceState;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
     private OutboxStatus status;

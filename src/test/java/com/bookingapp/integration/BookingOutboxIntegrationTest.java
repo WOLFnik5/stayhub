@@ -106,7 +106,11 @@ class BookingOutboxIntegrationTest extends AbstractIntegrationTest {
                 LocalDate.of(2026, 1, 10),
                 LocalDate.of(2026, 1, 15)
         );
-        Booking savedBooking = bookingService.createBooking(bookingRequest);
+        Booking savedBooking;
+        try (var ignored = com.bookingapp.infrastructure.observability.CorrelationContext
+                .open("persisted-http-request", null)) {
+            savedBooking = bookingService.createBooking(bookingRequest);
+        }
 
         OutboxEventEntity event = outboxEventJpaRepository.findAll().stream()
                 .filter(e -> "Booking".equals(e.getAggregateType()))
@@ -115,6 +119,7 @@ class BookingOutboxIntegrationTest extends AbstractIntegrationTest {
                 .findFirst()
                 .orElseThrow();
 
+        assertEquals("persisted-http-request", event.getCorrelationId());
         assertNotNull(savedBooking.getId());
         assertEquals(testUserId, savedBooking.getUserId());
         assertEquals("Booking", event.getAggregateType());

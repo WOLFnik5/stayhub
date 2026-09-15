@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 014-outbox-trace-context
+      author: bookingapp
+      changes:
+        - addColumn:
+            tableName: outbox_events
+            columns:
+              - column:
+                  name: trace_parent
+                  type: varchar(55)
+              - column:
+                  name: trace_state
+                  type: varchar(512)

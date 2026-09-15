@@ -31,6 +31,7 @@ public class KafkaProducerConfiguration {
     @Bean
     public KafkaTemplate<String, String> kafkaTemplate(ProducerFactory<String,
             String> producerFactory) {
+        // OutboxKafkaPublisher owns the PRODUCER span and injects its durable-parent context.
         return new KafkaTemplate<>(producerFactory);
     }
 }

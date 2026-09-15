@@ -63,6 +63,8 @@ public class SecurityConfiguration {
                                 "/actuator/health",
                                 "/error"
                         ).permitAll()
+                        .requestMatchers("/actuator/metrics", "/actuator/metrics/**",
+                                "/actuator/info").hasRole(UserRole.ADMIN.name())
                         .requestMatchers(HttpMethod.GET,
                                 "/accommodations",
                                 "/accommodations/*").permitAll()

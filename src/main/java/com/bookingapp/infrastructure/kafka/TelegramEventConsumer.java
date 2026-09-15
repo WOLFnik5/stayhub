@@ -5,11 +5,13 @@ import com.bookingapp.domain.event.BookingCanceledEvent;
 import com.bookingapp.domain.event.BookingCreatedEvent;
 import com.bookingapp.domain.event.BookingExpiredEvent;
 import com.bookingapp.domain.event.PaymentSucceededEvent;
+import com.bookingapp.infrastructure.observability.FlowTelemetry;
 import com.bookingapp.infrastructure.outbox.OutboxKafkaPublisher;
 import com.bookingapp.infrastructure.telegram.TelegramMessageFormatter;
 import com.bookingapp.infrastructure.telegram.TelegramNotificationService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.opentelemetry.api.trace.Span;
 import java.util.UUID;
 import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -27,17 +29,20 @@ public class TelegramEventConsumer {
     private final TelegramMessageFormatter telegramMessageFormatter;
     private final TelegramNotificationService telegramNotificationService;
     private final KafkaEventDeduplicationService deduplicationService;
+    private final FlowTelemetry telemetry;
 
     public TelegramEventConsumer(
             ObjectMapper objectMapper,
             TelegramMessageFormatter telegramMessageFormatter,
             TelegramNotificationService telegramNotificationService,
-            KafkaEventDeduplicationService deduplicationService
+            KafkaEventDeduplicationService deduplicationService,
+            FlowTelemetry telemetry
     ) {
         this.objectMapper = objectMapper;
         this.telegramMessageFormatter = telegramMessageFormatter;
         this.telegramNotificationService = telegramNotificationService;
         this.deduplicationService = deduplicationService;
+        this.telemetry = telemetry;
     }
 
     @KafkaListener(
@@ -56,6 +61,8 @@ public class TelegramEventConsumer {
                 eventId,
                 CONSUMER_NAME
         )) {
+            Span.current().setAttribute("consumer.duplicate", true);
+            telemetry.count("consumer", "duplicate", 1);
             return;
         }
 
@@ -85,6 +92,8 @@ public class TelegramEventConsumer {
                 eventId,
                 CONSUMER_NAME
         )) {
+            Span.current().setAttribute("consumer.duplicate", true);
+            telemetry.count("consumer", "duplicate", 1);
             return;
         }
 
@@ -114,6 +123,8 @@ public class TelegramEventConsumer {
                 eventId,
                 CONSUMER_NAME
         )) {
+            Span.current().setAttribute("consumer.duplicate", true);
+            telemetry.count("consumer", "duplicate", 1);
             return;
         }
 
@@ -146,6 +157,8 @@ public class TelegramEventConsumer {
                 eventId,
                 CONSUMER_NAME
         )) {
+            Span.current().setAttribute("consumer.duplicate", true);
+            telemetry.count("consumer", "duplicate", 1);
             return;
         }
 
@@ -175,6 +188,8 @@ public class TelegramEventConsumer {
                 eventId,
                 CONSUMER_NAME
         )) {
+            Span.current().setAttribute("consumer.duplicate", true);
+            telemetry.count("consumer", "duplicate", 1);
             return;
         }
 

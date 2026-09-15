@@ -180,6 +180,158 @@ The project exposes:
 - `GET /actuator/health`
   Public Spring Boot actuator health endpoint
 
+## Observability
+
+HTTP responses include `X-Correlation-ID`. A supplied ID is accepted only when it
+contains 1–64 ASCII letters, digits, dots, underscores or hyphens; otherwise a
+new UUID is generated. The ID is stored in outbox migration `013` and forwarded
+through Kafka headers. Scheduled events without an HTTP context receive their
+own ID. Legacy outbox rows and Kafka records fall back to `eventId`.
+
+For JSON console logs, set `SPRING_PROFILES_ACTIVE=observability` (including in
+`.env` for Docker Compose). The default `dev` profile keeps readable logs and
+adds correlation/event IDs. Avoid combining `dev` with production logging:
+its SQL bind logging includes application data.
+
+Flow logs use `stage`, `outcome`, `durationMs` and safe `errorType` fields.
+Outbox publication includes `eventType`, `topic` and `attempt`; consumer logs
+include Kafka `topic`, `partition` and `offset`. Retries preserve correlation
+and each thread's logging context is restored after processing.
+Application flow logs omit message payloads, credentials and raw exception
+messages. Outbox `last_error` stores the exception class; Telegram failures
+expose only an HTTP status or exception class, without retaining a cause that
+could contain the bot token in its URL.
+
+Metrics are available through `GET /actuator/metrics` and
+`GET /actuator/metrics/{name}` with an ADMIN bearer token (401 without
+authentication, 403 for a customer). `/actuator/info` also requires ADMIN.
+
+| Metric | Meaning |
+| --- | --- |
+| `booking.flow.events` | Counts by bounded `stage`/`outcome`, including attempts, duplicates, retries, recovery and exhaustion |
+| `booking.flow.duration` | Timer count/total/max for processing outcomes by `stage`/`outcome` |
+| `booking.outbox.events` | Database-wide event counts by status |
+| `booking.outbox.oldest.age.seconds` | Age of the oldest NEW, FAILED or PROCESSING event |
+| `booking.outbox.snapshot.timestamp` | Unix seconds of the last successful queue-metrics refresh; zero until first refresh |
+
+Outbox gauges refresh every 30 seconds (`app.outbox.metrics-delay-ms`). Check
+snapshot freshness before trusting queue values. Every replica observes the
+same database backlog: do not sum those gauges across replicas. IDs are log
+fields, never metric tags. Log correlation and metrics work without an external
+backend. Optional distributed tracing is described below.
+
+### Telegram message did not arrive
+
+1. Find the HTTP response's correlation ID or the booking's outbox event:
+
+   ```sql
+   SELECT id, correlation_id, event_type, status, attempts, last_error,
+          created_at, published_at
+   FROM outbox_events
+   WHERE aggregate_type = 'Booking' AND aggregate_id = :booking_id
+   ORDER BY created_at DESC;
+   ```
+
+   Payment events use `aggregate_type = 'Payment'` and the payment ID.
+2. Search logs for `eventId` or `correlationId`. `outbox/committed` is logged
+   after transaction commit. `outbox/published` and database status `SENT`
+   mean Kafka accepted the record; they do not confirm Telegram delivery.
+3. For NEW/FAILED/PROCESSING events, check publication failures, lease recovery
+   and queue age. DEAD means the configured outbox attempt limit was reached.
+   `claim_lost` means another worker owns the lease; inspect that worker's logs.
+4. For SENT events, inspect consumer attempts and Kafka group lag. A
+   `consumer/duplicate` indicates an already processed event. `telegram/accepted`
+   means Telegram returned `ok=true`, not that a person read the message.
+5. `consumer/exhausted` is a terminal warning. The Kafka handler retains the
+   framework's default retry schedule (nine retries without delay for retryable
+   failures; some failures are classified as non-retryable). After recovery it
+   can advance past the failed record. There is no dead-letter topic or automatic
+   replay; use the logged topic/partition/offset for investigation and controlled
+   replay after fixing the cause. A crash after Telegram acceptance but before
+   recording deduplication can still produce a duplicate notification.
+
+### Distributed tracing
+
+The application uses Spring Boot's OpenTelemetry starter. HTTP server observations
+and Spring Security spans share the same OpenTelemetry context as the async flow:
+
+```text
+HTTP / Spring Security
+  └─ outbox.enqueue
+       └─ outbox.publish (one span per publication attempt)
+            ├─ telegram.consume (first delivery)
+            │    └─ telegram.send
+            └─ telegram.consume (retry)
+                 └─ telegram.send
+```
+
+Migration `014` stores W3C `traceparent` and optional `tracestate` in the outbox.
+Publishers resume this context after a restart and inject the publication span's
+context into Kafka headers. Consumer retries are separate spans with the same
+producer parent. `outbox.age.ms` records the elapsed time since event creation;
+queue waiting is visible as a gap, without holding an open span across polling
+or a restart. `outbox.enqueue` measures persistence work, while `outbox/committed`
+in the logs confirms the transaction committed.
+
+Legacy rows/records with missing or invalid trace context start a new trace;
+their existing correlation ID/event ID still connects the logs. The W3C sampled
+flag is preserved, so retries do not turn an unsampled event into a sampled one.
+No baggage or arbitrary request headers are stored in the outbox.
+
+`OutboxKafkaPublisher` instruments sends through the custom KafkaTemplate, and
+`TelegramRecordInterceptor` instruments the custom listener factory. Automatic
+Kafka observations are left off to avoid duplicate spans. `TelegramBotClient`
+owns the CLIENT span around its RestClient call, recording method, destination
+host, HTTP status and a safe error type. The Telegram URL, token, message body,
+chat ID and raw exception are excluded from spans. The RestClient intentionally
+has no additional automatic observation that could capture the secret-bearing URL.
+`traceId` and `spanId` appear alongside correlation IDs in both log formats.
+
+#### Local Jaeger viewer
+
+For the full Compose stack, set `SPRING_PROFILES_ACTIVE=observability,tracing`
+in `.env`, then run:
+
+```bash
+docker compose --profile tracing up --build -d
+```
+
+For an application running on the host, start only the dependencies:
+
+```bash
+docker compose --profile tracing up -d postgres kafka jaeger
+```
+
+Then activate `observability,tracing` in the application's environment, alongside
+the normal application secrets. For example, in PowerShell:
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE = 'observability,tracing'
+mvn spring-boot:run
+```
+
+Open [Jaeger](http://localhost:16686), select service `booking-app`, or search for
+the `traceId` from a log. Trigger a booking/accommodation event and allow time
+for the outbox poll and exporter batch. A failing Telegram call produces an ERROR
+span; repeated deliveries appear as sibling consumer spans. The terminal
+`telegram.exhausted` span marks exhausted consumer handling.
+
+| Setting | Default |
+| --- | --- |
+| `TRACING_ENDPOINT` with the Spring `tracing` profile | Host: `http://localhost:4318/v1/traces`; Compose app: `http://jaeger:4318/v1/traces` |
+| `TRACING_SAMPLING_PROBABILITY` | `0.1` normally; `1.0` with `tracing` for local debugging |
+| Trace export without the `tracing` profile | No exporter endpoint configured |
+
+The Compose profile starts Jaeger; the Spring profile enables export. Both are
+needed for the Compose demo. Jaeger's UI and OTLP receiver bind to loopback on
+the host. Its bounded in-memory storage is for local inspection and is cleared
+when the container restarts. Stopping it does not stop booking processing;
+exported traces may be lost while the backend is unavailable. OTLP metrics export
+is disabled; the Actuator metrics from the first stage remain available.
+
+References: [Spring Boot OpenTelemetry integration](https://spring.io/blog/2025/11/18/opentelemetry-with-spring-boot/)
+and [Jaeger deployment](https://www.jaegertracing.io/docs/2.20/deployment/).
+
 ## API Summary
 
 Main business endpoints:

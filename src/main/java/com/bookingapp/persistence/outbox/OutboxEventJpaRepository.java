@@ -11,6 +11,20 @@ import org.springframework.data.repository.query.Param;
 public interface OutboxEventJpaRepository
         extends JpaRepository<OutboxEventEntity, UUID> {
 
+    @Query("""
+            SELECT e.status AS status, COUNT(e) AS total, MIN(e.createdAt) AS oldest
+            FROM OutboxEventEntity e GROUP BY e.status
+            """)
+    List<StatusSummary> summarizeStatuses();
+
+    interface StatusSummary {
+        OutboxStatus getStatus();
+
+        long getTotal();
+
+        LocalDateTime getOldest();
+    }
+
     @Query(
             value = """
                     SELECT *

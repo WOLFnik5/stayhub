@@ -67,7 +67,8 @@ class TelegramEventConsumerTest {
                         objectMapper,
                         telegramMessageFormatter,
                         telegramNotificationService,
-                        deduplicationService
+                        deduplicationService, new com.bookingapp.infrastructure.observability.FlowTelemetry(
+                        new io.micrometer.core.instrument.simple.SimpleMeterRegistry())
                 );
 
         consumer.consumeBookingCreated(
@@ -113,7 +114,8 @@ class TelegramEventConsumerTest {
                         objectMapper,
                         telegramMessageFormatter,
                         telegramNotificationService,
-                        deduplicationService
+                        deduplicationService, new com.bookingapp.infrastructure.observability.FlowTelemetry(
+                        new io.micrometer.core.instrument.simple.SimpleMeterRegistry())
                 );
 
         consumer.consumeBookingCreated(
@@ -150,7 +152,9 @@ class TelegramEventConsumerTest {
                 .when(telegramNotificationService).sendMessage("booking created");
         TelegramEventConsumer consumer = new TelegramEventConsumer(
                 objectMapper, telegramMessageFormatter,
-                telegramNotificationService, deduplicationService
+                telegramNotificationService, deduplicationService,
+                new com.bookingapp.infrastructure.observability.FlowTelemetry(
+                        new io.micrometer.core.instrument.simple.SimpleMeterRegistry())
         );
 
         assertThatThrownBy(() -> consumer.consumeBookingCreated(payload, eventId.toString()))

@@ -1,0 +1,31 @@
+# Local, ephemeral tracing backend. Based on Jaeger v2 configuration.
+extensions:
+  jaeger_storage:
+    backends:
+      local:
+        memory:
+          max_traces: 10000
+  jaeger_query:
+    storage:
+      traces: local
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+
+exporters:
+  jaeger_storage_exporter:
+    trace_storage: local
+
+service:
+  extensions: [jaeger_storage, jaeger_query]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [jaeger_storage_exporter]
