@@ -1,0 +1,55 @@
+databaseChangeLog:
+  - changeSet:
+      id: 015-fix-capacity-overlap-calculation
+      author: bookingapp
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              CREATE OR REPLACE FUNCTION enforce_booking_accommodation_capacity()
+              RETURNS trigger AS $$
+              DECLARE
+                  capacity integer;
+              BEGIN
+                  IF NEW.status IN ('CANCELED', 'EXPIRED') THEN
+                      RETURN NEW;
+                  END IF;
+
+                  SELECT availability INTO capacity
+                  FROM accommodations
+                  WHERE id = NEW.accommodation_id
+                  FOR UPDATE;
+
+                  IF capacity IS NULL THEN
+                      RETURN NEW;
+                  END IF;
+
+                  IF EXISTS (
+                      SELECT 1
+                      FROM (
+                          SELECT NEW.check_in_date AS candidate_date
+                          UNION
+                          SELECT b.check_in_date
+                          FROM bookings b
+                          WHERE b.accommodation_id = NEW.accommodation_id
+                            AND b.status NOT IN ('CANCELED', 'EXPIRED')
+                            AND b.id IS DISTINCT FROM NEW.id
+                            AND b.check_in_date >= NEW.check_in_date
+                            AND b.check_in_date < NEW.check_out_date
+                      ) candidate_dates
+                      WHERE (
+                          SELECT COUNT(*)
+                          FROM bookings b
+                          WHERE b.accommodation_id = NEW.accommodation_id
+                            AND b.status NOT IN ('CANCELED', 'EXPIRED')
+                            AND b.id IS DISTINCT FROM NEW.id
+                            AND b.check_in_date <= candidate_dates.candidate_date
+                            AND candidate_dates.candidate_date < b.check_out_date
+                      ) >= capacity
+                  ) THEN
+                      RAISE EXCEPTION 'accommodation_capacity_exceeded'
+                          USING ERRCODE = '23P01';
+                  END IF;
+                  RETURN NEW;
+              END;
+              $$ LANGUAGE plpgsql;

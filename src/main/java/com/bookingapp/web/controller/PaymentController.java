@@ -3,6 +3,7 @@ package com.bookingapp.web.controller;
 import com.bookingapp.domain.model.Payment;
 import com.bookingapp.service.PaymentService;
 import com.bookingapp.web.dto.CreatePaymentRequest;
+import com.bookingapp.web.dto.PageResponse;
 import com.bookingapp.web.dto.PaymentCancelResponse;
 import com.bookingapp.web.dto.PaymentResponse;
 import com.bookingapp.web.dto.PaymentSessionResult;
@@ -12,7 +13,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,12 +33,13 @@ public class PaymentController {
 
     @GetMapping
     @Operation(summary = "List payments", security = @SecurityRequirement(name = "bearerAuth"))
-    public List<PaymentResponse> getPayments(
-            @RequestParam(name = "user_id", required = false) Long userId
+    public PageResponse<PaymentResponse> getPayments(
+            @RequestParam(name = "user_id", required = false) Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
     ) {
-        return paymentService.getPayments(paymentWebMapper.toFilterQuery(userId)).stream()
-                .map(paymentWebMapper::toResponse)
-                .toList();
+        return paymentWebMapper.toPageResponse(paymentService.getPaymentsPage(
+                paymentWebMapper.toFilterQuery(userId), page, size));
     }
 
     @PostMapping

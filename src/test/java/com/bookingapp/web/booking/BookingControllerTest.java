@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.bookingapp.persistence.BookingFilterQuery;
+import com.bookingapp.domain.model.PageResult;
 import com.bookingapp.web.ControllerTestSecurityConfig;
 import com.bookingapp.web.controller.BookingController;
 import com.bookingapp.web.dto.BookingDetail;
@@ -81,25 +82,27 @@ class BookingControllerTest {
 
     @Test
     void listBookingsShouldReturnCurrentUsersBookingsForCustomer() throws Exception {
-        when(bookingService.listBookings(any())).thenReturn(List.of(
-                new Booking(9L, LocalDate.of(2099, 4, 10), LocalDate.of(2099, 4, 12), 3L, 15L, BookingStatus.PENDING)
-        ));
+        when(bookingService.listBookingsPage(any(), eq(0), eq(20))).thenReturn(new PageResult<>(List.of(
+                new Booking(9L, LocalDate.of(2099, 4, 10), LocalDate.of(2099, 4, 12),
+                        3L, 15L, BookingStatus.PENDING)
+        ), 0, 20, 1));
 
         mockMvc.perform(get("/bookings")
                         .with(user("customer@example.com").roles("CUSTOMER"))
                         .param("status", "PENDING"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].id").value(9))
-                .andExpect(jsonPath("$[0].userId").value(15))
-                .andExpect(jsonPath("$[0].status").value("PENDING"));
+                .andExpect(jsonPath("$.content[0].id").value(9))
+                .andExpect(jsonPath("$.content[0].userId").value(15))
+                .andExpect(jsonPath("$.content[0].status").value("PENDING"));
     }
 
     @Test
     void listBookingsShouldReturnFilteredAdminResponse() throws Exception {
-        when(bookingService.listBookings(any())).thenReturn(List.of(
-                new Booking(9L, LocalDate.of(2099, 4, 10), LocalDate.of(2099, 4, 12), 3L, 15L, BookingStatus.PENDING)
-        ));
+        when(bookingService.listBookingsPage(any(), eq(0), eq(20))).thenReturn(new PageResult<>(List.of(
+                new Booking(9L, LocalDate.of(2099, 4, 10), LocalDate.of(2099, 4, 12),
+                        3L, 15L, BookingStatus.PENDING)
+        ), 0, 20, 1));
 
         mockMvc.perform(get("/bookings")
                         .with(user("admin@example.com").roles("ADMIN"))
@@ -107,25 +110,25 @@ class BookingControllerTest {
                         .param("status", "PENDING"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].id").value(9))
-                .andExpect(jsonPath("$[0].userId").value(15))
-                .andExpect(jsonPath("$[0].status").value("PENDING"));
+                .andExpect(jsonPath("$.content[0].id").value(9))
+                .andExpect(jsonPath("$.content[0].userId").value(15))
+                .andExpect(jsonPath("$.content[0].status").value("PENDING"));
     }
 
     @Test
     void listBookingsShouldAllowAdminWithoutFilters() throws Exception {
-        when(bookingService.listBookings(eq(new BookingFilterQuery(null, null))))
-                .thenReturn(List.of(
+        when(bookingService.listBookingsPage(eq(new BookingFilterQuery(null, null)), eq(0), eq(20)))
+                .thenReturn(new PageResult<>(List.of(
                         new Booking(9L, LocalDate.of(2099, 4, 10), LocalDate.of(2099, 4, 12), 3L, 15L, BookingStatus.PENDING),
                         new Booking(10L, LocalDate.of(2099, 4, 15), LocalDate.of(2099, 4, 18), 3L, 16L, BookingStatus.CONFIRMED)
-                ));
+                ), 0, 20, 2));
 
         mockMvc.perform(get("/bookings")
                         .with(user("admin@example.com").roles("ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].id").value(9))
-                .andExpect(jsonPath("$[1].id").value(10));
+                .andExpect(jsonPath("$.content[0].id").value(9))
+                .andExpect(jsonPath("$.content[1].id").value(10));
     }
 
     @Test

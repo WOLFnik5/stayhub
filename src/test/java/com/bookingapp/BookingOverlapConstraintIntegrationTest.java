@@ -23,6 +23,7 @@ class BookingOverlapConstraintIntegrationTest extends PostgreSqlLiquibaseIntegra
     private Long userId;
     private Long accommodationId;
     private Long otherAccommodationId;
+    private Long capacityTwoAccommodationId;
 
     @BeforeEach
     void createFixtures() {
@@ -39,6 +40,9 @@ class BookingOverlapConstraintIntegrationTest extends PostgreSqlLiquibaseIntegra
         jdbc.update("DELETE FROM bookings WHERE user_id = ?", userId);
         jdbc.update("DELETE FROM accommodations WHERE id IN (?, ?)",
                 accommodationId, otherAccommodationId);
+        if (capacityTwoAccommodationId != null) {
+            jdbc.update("DELETE FROM accommodations WHERE id = ?", capacityTwoAccommodationId);
+        }
         jdbc.update("DELETE FROM users WHERE id = ?", userId);
     }
 
@@ -90,11 +94,26 @@ class BookingOverlapConstraintIntegrationTest extends PostgreSqlLiquibaseIntegra
                 String.class, canceledId)).isEqualTo("CANCELED");
     }
 
+    @Test
+    void shouldAllowAReservationCoveringAdjacentStaysWhenCapacityIsTwo() {
+        capacityTwoAccommodationId = createAccommodation(2);
+        insertBooking(capacityTwoAccommodationId, 10, 12, "PENDING");
+        insertBooking(capacityTwoAccommodationId, 12, 14, "PENDING");
+
+        insertBooking(capacityTwoAccommodationId, 10, 14, "PENDING");
+
+        assertThat(bookingCount()).isEqualTo(3);
+    }
+
     private Long createAccommodation() {
+        return createAccommodation(1);
+    }
+
+    private Long createAccommodation(int availability) {
         return jdbc.queryForObject("""
                 INSERT INTO accommodations (type, location, size, daily_rate, availability)
-                VALUES ('APARTMENT', 'Krakow', 'Apartment', 180, 1) RETURNING id
-                """, Long.class);
+                VALUES ('APARTMENT', 'Krakow', 'Apartment', 180, ?) RETURNING id
+                """, Long.class, availability);
     }
 
     private Long insertBooking(Long accommodation, int start, int end, String status) {

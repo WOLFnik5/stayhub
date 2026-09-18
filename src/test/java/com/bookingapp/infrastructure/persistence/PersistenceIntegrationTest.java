@@ -132,6 +132,16 @@ class PersistenceIntegrationTest extends PostgreSqlIntegrationTestSupport {
         bookingRepository.save(
                 new Booking(
                         null,
+                        LocalDate.of(2099, 6, 15),
+                        LocalDate.of(2099, 6, 20),
+                        savedAccommodation.getId(),
+                        savedUser.getId(),
+                        BookingStatus.PENDING
+                )
+        );
+        bookingRepository.save(
+                new Booking(
+                        null,
                         LocalDate.of(2099, 6, 10),
                         LocalDate.of(2099, 6, 15),
                         savedAccommodation.getId(),
@@ -153,6 +163,13 @@ class PersistenceIntegrationTest extends PostgreSqlIntegrationTestSupport {
                 LocalDate.of(2099, 6, 18),
                 activeBooking.getId()
         )).isZero();
+
+        assertThat(bookingRepository.countActiveBookingOverlaps(
+                savedAccommodation.getId(),
+                LocalDate.of(2099, 6, 10),
+                LocalDate.of(2099, 6, 20),
+                null
+        )).isEqualTo(1);
     }
 
     @Test

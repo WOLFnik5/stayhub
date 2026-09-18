@@ -1,12 +1,14 @@
 package com.bookingapp.web.mapper;
 
 import com.bookingapp.domain.model.Booking;
+import com.bookingapp.domain.model.PageResult;
 import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.infrastructure.config.MapStructConfig;
 import com.bookingapp.persistence.BookingFilterQuery;
 import com.bookingapp.web.dto.BookingDetail;
 import com.bookingapp.web.dto.BookingDetailResponse;
 import com.bookingapp.web.dto.BookingResponse;
+import com.bookingapp.web.dto.PageResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -18,6 +20,11 @@ public interface BookingWebMapper {
     }
 
     BookingResponse toResponse(Booking booking);
+
+    default PageResponse<BookingResponse> toPageResponse(PageResult<Booking> result) {
+        return new PageResponse<>(result.content().stream().map(this::toResponse).toList(),
+                result.page(), result.size(), result.totalElements(), result.totalPages());
+    }
 
     @Mapping(source = "detail.booking.id", target = "id")
     @Mapping(source = "detail.booking.checkInDate", target = "checkInDate")

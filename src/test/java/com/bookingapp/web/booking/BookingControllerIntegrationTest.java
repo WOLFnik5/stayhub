@@ -101,10 +101,10 @@ class BookingControllerIntegrationTest extends AbstractControllerIntegrationTest
                         .param("user_id", otherUser.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].id").value(ownPendingBooking.getId()))
-                .andExpect(jsonPath("$[0].userId").value(currentUser.getId()))
-                .andExpect(jsonPath("$[0].status").value("PENDING"))
-                .andExpect(jsonPath("$[1]").doesNotExist());
+                .andExpect(jsonPath("$.content[0].id").value(ownPendingBooking.getId()))
+                .andExpect(jsonPath("$.content[0].userId").value(currentUser.getId()))
+                .andExpect(jsonPath("$.content[0].status").value("PENDING"))
+                .andExpect(jsonPath("$.content[1]").doesNotExist());
     }
 
     @Test
@@ -190,10 +190,10 @@ class BookingControllerIntegrationTest extends AbstractControllerIntegrationTest
                         .header("Authorization", authorizationHeader(currentUser)))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].id").value(ownBooking.getId()))
-                .andExpect(jsonPath("$[0].userId").value(currentUser.getId()))
-                .andExpect(jsonPath("$[0].status").value("PENDING"))
-                .andExpect(jsonPath("$[1]").doesNotExist());
+                .andExpect(jsonPath("$.content[0].id").value(ownBooking.getId()))
+                .andExpect(jsonPath("$.content[0].userId").value(currentUser.getId()))
+                .andExpect(jsonPath("$.content[0].status").value("PENDING"))
+                .andExpect(jsonPath("$.content[1]").doesNotExist());
     }
 
     @Test
@@ -229,10 +229,10 @@ class BookingControllerIntegrationTest extends AbstractControllerIntegrationTest
                         .param("status", "PENDING"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].id").value(booking.getId()))
-                .andExpect(jsonPath("$[0].userId").value(customer.getId()))
-                .andExpect(jsonPath("$[0].status").value("PENDING"))
-                .andExpect(jsonPath("$[1]").doesNotExist());
+                .andExpect(jsonPath("$.content[0].id").value(booking.getId()))
+                .andExpect(jsonPath("$.content[0].userId").value(customer.getId()))
+                .andExpect(jsonPath("$.content[0].status").value("PENDING"))
+                .andExpect(jsonPath("$.content[1]").doesNotExist());
     }
 
     @Test
@@ -267,8 +267,8 @@ class BookingControllerIntegrationTest extends AbstractControllerIntegrationTest
                         .header("Authorization", authorizationHeader(admin)))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].id").value(firstBooking.getId()))
-                .andExpect(jsonPath("$[1].id").value(secondBooking.getId()));
+                .andExpect(jsonPath("$.content[0].id").value(firstBooking.getId()))
+                .andExpect(jsonPath("$.content[1].id").value(secondBooking.getId()));
     }
 
     @Test

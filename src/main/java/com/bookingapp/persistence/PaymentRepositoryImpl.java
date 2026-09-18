@@ -1,5 +1,6 @@
 package com.bookingapp.persistence;
 
+import com.bookingapp.domain.model.PageResult;
 import com.bookingapp.domain.model.Payment;
 import com.bookingapp.persistence.entity.PaymentEntity;
 import com.bookingapp.persistence.mapper.PaymentPersistenceMapper;
@@ -114,5 +115,31 @@ public class PaymentRepositoryImpl {
         return jpqlQuery.getResultList().stream()
                 .map(paymentPersistenceMapper::toDomain)
                 .toList();
+    }
+
+    public PageResult<Payment> findPageByFilter(PaymentFilterQuery query, int page, int size) {
+        String where = query.userId() == null ? "" : """
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM BookingEntity b
+                    WHERE b.id = p.bookingId
+                      AND b.userId = :userId
+                )
+                """;
+        TypedQuery<PaymentEntity> pageQuery = entityManager.createQuery(
+                "SELECT p FROM PaymentEntity p " + where + " ORDER BY p.id DESC",
+                PaymentEntity.class
+        );
+        TypedQuery<Long> countQuery = entityManager.createQuery(
+                "SELECT COUNT(p) FROM PaymentEntity p " + where,
+                Long.class
+        );
+        if (query.userId() != null) {
+            pageQuery.setParameter("userId", query.userId());
+            countQuery.setParameter("userId", query.userId());
+        }
+        List<Payment> content = pageQuery.setFirstResult(page * size).setMaxResults(size)
+                .getResultList().stream().map(paymentPersistenceMapper::toDomain).toList();
+        return new PageResult<>(content, page, size, countQuery.getSingleResult());
     }
 }

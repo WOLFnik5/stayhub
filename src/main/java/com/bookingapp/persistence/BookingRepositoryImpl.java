@@ -1,12 +1,14 @@
 package com.bookingapp.persistence;
 
 import com.bookingapp.domain.model.Booking;
+import com.bookingapp.domain.model.PageResult;
 import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.persistence.entity.BookingEntity;
 import com.bookingapp.persistence.mapper.BookingPersistenceMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
 import java.time.LocalDate;
 import java.util.List;
@@ -83,6 +85,34 @@ public class BookingRepositoryImpl {
                 .toList();
     }
 
+    public PageResult<Booking> findPageByFilter(BookingFilterQuery query, int page, int size) {
+        TypedQuery<BookingEntity> pageQuery = entityManager.createQuery(
+                """
+                SELECT b
+                FROM BookingEntity b
+                WHERE (:userId IS NULL OR b.userId = :userId)
+                  AND (:status IS NULL OR b.status = :status)
+                ORDER BY b.checkInDate ASC, b.id DESC
+                """,
+                BookingEntity.class
+        );
+        pageQuery.setParameter("userId", query.userId());
+        pageQuery.setParameter("status", query.status());
+        List<Booking> content = pageQuery.setFirstResult(page * size).setMaxResults(size)
+                .getResultList().stream().map(bookingPersistenceMapper::toDomain).toList();
+        Long total = entityManager.createQuery(
+                        """
+                        SELECT COUNT(b)
+                        FROM BookingEntity b
+                        WHERE (:userId IS NULL OR b.userId = :userId)
+                          AND (:status IS NULL OR b.status = :status)
+                        """,
+                        Long.class
+                ).setParameter("userId", query.userId()).setParameter("status", query.status())
+                .getSingleResult();
+        return new PageResult<>(content, page, size, total);
+    }
+
     public List<Booking> findAllByUserId(Long userId) {
         TypedQuery<BookingEntity> query = entityManager.createQuery(
                 """
@@ -105,24 +135,35 @@ public class BookingRepositoryImpl {
             LocalDate checkOutDate,
             Long excludedBookingId
     ) {
-        TypedQuery<Long> query = entityManager.createQuery(
-                """
-                SELECT COUNT(b)
-                FROM BookingEntity b
-                WHERE b.accommodationId = :accommodationId
-                  AND b.status NOT IN :inactiveStatuses
-                  AND (:excludedBookingId IS NULL OR b.id <> :excludedBookingId)
-                  AND b.checkInDate < :checkOutDate
-                  AND :checkInDate < b.checkOutDate
-                """,
-                Long.class
-        );
+        Query query = entityManager.createNativeQuery("""
+                SELECT COALESCE(MAX(
+                    (
+                        SELECT COUNT(*)
+                        FROM bookings b
+                        WHERE b.accommodation_id = :accommodationId
+                          AND b.status NOT IN ('CANCELED', 'EXPIRED')
+                          AND (:excludedBookingId IS NULL OR b.id <> :excludedBookingId)
+                          AND b.check_in_date <= candidate_dates.candidate_date
+                          AND candidate_dates.candidate_date < b.check_out_date
+                    )
+                ), 0)
+                FROM (
+                    SELECT CAST(:checkInDate AS date) AS candidate_date
+                    UNION
+                    SELECT b.check_in_date
+                    FROM bookings b
+                    WHERE b.accommodation_id = :accommodationId
+                      AND b.status NOT IN ('CANCELED', 'EXPIRED')
+                      AND (:excludedBookingId IS NULL OR b.id <> :excludedBookingId)
+                      AND b.check_in_date >= CAST(:checkInDate AS date)
+                      AND b.check_in_date < CAST(:checkOutDate AS date)
+                ) candidate_dates
+                """);
         query.setParameter("accommodationId", accommodationId);
         query.setParameter("checkInDate", checkInDate);
         query.setParameter("checkOutDate", checkOutDate);
         query.setParameter("excludedBookingId", excludedBookingId);
-        query.setParameter("inactiveStatuses", INACTIVE_BOOKING_STATUSES);
-        return query.getSingleResult();
+        return ((Number) query.getSingleResult()).longValue();
     }
 
     public List<Booking> findBookingsToExpire(LocalDate businessDate) {

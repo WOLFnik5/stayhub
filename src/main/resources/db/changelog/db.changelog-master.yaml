@@ -27,3 +27,5 @@ databaseChangeLog:
       file: db/changelog/changes/013-outbox-correlation.yaml
   - include:
       file: db/changelog/changes/014-outbox-trace-context.yaml
+  - include:
+      file: db/changelog/changes/015-fix-capacity-overlap-calculation.yaml

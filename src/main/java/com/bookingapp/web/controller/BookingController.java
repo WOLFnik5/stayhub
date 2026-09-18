@@ -5,6 +5,7 @@ import com.bookingapp.service.BookingService;
 import com.bookingapp.web.dto.BookingDetailResponse;
 import com.bookingapp.web.dto.BookingResponse;
 import com.bookingapp.web.dto.CreateBookingRequest;
+import com.bookingapp.web.dto.PageResponse;
 import com.bookingapp.web.dto.PatchBookingRequest;
 import com.bookingapp.web.dto.UpdateBookingRequest;
 import com.bookingapp.web.mapper.BookingWebMapper;
@@ -12,7 +13,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -43,22 +43,24 @@ public class BookingController {
     @GetMapping
     @Operation(summary = "List bookings for current user or all bookings for admin",
             security = @SecurityRequirement(name = "bearerAuth"))
-    public List<BookingResponse> listBookings(
+    public PageResponse<BookingResponse> listBookings(
             @RequestParam(name = "user_id", required = false) Long userId,
-            @RequestParam(name = "status", required = false) BookingStatus status
+            @RequestParam(name = "status", required = false) BookingStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
     ) {
-        return bookingService.listBookings(bookingWebMapper.toFilterQuery(userId, status)).stream()
-                .map(bookingWebMapper::toResponse)
-                .toList();
+        return bookingWebMapper.toPageResponse(bookingService.listBookingsPage(
+                bookingWebMapper.toFilterQuery(userId, status), page, size));
     }
 
     @GetMapping("/my")
     @Operation(summary = "List current user's bookings",
             security = @SecurityRequirement(name = "bearerAuth"))
-    public List<BookingResponse> listMyBookings() {
-        return bookingService.listMyBookings().stream()
-                .map(bookingWebMapper::toResponse)
-                .toList();
+    public PageResponse<BookingResponse> listMyBookings(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return bookingWebMapper.toPageResponse(bookingService.listMyBookingsPage(page, size));
     }
 
     @GetMapping("/{id}")

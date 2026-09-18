@@ -4,6 +4,7 @@ import static com.bookingapp.service.validation.TextValidationUtils.requireNonBl
 
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
+import com.bookingapp.domain.model.PageResult;
 import com.bookingapp.domain.model.Payment;
 import com.bookingapp.domain.model.User;
 import com.bookingapp.domain.model.enums.BookingStatus;
@@ -75,13 +76,11 @@ public class PaymentService {
     public PaymentSessionResult createPaymentSession(Long bookingId) {
         // Commit the attempt before calling Stripe so retries reuse the same idempotency key.
         Payment attempt = transactionTemplate.execute(status -> prepareCheckout(bookingId));
-        return transactionTemplate.execute(status -> {
-            Booking booking = lockBooking(bookingId);
-            ensureCurrentUserCanAccessBooking(booking);
-            ensureBookingPayable(booking);
-            Payment payment = paymentRepository.refresh(attempt.getId());
-            return sessionResult(attachOrRecoverSession(payment, booking));
-        });
+        if (attempt.getSessionId() != null) {
+            return resolveExistingCheckout(bookingId, attempt);
+        }
+
+        return createAndAttachCheckout(bookingId, attempt);
     }
 
     private Payment prepareCheckout(Long bookingId) {
@@ -97,17 +96,7 @@ public class PaymentService {
             return previous;
         }
         if (previous != null && previous.getStatus() == PaymentStatus.PENDING) {
-            if (previous.getSessionId() == null) {
-                return previous;
-            }
-            if (stripePaymentProvider.isPaymentSuccessful(previous.getSessionId())) {
-                return confirmPayment(previous);
-            }
-            if (!stripePaymentProvider.isPaymentSessionExpired(previous.getSessionId())) {
-                return previous;
-            }
-            paymentRepository.save(expirePayment(previous));
-            paymentRepository.flush();
+            return previous;
         }
         BigDecimal amount = previous == null
                 ? calculateTotalAmount(booking, getAccommodation(booking.getAccommodationId()))
@@ -117,6 +106,88 @@ public class PaymentService {
         next.setCurrency(previous != null && previous.getCurrency() != null
                 ? previous.getCurrency() : stripeProperties.getCurrency());
         return paymentRepository.save(next);
+    }
+
+    private PaymentSessionResult resolveExistingCheckout(Long bookingId, Payment payment) {
+        String sessionId = payment.getSessionId();
+        if (stripePaymentProvider.isPaymentSuccessful(sessionId)) {
+            stripePaymentProvider.validatePayment(payment);
+            return transactionTemplate.execute(status -> sessionResult(
+                    markVerifiedPaymentPaid(bookingId, payment.getId(), sessionId)));
+        }
+        if (!stripePaymentProvider.isPaymentSessionExpired(sessionId)) {
+            return sessionResult(payment);
+        }
+
+        Payment nextAttempt = transactionTemplate.execute(status ->
+                replaceExpiredCheckout(bookingId, payment.getId(), sessionId));
+        if (nextAttempt.getSessionId() != null) {
+            return sessionResult(nextAttempt);
+        }
+        return createAndAttachCheckout(bookingId, nextAttempt);
+    }
+
+    private PaymentSessionResult createAndAttachCheckout(Long bookingId, Payment payment) {
+        if (payment.getCreatedAt() == null
+                || payment.getCreatedAt().isBefore(Instant.now().minus(23, ChronoUnit.HOURS))) {
+            throw new PaymentStateException(
+                    "Unresolved checkout attempt requires Stripe reconciliation before retrying");
+        }
+        Booking booking = getBooking(bookingId);
+        ensureCurrentUserCanAccessBooking(booking);
+        ensureBookingPayable(booking);
+        PaymentSessionResult session = stripePaymentProvider.createPaymentSession(payment, booking,
+                getAccommodation(booking.getAccommodationId()), getUser(booking.getUserId()));
+        return transactionTemplate.execute(status -> sessionResult(
+                attachSessionAfterRemoteCall(bookingId, payment.getId(), session)));
+    }
+
+    private Payment replaceExpiredCheckout(Long bookingId, Long paymentId, String sessionId) {
+        Booking booking = lockBooking(bookingId);
+        ensureCurrentUserCanAccessBooking(booking);
+        ensureBookingPayable(booking);
+        Payment payment = paymentRepository.refresh(paymentId);
+        if (payment.getStatus() != PaymentStatus.PENDING
+                || !sessionId.equals(payment.getSessionId())) {
+            return payment;
+        }
+        paymentRepository.save(expirePayment(payment));
+        paymentRepository.flush();
+        Payment next = new Payment(null, PaymentStatus.PENDING, bookingId, null, null,
+                validateAmount(payment.getAmountToPay()));
+        next.setCurrency(payment.getCurrency());
+        return paymentRepository.save(next);
+    }
+
+    private Payment attachSessionAfterRemoteCall(
+            Long bookingId,
+            Long paymentId,
+            PaymentSessionResult session
+    ) {
+        Booking booking = lockBooking(bookingId);
+        ensureCurrentUserCanAccessBooking(booking);
+        ensureBookingPayable(booking);
+        Payment payment = paymentRepository.refresh(paymentId);
+        if (payment.getStatus() != PaymentStatus.PENDING || payment.getSessionId() != null) {
+            return payment;
+        }
+        return paymentRepository.save(
+                attachSession(payment, session.sessionId(), session.sessionUrl()));
+    }
+
+    private Payment markVerifiedPaymentPaid(Long bookingId, Long paymentId, String sessionId) {
+        lockBooking(bookingId);
+        Payment payment = paymentRepository.refresh(paymentId);
+        if (payment.getSessionId() != null && !payment.getSessionId().equals(sessionId)) {
+            throw new PaymentStateException("Stripe session does not match this attempt");
+        }
+        payment.setSessionId(sessionId);
+        if (payment.getStatus() == PaymentStatus.PAID) {
+            return payment;
+        }
+        Payment savedPayment = paymentRepository.save(markPaid(payment));
+        kafkaEventPublisher.publishPaymentSucceeded(savedPayment);
+        return savedPayment;
     }
 
     private Payment attachOrRecoverSession(Payment payment, Booking booking) {
@@ -157,12 +228,21 @@ public class PaymentService {
         return paymentRepository.findAllByFilter(new PaymentFilterQuery(currentUser.id()));
     }
 
-    @Transactional
-    public Payment handlePaymentSuccess(String sessionId) {
-        return completePayment(getPaymentBySessionId(sessionId), sessionId);
+    public PageResult<Payment> getPaymentsPage(PaymentFilterQuery query, int page, int size) {
+        validatePagination(page, size);
+        CurrentUser currentUser = currentUserService.getCurrentUser();
+        PaymentFilterQuery effectiveQuery = currentUser.role() == UserRole.ADMIN
+                ? query == null ? new PaymentFilterQuery(null) : query
+                : new PaymentFilterQuery(currentUser.id());
+        return paymentRepository.findPageByFilter(effectiveQuery, page, size);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public Payment handlePaymentSuccess(String sessionId) {
+        return completeVerifiedPayment(getPaymentBySessionId(sessionId), sessionId);
+    }
+
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public Payment handleWebhookSuccess(String sessionId, Long paymentId) {
         Payment payment = paymentRepository.findBySessionId(sessionId).orElseGet(() -> {
             if (paymentId == null) {
@@ -171,7 +251,23 @@ public class PaymentService {
             return paymentRepository.findById(paymentId).orElseThrow(() ->
                     new EntityNotFoundDomainException("Stripe payment attempt was not found"));
         });
-        return completePayment(payment, sessionId);
+        return completeVerifiedPayment(payment, sessionId);
+    }
+
+    private Payment completeVerifiedPayment(Payment payment, String sessionId) {
+        if (payment.getSessionId() != null && !payment.getSessionId().equals(sessionId)) {
+            throw new PaymentStateException("Stripe session does not match this attempt");
+        }
+        // Validation performs the remote read before the short state-transition transaction.
+        payment.setSessionId(sessionId);
+        if (!stripePaymentProvider.isPaymentSuccessful(sessionId)) {
+            throw new PaymentStateException("Payment session '"
+                    + sessionId
+                    + "' is not confirmed as successful");
+        }
+        stripePaymentProvider.validatePayment(payment);
+        return transactionTemplate.execute(status ->
+                markVerifiedPaymentPaid(payment.getBookingId(), payment.getId(), sessionId));
     }
 
     private Payment completePayment(Payment payment, String sessionId) {
@@ -322,6 +418,13 @@ public class PaymentService {
                         + "' was not found"));
     }
 
+    private Booking getBooking(Long bookingId) {
+        return bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new EntityNotFoundDomainException("Booking with id '"
+                        + bookingId
+                        + "' was not found"));
+    }
+
     private boolean isBookingPayable(Booking booking) {
         return booking.getStatus() != BookingStatus.CANCELED
                 && booking.getStatus() != BookingStatus.EXPIRED
@@ -396,5 +499,14 @@ public class PaymentService {
                 .orElseThrow(() -> new EntityNotFoundDomainException(
                         "Payment for booking id '" + bookingId + "' was not found"
                 ));
+    }
+
+    private static void validatePagination(int page, int size) {
+        if (page < 0) {
+            throw new BusinessValidationException("Page must not be negative");
+        }
+        if (size < 1 || size > 100) {
+            throw new BusinessValidationException("Page size must be between 1 and 100");
+        }
     }
 }

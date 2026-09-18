@@ -76,6 +76,11 @@ app:
       secret: ${JWT_SECRET:}
       expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
   kafka:
+    consumer:
+      retry:
+        max-attempts: ${KAFKA_CONSUMER_RETRY_MAX_ATTEMPTS:4}
+        backoff-ms: ${KAFKA_CONSUMER_RETRY_BACKOFF_MS:1000}
+      dlt-suffix: ${KAFKA_CONSUMER_DLT_SUFFIX:.DLT}
     topics:
       booking-created: ${KAFKA_TOPIC_BOOKING_CREATED:booking.created}
       booking-canceled: ${KAFKA_TOPIC_BOOKING_CANCELED:booking.canceled}

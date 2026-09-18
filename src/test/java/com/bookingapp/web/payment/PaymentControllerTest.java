@@ -9,6 +9,7 @@ import com.bookingapp.service.PaymentService;
 import com.bookingapp.exception.GlobalExceptionHandler;
 import com.bookingapp.domain.model.enums.PaymentStatus;
 import com.bookingapp.domain.model.Payment;
+import com.bookingapp.domain.model.PageResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -102,17 +103,18 @@ class PaymentControllerTest {
 
     @Test
     void getPaymentsShouldReturnListJson() throws Exception {
-        when(paymentService.getPayments(any())).thenReturn(List.of(
+        when(paymentService.getPaymentsPage(any(), org.mockito.ArgumentMatchers.eq(0),
+                org.mockito.ArgumentMatchers.eq(20))).thenReturn(new PageResult<>(List.of(
                 new Payment(100L, PaymentStatus.PENDING, 11L, "https://checkout.example/sess_123", "sess_123", BigDecimal.valueOf(450))
-        ));
+        ), 0, 20, 1));
 
         mockMvc.perform(get("/payments").with(user("customer@example.com").roles("CUSTOMER")))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].id").value(100))
-                .andExpect(jsonPath("$[0].bookingId").value(11))
-                .andExpect(jsonPath("$[0].status").value("PENDING"))
-                .andExpect(jsonPath("$[0].sessionId").value("sess_123"));
+                .andExpect(jsonPath("$.content[0].id").value(100))
+                .andExpect(jsonPath("$.content[0].bookingId").value(11))
+                .andExpect(jsonPath("$.content[0].status").value("PENDING"))
+                .andExpect(jsonPath("$.content[0].sessionId").value("sess_123"));
     }
 
     @Test

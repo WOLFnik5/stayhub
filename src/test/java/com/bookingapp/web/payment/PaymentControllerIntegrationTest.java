@@ -84,11 +84,11 @@ class PaymentControllerIntegrationTest extends AbstractControllerIntegrationTest
                         .header("Authorization", authorizationHeader(currentUser)))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].id").value(currentUserPayment.getId()))
-                .andExpect(jsonPath("$[0].bookingId").value(currentUserBooking.getId()))
-                .andExpect(jsonPath("$[0].status").value("PENDING"))
-                .andExpect(jsonPath("$[0].sessionId").value("sess_current"))
-                .andExpect(jsonPath("$[1]").doesNotExist());
+                .andExpect(jsonPath("$.content[0].id").value(currentUserPayment.getId()))
+                .andExpect(jsonPath("$.content[0].bookingId").value(currentUserBooking.getId()))
+                .andExpect(jsonPath("$.content[0].status").value("PENDING"))
+                .andExpect(jsonPath("$.content[0].sessionId").value("sess_current"))
+                .andExpect(jsonPath("$.content[1]").doesNotExist());
     }
 
     @Test
@@ -137,8 +137,8 @@ class PaymentControllerIntegrationTest extends AbstractControllerIntegrationTest
                         .header("Authorization", authorizationHeader(admin)))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].id").isNumber())
-                .andExpect(jsonPath("$[1].id").isNumber());
+                .andExpect(jsonPath("$.content[0].id").isNumber())
+                .andExpect(jsonPath("$.content[1].id").isNumber());
 
         List<Payment> payments = paymentRepository.findAllByFilter(new PaymentFilterQuery(null));
         assertThat(payments).extracting(Payment::getId)
@@ -192,9 +192,9 @@ class PaymentControllerIntegrationTest extends AbstractControllerIntegrationTest
                         .param("user_id", currentUser.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].id").value(currentUserPayment.getId()))
-                .andExpect(jsonPath("$[0].bookingId").value(currentUserBooking.getId()))
-                .andExpect(jsonPath("$[1]").doesNotExist());
+                .andExpect(jsonPath("$.content[0].id").value(currentUserPayment.getId()))
+                .andExpect(jsonPath("$.content[0].bookingId").value(currentUserBooking.getId()))
+                .andExpect(jsonPath("$.content[1]").doesNotExist());
     }
 
     @Test

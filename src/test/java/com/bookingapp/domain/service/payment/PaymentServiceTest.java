@@ -95,18 +95,23 @@ class PaymentServiceTest {
 
         when(currentUserService.getCurrentUser()).thenReturn(currentUser);
         when(bookingRepository.findByIdForUpdate(11L)).thenReturn(Optional.of(booking));
+        when(bookingRepository.findById(11L)).thenReturn(Optional.of(booking));
         when(accommodationRepository.findById(3L)).thenReturn(Optional.of(accommodation));
         when(userRepository.findById(15L)).thenReturn(Optional.of(bookingOwner));
         when(paymentRepository.findByBookingId(11L)).thenReturn(Optional.empty());
+        var transactionActive = new java.util.concurrent.atomic.AtomicBoolean();
         when(stripePaymentProvider.createPaymentSession(any(Payment.class), any(Booking.class), any(Accommodation.class), any(User.class)))
-                .thenReturn(new PaymentSessionResult(
-                        "sess_123",
-                        "https://checkout.example/sess_123",
-                        null,
-                        PaymentStatus.PENDING.name(),
-                        11L,
-                        BigDecimal.valueOf(450)
-                ));
+                .thenAnswer(invocation -> {
+                    assertThat(transactionActive.get()).isFalse();
+                    return new PaymentSessionResult(
+                            "sess_123",
+                            "https://checkout.example/sess_123",
+                            null,
+                            PaymentStatus.PENDING.name(),
+                            11L,
+                            BigDecimal.valueOf(450)
+                    );
+                });
         when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> {
             Payment payment = invocation.getArgument(0);
             return new Payment(
@@ -120,9 +125,15 @@ class PaymentServiceTest {
         });
 
         when(stripeProperties.getCurrency()).thenReturn("usd");
-        when(transactionTemplate.execute(any())).thenAnswer(invocation ->
-                ((org.springframework.transaction.support.TransactionCallback<?>) invocation.getArgument(0))
-                        .doInTransaction(null));
+        when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
+            transactionActive.set(true);
+            try {
+                return ((org.springframework.transaction.support.TransactionCallback<?>) invocation
+                        .getArgument(0)).doInTransaction(null);
+            } finally {
+                transactionActive.set(false);
+            }
+        });
         when(paymentRepository.refresh(100L)).thenReturn(new Payment(100L, PaymentStatus.PENDING,
                 11L, null, null, BigDecimal.valueOf(450)));
         PaymentSessionResult result = paymentService.createPaymentSession(11L);
@@ -152,6 +163,9 @@ class PaymentServiceTest {
         allowBookingLock();
         when(stripePaymentProvider.isPaymentSuccessful("sess_123")).thenReturn(true);
         when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(transactionTemplate.execute(any())).thenAnswer(invocation ->
+                ((org.springframework.transaction.support.TransactionCallback<?>) invocation.getArgument(0))
+                        .doInTransaction(null));
 
         Payment result = paymentService.handlePaymentSuccess("sess_123");
 
@@ -296,8 +310,6 @@ class PaymentServiceTest {
         );
 
         when(paymentRepository.findBySessionId("sess_123")).thenReturn(Optional.of(pendingPayment));
-        when(paymentRepository.refresh(100L)).thenReturn(pendingPayment);
-        allowBookingLock();
         when(stripePaymentProvider.isPaymentSuccessful("sess_123")).thenReturn(false);
 
         assertThatThrownBy(() -> paymentService.handlePaymentSuccess("sess_123"))

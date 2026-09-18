@@ -4,6 +4,7 @@ import static com.bookingapp.service.validation.BookingValidationUtils.validateB
 
 import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
+import com.bookingapp.domain.model.PageResult;
 import com.bookingapp.domain.model.Payment;
 import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.domain.model.enums.PaymentStatus;
@@ -116,6 +117,23 @@ public class BookingService {
         return bookingRepository.findAllByUserId(currentUser.id());
     }
 
+    public PageResult<Booking> listBookingsPage(BookingFilterQuery query, int page, int size) {
+        validatePagination(page, size);
+        CurrentUser currentUser = currentUserService.getCurrentUser();
+        if (currentUser.role() == UserRole.ADMIN) {
+            return bookingRepository.findPageByFilter(query == null
+                    ? new BookingFilterQuery(null, null) : query, page, size);
+        }
+        return bookingRepository.findPageByFilter(new BookingFilterQuery(
+                currentUser.id(), query == null ? null : query.status()), page, size);
+    }
+
+    public PageResult<Booking> listMyBookingsPage(int page, int size) {
+        validatePagination(page, size);
+        return bookingRepository.findPageByFilter(new BookingFilterQuery(
+                currentUserService.getCurrentUser().id(), null), page, size);
+    }
+
     @Transactional
     public Booking updateBooking(Long bookingId, UpdateBookingRequest request) {
         Booking existingBooking = findBookingForUpdate(bookingId);
@@ -184,6 +202,15 @@ public class BookingService {
             throw new BookingConflictException(
                     "Accommodation capacity is exhausted for the selected dates"
             );
+        }
+    }
+
+    private static void validatePagination(int page, int size) {
+        if (page < 0) {
+            throw new BusinessValidationException("Page must not be negative");
+        }
+        if (size < 1 || size > 100) {
+            throw new BusinessValidationException("Page size must be between 1 and 100");
         }
     }
 

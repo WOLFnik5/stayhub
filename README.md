@@ -273,13 +273,14 @@ backend. Optional distributed tracing is described below.
 4. For SENT events, inspect consumer attempts and Kafka group lag. A
    `consumer/duplicate` indicates an already processed event. `telegram/accepted`
    means Telegram returned `ok=true`, not that a person read the message.
-5. `consumer/exhausted` is a terminal warning. The Kafka handler retains the
-   framework's default retry schedule (nine retries without delay for retryable
-   failures; some failures are classified as non-retryable). After recovery it
-   can advance past the failed record. There is no dead-letter topic or automatic
-   replay; use the logged topic/partition/offset for investigation and controlled
-   replay after fixing the cause. A crash after Telegram acceptance but before
+5. `consumer/exhausted` and `consumer/dead_letter` mean the event was published to
+   `<source-topic>.DLT` after the configured retry attempts (four attempts with a
+   one-second delay by default). Invalid event data is sent to the dead-letter topic
+   immediately. Inspect its headers, topic, partition and offset, fix the cause, then
+   replay it in a controlled way. A crash after Telegram acceptance but before
    recording deduplication can still produce a duplicate notification.
+
+   Create each dead-letter topic with at least as many partitions as its source topic.
 
 ### Distributed tracing
 
@@ -345,7 +346,7 @@ Open [Jaeger](http://localhost:16686), select service `booking-app`, or search f
 the `traceId` from a log. Trigger a booking/accommodation event and allow time
 for the outbox poll and exporter batch. A failing Telegram call produces an ERROR
 span; repeated deliveries appear as sibling consumer spans. The terminal
-`telegram.exhausted` span marks exhausted consumer handling.
+`telegram.dead_letter` marks publication to the dead-letter topic.
 
 | Setting | Default |
 | --- | --- |
@@ -364,6 +365,10 @@ References: [Spring Boot OpenTelemetry integration](https://spring.io/blog/2025/
 and [Jaeger deployment](https://www.jaegertracing.io/docs/2.20/deployment/).
 
 ## API Summary
+
+`GET /bookings`, `GET /bookings/my` and `GET /payments` accept optional `page`
+(default `0`) and `size` (default `20`, maximum `100`) parameters. They return a
+page object with `content`, `page`, `size`, `totalElements` and `totalPages`.
 
 Main business endpoints:
 
