@@ -5,6 +5,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(EntityNotFoundDomainException.class)
     public ResponseEntity<ApiErrorResponse> handleEntityNotFound(
@@ -47,6 +50,35 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         return buildResponse(HttpStatus.CONFLICT, exception.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler({InvalidBookingStateException.class, PaymentStateException.class})
+    public ResponseEntity<ApiErrorResponse> handleStateConflict(
+            DomainException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(HttpStatus.CONFLICT, exception.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(PaymentProviderUnavailableException.class)
+    public ResponseEntity<ApiErrorResponse> handlePaymentProviderUnavailable(
+            PaymentProviderUnavailableException exception,
+            HttpServletRequest request
+    ) {
+        logPaymentProviderFailure(exception, request);
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE,
+                "Payment provider is temporarily unavailable",
+                request.getRequestURI());
+    }
+
+    @ExceptionHandler(PaymentProviderGatewayException.class)
+    public ResponseEntity<ApiErrorResponse> handlePaymentProviderGatewayFailure(
+            PaymentProviderGatewayException exception,
+            HttpServletRequest request
+    ) {
+        logPaymentProviderFailure(exception, request);
+        return buildResponse(HttpStatus.BAD_GATEWAY, "Payment provider request failed",
+                request.getRequestURI());
     }
 
     @ExceptionHandler(RateLimitExceededException.class)
@@ -137,6 +169,10 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         String rootMessage = exception.getMostSpecificCause().getMessage();
+        if (isEmailUniqueConstraintViolation(rootMessage)) {
+            return buildResponse(HttpStatus.CONFLICT, "Email is already in use",
+                    request.getRequestURI());
+        }
         if (rootMessage != null
                 && (rootMessage.contains("excl_booking_accommodation_date_overlap")
                 || rootMessage.contains("accommodation_capacity_exceeded"))) {
@@ -155,6 +191,11 @@ public class GlobalExceptionHandler {
             Exception exception,
             HttpServletRequest request
     ) {
+        LOGGER.atError()
+                .addKeyValue("httpMethod", request.getMethod())
+                .addKeyValue("uri", request.getRequestURI())
+                .setCause(exception)
+                .log("Unhandled request exception");
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error occurred",
                 request.getRequestURI());
     }
@@ -170,6 +211,26 @@ public class GlobalExceptionHandler {
                         message,
                         path
                 ));
+    }
+
+    private boolean isEmailUniqueConstraintViolation(String rootMessage) {
+        return rootMessage != null
+                && (rootMessage.contains("uk_users_email")
+                || rootMessage.contains("users_email_key"));
+    }
+
+    private void logPaymentProviderFailure(
+            PaymentProviderException exception,
+            HttpServletRequest request
+    ) {
+        LOGGER.atWarn()
+                .addKeyValue("httpMethod", request.getMethod())
+                .addKeyValue("uri", request.getRequestURI())
+                .addKeyValue("provider", "stripe")
+                .addKeyValue("category", exception.getCategory())
+                .addKeyValue("providerStatusCode", exception.getProviderStatusCode())
+                .addKeyValue("providerRequestId", exception.getProviderRequestId())
+                .log("Payment provider request failed");
     }
 
     private String formatFieldError(FieldError fieldError) {

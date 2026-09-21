@@ -1,5 +1,6 @@
 package com.bookingapp.service;
 
+import static com.bookingapp.service.validation.EmailNormalizationUtils.normalize;
 import static com.bookingapp.service.validation.TextValidationUtils.requireNonBlank;
 
 import com.bookingapp.domain.model.User;
@@ -34,9 +35,9 @@ public class AuthService {
 
     @Transactional
     public AuthenticationResult register(RegisterRequest request) {
-        String normalizedEmail = requireNonBlank(
+        String normalizedEmail = normalize(requireNonBlank(
                 request.email(), "User email must not be blank"
-        );
+        ));
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw new BusinessValidationException(
                     "User with email '" + normalizedEmail + "' already exists"
@@ -61,7 +62,7 @@ public class AuthService {
     }
 
     public AuthenticationResult login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email())
+        User user = userRepository.findByEmail(normalize(request.email()))
                 .orElseThrow(() -> new BusinessValidationException("Invalid email or password"));
 
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {

@@ -297,17 +297,14 @@ public class PaymentService {
         return savedPayment;
     }
 
-    @Transactional
     public PaymentCancelResult handlePaymentCancel(String sessionId) {
         return handlePaymentCancel(sessionId, null);
     }
 
-    @Transactional
     public PaymentCancelResult handlePaymentCancel(String sessionId, Long bookingId) {
         Payment payment = resolvePaymentForCancel(sessionId, bookingId);
-        Booking booking = lockBooking(payment.getBookingId());
+        Booking booking = getBooking(payment.getBookingId());
         ensureCurrentUserCanAccessBooking(booking);
-        payment = paymentRepository.refresh(payment.getId());
         if (bookingId != null && !bookingId.equals(payment.getBookingId())) {
             throw new BusinessValidationException("Payment session does not match booking id");
         }
@@ -315,42 +312,13 @@ public class PaymentService {
             return new PaymentCancelResult(payment.getId(), payment.getSessionId(),
                     payment.getSessionUrl(), payment.getStatus(), false, "Payment is complete.");
         }
-        payment = attachOrRecoverSession(payment, booking);
-        String resolvedSessionId = payment.getSessionId();
-        if (stripePaymentProvider.isPaymentSuccessful(resolvedSessionId)) {
-            Payment paid = confirmPayment(payment);
-            return new PaymentCancelResult(paid.getId(), paid.getSessionId(), paid.getSessionUrl(),
-                    paid.getStatus(), false, "Payment is complete.");
-        }
-
-        if (isBookingPayable(booking)
-                && stripePaymentProvider.isPaymentSessionActive(resolvedSessionId)) {
-            return new PaymentCancelResult(
-                    payment.getId(),
-                    payment.getSessionId(),
-                    payment.getSessionUrl(),
-                    payment.getStatus(),
-                    true,
-                    "Payment was canceled on the provider page. "
-                            + "You can pay later using the same session for a limited time."
-            );
-        }
-
-        if (!stripePaymentProvider.isPaymentSessionExpired(resolvedSessionId)) {
-            return new PaymentCancelResult(payment.getId(), payment.getSessionId(),
-                    null, payment.getStatus(), false, "Payment is processing or unavailable.");
-        }
-        Payment expiredPayment = expirePayment(payment);
-        Payment savedPayment = paymentRepository.save(expiredPayment);
-
         return new PaymentCancelResult(
-                savedPayment.getId(),
-                savedPayment.getSessionId(),
-                savedPayment.getSessionUrl(),
-                savedPayment.getStatus(),
+                payment.getId(),
+                payment.getSessionId(),
+                null,
+                payment.getStatus(),
                 false,
-                "Payment session is no longer active. "
-                        + "Create a new checkout session if you want to pay later."
+                "Payment is pending. Use POST /payments to create or recover checkout."
         );
     }
 

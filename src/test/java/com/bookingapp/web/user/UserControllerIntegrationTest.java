@@ -42,11 +42,31 @@ class UserControllerIntegrationTest extends AbstractControllerIntegrationTest {
     }
 
     @Test
+    void tokenForMissingUser_shouldReturn401() throws Exception {
+        User missingUser = new User(999999L, "missing@example.com", "Missing", "User",
+                "unused-test-hash", UserRole.CUSTOMER);
+
+        mockMvc.perform(get("/users/me")
+                        .header("Authorization", authorizationHeader(missingUser)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.path").value("/users/me"));
+    }
+
+    @Test
+    void invalidJwt_shouldReturn401() throws Exception {
+        mockMvc.perform(get("/users/me")
+                        .header("Authorization", "Bearer invalid-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.path").value("/users/me"));
+    }
+
+    @Test
     void updateCurrentUserProfile_shouldPersistChanges() throws Exception {
         User customer = persistCustomer("profile-update@example.com");
+        String token = authorizationHeader(customer);
 
         mockMvc.perform(put("/users/me")
-                        .header("Authorization", authorizationHeader(customer))
+                        .header("Authorization", token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJson(new UpdateCurrentUserRequest(
                                 "updated-profile@example.com",
@@ -65,6 +85,11 @@ class UserControllerIntegrationTest extends AbstractControllerIntegrationTest {
         assertThat(updatedUser.getEmail()).isEqualTo("updated-profile@example.com");
         assertThat(updatedUser.getFirstName()).isEqualTo("Updated");
         assertThat(updatedUser.getLastName()).isEqualTo("Customer");
+
+        mockMvc.perform(get("/users/me").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(customer.getId()))
+                .andExpect(jsonPath("$.email").value("updated-profile@example.com"));
     }
 
     @Test
@@ -91,6 +116,35 @@ class UserControllerIntegrationTest extends AbstractControllerIntegrationTest {
         assertThat(updatedUser.getEmail()).isEqualTo("patched-profile@example.com");
         assertThat(updatedUser.getFirstName()).isEqualTo("Patched");
         assertThat(updatedUser.getLastName()).isEqualTo("Customer");
+    }
+
+    @Test
+    void updateAndPatchCurrentUserProfile_shouldCanonicalizeOrPreserveEmail() throws Exception {
+        User customer = persistCustomer("profile-email@example.com");
+        String token = authorizationHeader(customer);
+
+        mockMvc.perform(put("/users/me")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":" PROFILE.EMAIL@EXAMPLE.COM ","firstName":"Test",
+                                "lastName":"Customer"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("profile.email@example.com"));
+
+        mockMvc.perform(patch("/users/me")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":null,\"firstName\":\"Patched\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("profile.email@example.com"));
+
+        mockMvc.perform(patch("/users/me")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"   \"}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -126,6 +180,23 @@ class UserControllerIntegrationTest extends AbstractControllerIntegrationTest {
 
         User updatedUser = userRepository.findById(targetUser.getId()).orElseThrow();
         assertThat(updatedUser.getRole()).isEqualTo(UserRole.ADMIN);
+    }
+
+    @Test
+    void staleAdminToken_shouldUseCurrentDatabaseRole() throws Exception {
+        User admin = persistAdmin("profile-role-demoted@example.com");
+        User targetUser = persistCustomer("profile-role-demoted-target@example.com");
+        String token = authorizationHeader(admin);
+
+        admin.setRole(UserRole.CUSTOMER);
+        userRepository.save(admin);
+
+        mockMvc.perform(put("/users/{id}/role", targetUser.getId())
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJson(new UpdateUserRoleRequest(UserRole.ADMIN))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.path").value("/users/" + targetUser.getId() + "/role"));
     }
 
     @Test

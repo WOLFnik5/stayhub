@@ -18,6 +18,8 @@ import com.bookingapp.domain.model.User;
 import com.bookingapp.domain.model.enums.AccommodationType;
 import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.domain.model.enums.PaymentStatus;
+import com.bookingapp.exception.PaymentProviderGatewayException;
+import com.bookingapp.exception.PaymentProviderUnavailableException;
 import com.bookingapp.exception.PaymentStateException;
 import com.bookingapp.service.BookingExpirationService;
 import com.bookingapp.web.dto.CreatePaymentRequest;
@@ -81,9 +83,9 @@ class PaymentLifecycleIntegrationTest extends AbstractControllerIntegrationTest 
     @Test
     void retryAfterProviderFailureShouldReuseDurableAttempt() throws Exception {
         when(stripePaymentProvider.createPaymentSession(any(), any(), any(), any()))
-                .thenThrow(new PaymentStateException("Network timeout"))
+                .thenThrow(new PaymentProviderUnavailableException("ApiConnectionException", null, null))
                 .thenAnswer(invocation -> session(invocation.getArgument(0)));
-        assertThat(checkout()).isEqualTo(400);
+        assertThat(checkout()).isEqualTo(503);
         Payment unfinished = latest();
         assertThat(unfinished.getSessionId()).isNull();
         assertThat(checkout()).isEqualTo(200);
@@ -117,7 +119,7 @@ class PaymentLifecycleIntegrationTest extends AbstractControllerIntegrationTest 
             booking.setStatus(BookingStatus.valueOf(state));
         }
         bookingRepository.save(booking);
-        assertThat(checkout()).isEqualTo(400);
+        assertThat(checkout()).isEqualTo(409);
         assertThat(paymentRepository.findAllByBookingId(booking.getId())).isEmpty();
         verifyNoInteractions(stripePaymentProvider);
     }
@@ -131,7 +133,7 @@ class PaymentLifecycleIntegrationTest extends AbstractControllerIntegrationTest 
         assertThat(cancel()).isEqualTo(200);
         assertThat(latest().getStatus()).isEqualTo(PaymentStatus.EXPIRED);
         assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.CANCELED);
-        assertThat(checkout()).isEqualTo(400);
+        assertThat(checkout()).isEqualTo(409);
         verify(stripePaymentProvider).expireUnpaidSession(payment.getSessionId());
     }
 
@@ -140,8 +142,8 @@ class PaymentLifecycleIntegrationTest extends AbstractControllerIntegrationTest 
         successfulCheckout();
         assertThat(checkout()).isEqualTo(200);
         when(stripePaymentProvider.expireUnpaidSession(latest().getSessionId()))
-                .thenThrow(new PaymentStateException("Stripe unavailable"));
-        assertThat(cancel()).isEqualTo(400);
+                .thenThrow(new PaymentProviderUnavailableException("ApiConnectionException", null, null));
+        assertThat(cancel()).isEqualTo(503);
         assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.PENDING);
         assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PENDING);
     }
@@ -154,25 +156,30 @@ class PaymentLifecycleIntegrationTest extends AbstractControllerIntegrationTest 
         expirationService.expireBookings(booking.getCheckOutDate());
         assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.EXPIRED);
         assertThat(latest().getStatus()).isEqualTo(PaymentStatus.EXPIRED);
-        assertThat(checkout()).isEqualTo(400);
+        assertThat(checkout()).isEqualTo(409);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"checkout.session.completed", "checkout.session.async_payment_succeeded"})
-    void signedWebhookShouldConfirmWithoutBrowserAndDeduplicate(String type) throws Exception {
+    void successLandingShouldNotConfirmPaymentAndWebhookShouldDeduplicate(String type) throws Exception {
         successfulCheckout();
         assertThat(checkout()).isEqualTo(200);
         Payment payment = latest();
         when(stripePaymentProvider.isPaymentSuccessful(payment.getSessionId())).thenReturn(true);
         String payload = payload(type, "paid");
-        assertThat(concurrently(() -> webhook(payload, sign(payload, Instant.now().getEpochSecond())),
-                () -> mockMvc.perform(get("/payments/success")
-                        .param("session_id", payment.getSessionId()))
-                        .andReturn().getResponse().getStatus())).containsOnly(200);
+        assertThat(mockMvc.perform(get("/payments/success")
+                .param("session_id", payment.getSessionId())).andReturn().getResponse().getStatus())
+                .isEqualTo(200);
+        assertThat(mockMvc.perform(get("/payments/success")
+                .param("session_id", payment.getSessionId())).andReturn().getResponse().getStatus())
+                .isEqualTo(200);
+        assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PENDING);
+        verifyNoInteractions(kafkaEventPublisher);
+
         assertThat(webhook(payload, sign(payload, Instant.now().getEpochSecond()))).isEqualTo(200);
         assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PAID);
         verify(kafkaEventPublisher, times(1)).publishPaymentSucceeded(any());
-        assertThat(checkout()).isEqualTo(400);
+        assertThat(checkout()).isEqualTo(409);
     }
 
     @Test
@@ -188,8 +195,8 @@ class PaymentLifecycleIntegrationTest extends AbstractControllerIntegrationTest 
     @Test
     void webhookShouldRecoverSessionAfterLocalSaveFailure() throws Exception {
         when(stripePaymentProvider.createPaymentSession(any(), any(), any(), any()))
-                .thenThrow(new PaymentStateException("Response was lost"));
-        assertThat(checkout()).isEqualTo(400);
+                .thenThrow(new PaymentProviderUnavailableException("ApiConnectionException", null, null));
+        assertThat(checkout()).isEqualTo(503);
         Payment attempt = latest();
         String sessionId = "sess_recovered";
         when(stripePaymentProvider.isPaymentSuccessful(sessionId)).thenReturn(true);
@@ -209,7 +216,7 @@ class PaymentLifecycleIntegrationTest extends AbstractControllerIntegrationTest 
         successfulCheckout();
         assertThat(checkout()).isEqualTo(200);
         when(stripePaymentProvider.expireUnpaidSession(latest().getSessionId())).thenReturn(false);
-        assertThat(cancel()).isEqualTo(400);
+        assertThat(cancel()).isEqualTo(409);
         assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.PENDING);
     }
 
@@ -219,7 +226,7 @@ class PaymentLifecycleIntegrationTest extends AbstractControllerIntegrationTest 
                 null, null, BigDecimal.valueOf(200));
         attempt.setCreatedAt(Instant.now().minusSeconds(24 * 60 * 60));
         paymentRepository.save(attempt);
-        assertThat(checkout()).isEqualTo(400);
+        assertThat(checkout()).isEqualTo(409);
         verifyNoInteractions(stripePaymentProvider);
         assertThat(paymentRepository.findAllByBookingId(booking.getId())).hasSize(1);
     }
@@ -246,16 +253,44 @@ class PaymentLifecycleIntegrationTest extends AbstractControllerIntegrationTest 
     }
 
     @Test
-    void webhookShouldRequestRetryOnVerificationFailure() throws Exception {
+    void webhookShouldReportPaymentStateConflictOnVerificationFailure() throws Exception {
         successfulCheckout();
         assertThat(checkout()).isEqualTo(200);
         when(stripePaymentProvider.isPaymentSuccessful(latest().getSessionId())).thenReturn(true);
         doThrow(new PaymentStateException("Amount mismatch"))
                 .when(stripePaymentProvider).validatePayment(any());
         String payload = payload("checkout.session.completed", "paid");
-        assertThat(webhook(payload, sign(payload, Instant.now().getEpochSecond()))).isEqualTo(503);
+        assertThat(webhook(payload, sign(payload, Instant.now().getEpochSecond()))).isEqualTo(409);
         assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PENDING);
         verifyNoInteractions(kafkaEventPublisher);
+    }
+
+    @Test
+    void webhookShouldRetryTemporaryProviderFailureWithoutDuplicatingOutboxEvent() throws Exception {
+        successfulCheckout();
+        assertThat(checkout()).isEqualTo(200);
+        when(stripePaymentProvider.isPaymentSuccessful(latest().getSessionId())).thenReturn(true);
+        doThrow(new PaymentProviderUnavailableException("ApiConnectionException", null, null))
+                .doNothing()
+                .when(stripePaymentProvider).validatePayment(any());
+        String payload = payload("checkout.session.completed", "paid");
+        String signature = sign(payload, Instant.now().getEpochSecond());
+
+        assertThat(webhook(payload, signature)).isEqualTo(503);
+        assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PENDING);
+        verifyNoInteractions(kafkaEventPublisher);
+
+        assertThat(webhook(payload, signature)).isEqualTo(200);
+        assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PAID);
+        verify(kafkaEventPublisher, times(1)).publishPaymentSucceeded(any());
+    }
+
+    @Test
+    void checkoutShouldReturn502ForNonRetryableProviderFailure() throws Exception {
+        when(stripePaymentProvider.createPaymentSession(any(), any(), any(), any()))
+                .thenThrow(new PaymentProviderGatewayException("ApiException", 400, "req_123"));
+
+        assertThat(checkout()).isEqualTo(502);
     }
 
     private int checkout() throws Exception {

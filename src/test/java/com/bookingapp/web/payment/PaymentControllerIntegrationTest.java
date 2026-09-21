@@ -295,7 +295,7 @@ class PaymentControllerIntegrationTest extends AbstractControllerIntegrationTest
     }
 
     @Test
-    void handlePaymentSuccess_shouldBePublicAndPersistPaidStatus() throws Exception {
+    void handlePaymentSuccess_shouldBePublicAndLeavePaymentUnchanged() throws Exception {
         User customer = persistCustomer("payment-success@example.com");
         Accommodation accommodation = persistAccommodation(
                 AccommodationType.APARTMENT,
@@ -319,23 +319,21 @@ class PaymentControllerIntegrationTest extends AbstractControllerIntegrationTest
                 "sess_paid",
                 BigDecimal.valueOf(300)
         );
-        when(stripePaymentProvider.isPaymentSuccessful("sess_paid")).thenReturn(true);
-
         mockMvc.perform(get("/payments/success")
                         .param("session_id", "sess_paid"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.message").value("Payment completed successfully."))
-                .andExpect(jsonPath("$.payment.id").value(payment.getId()))
-                .andExpect(jsonPath("$.payment.status").value("PAID"))
-                .andExpect(jsonPath("$.payment.sessionId").value("sess_paid"));
+                .andExpect(jsonPath("$.message").value(
+                        "Checkout completed. Sign in to view the current payment status."))
+                .andExpect(jsonPath("$.payment").doesNotExist());
 
-        Payment paidPayment = paymentRepository.findById(payment.getId()).orElseThrow();
-        assertThat(paidPayment.getStatus()).isEqualTo(PaymentStatus.PAID);
+        Payment unchangedPayment = paymentRepository.findById(payment.getId()).orElseThrow();
+        assertThat(unchangedPayment.getStatus()).isEqualTo(PaymentStatus.PENDING);
+        verifyNoInteractions(stripePaymentProvider, kafkaEventPublisher);
     }
 
     @Test
-    void handlePaymentCancel_shouldAllowOwnerAndExpireInactiveSession() throws Exception {
+    void handlePaymentCancel_shouldAllowOwnerAndReadLocalPendingState() throws Exception {
         User customer = persistCustomer("payment-cancel@example.com");
         Accommodation accommodation = persistAccommodation(
                 AccommodationType.HOUSE,
@@ -359,21 +357,25 @@ class PaymentControllerIntegrationTest extends AbstractControllerIntegrationTest
                 "sess_cancel",
                 BigDecimal.valueOf(350)
         );
-        when(stripePaymentProvider.isPaymentSessionActive("sess_cancel")).thenReturn(false);
-        when(stripePaymentProvider.isPaymentSessionExpired("sess_cancel")).thenReturn(true);
-
         mockMvc.perform(get("/payments/cancel")
                         .header("Authorization", authorizationHeader(customer))
                         .param("session_id", "sess_cancel"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.paymentId").value(payment.getId()))
-                .andExpect(jsonPath("$.paymentStatus").value("EXPIRED"))
+                .andExpect(jsonPath("$.paymentStatus").value("PENDING"))
                 .andExpect(jsonPath("$.sessionId").value("sess_cancel"))
                 .andExpect(jsonPath("$.canBeCompletedLater").value(false));
 
-        Payment expiredPayment = paymentRepository.findById(payment.getId()).orElseThrow();
-        assertThat(expiredPayment.getStatus()).isEqualTo(PaymentStatus.EXPIRED);
+        mockMvc.perform(get("/payments/cancel")
+                        .header("Authorization", authorizationHeader(customer))
+                        .param("session_id", "sess_cancel"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paymentStatus").value("PENDING"));
+
+        Payment unchangedPayment = paymentRepository.findById(payment.getId()).orElseThrow();
+        assertThat(unchangedPayment.getStatus()).isEqualTo(PaymentStatus.PENDING);
+        verifyNoInteractions(stripePaymentProvider, kafkaEventPublisher);
     }
 
     @Test
@@ -401,8 +403,6 @@ class PaymentControllerIntegrationTest extends AbstractControllerIntegrationTest
                 "sess_cancel_later",
                 BigDecimal.valueOf(350)
         );
-        when(stripePaymentProvider.isPaymentSessionActive("sess_cancel_later")).thenReturn(true);
-
         mockMvc.perform(get("/payments/cancel")
                         .header("Authorization", authorizationHeader(customer))
                         .param("booking_id", booking.getId().toString()))
@@ -411,18 +411,19 @@ class PaymentControllerIntegrationTest extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$.paymentId").value(payment.getId()))
                 .andExpect(jsonPath("$.paymentStatus").value("PENDING"))
                 .andExpect(jsonPath("$.sessionId").value("sess_cancel_later"))
-                .andExpect(jsonPath("$.canBeCompletedLater").value(true))
+                .andExpect(jsonPath("$.canBeCompletedLater").value(false))
                 .andExpect(jsonPath("$.message").value(
-                        "Payment was canceled on the provider page. You can pay later using the same session for a limited time."
+                        "Payment is pending. Use POST /payments to create or recover checkout."
                 ));
     }
 
     @Test
-    void handlePaymentSuccess_shouldReturn404WhenSessionNotFound() throws Exception {
+    void handlePaymentSuccess_shouldIgnoreUnknownSessionId() throws Exception {
         mockMvc.perform(get("/payments/success")
                         .param("session_id", "missing-session"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.path").value("/payments/success"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value(
+                        "Checkout completed. Sign in to view the current payment status."));
     }
 
     @ParameterizedTest

@@ -1,13 +1,11 @@
 package com.bookingapp.web.controller;
 
-import com.bookingapp.domain.model.Payment;
 import com.bookingapp.service.PaymentService;
 import com.bookingapp.web.dto.CreatePaymentRequest;
 import com.bookingapp.web.dto.PageResponse;
 import com.bookingapp.web.dto.PaymentCancelResponse;
 import com.bookingapp.web.dto.PaymentResponse;
 import com.bookingapp.web.dto.PaymentSessionResult;
-import com.bookingapp.web.dto.PaymentSuccessResponse;
 import com.bookingapp.web.mapper.PaymentWebMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -53,12 +51,11 @@ public class PaymentController {
     }
 
     @GetMapping("/success")
-    @Operation(summary = "Handle successful payment callback")
-    public PaymentSuccessResponse handlePaymentSuccess(
-            @RequestParam(name = "session_id") String sessionId
-    ) {
-        Payment payment = paymentService.handlePaymentSuccess(sessionId);
-        return paymentWebMapper.toSuccessResponse(payment);
+    @Operation(summary = "Return from successful checkout without exposing payment details",
+            description = "This landing endpoint does not verify payment or change payment state. "
+                    + "Payment status is finalized by the signed Stripe webhook.")
+    public Map<String, String> paymentSuccessReturn() {
+        return Map.of("message", "Checkout completed. Sign in to view the current payment status.");
     }
 
     @GetMapping("/cancel/return")

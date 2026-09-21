@@ -13,9 +13,13 @@ import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.Payment;
 import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.domain.model.enums.PaymentStatus;
+import com.bookingapp.exception.PaymentProviderGatewayException;
+import com.bookingapp.exception.PaymentProviderUnavailableException;
 import com.bookingapp.exception.PaymentStateException;
 import com.bookingapp.infrastructure.config.StripeProperties;
 import com.stripe.StripeClient;
+import com.stripe.exception.ApiConnectionException;
+import com.stripe.exception.ApiException;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.RequestOptions;
 import com.stripe.param.checkout.SessionCreateParams;
@@ -147,5 +151,38 @@ class StripePaymentProviderTest {
         assertThatThrownBy(() -> provider.expireUnpaidSession("sess_test"))
                 .isInstanceOf(PaymentStateException.class);
         verify(client.checkout().sessions(), org.mockito.Mockito.never()).expire("sess_test");
+    }
+
+    @Test
+    void shouldClassifyConnectionFailuresAsTemporarilyUnavailable() throws Exception {
+        when(client.checkout().sessions().retrieve("sess_test"))
+                .thenThrow(new ApiConnectionException("connection timeout"));
+
+        assertThatThrownBy(() -> provider.isPaymentSessionActive("sess_test"))
+                .isInstanceOf(PaymentProviderUnavailableException.class)
+                .hasMessage("Payment provider is temporarily unavailable");
+    }
+
+    @Test
+    void shouldClassifyNonRetryableStripeFailuresAsGatewayFailures() throws Exception {
+        when(client.checkout().sessions().create(any(SessionCreateParams.class), any(RequestOptions.class)))
+                .thenThrow(new ApiException("raw Stripe message", "req_123", null, 400, null));
+        Booking booking = new Booking(17L, LocalDate.now().plusDays(2), LocalDate.now().plusDays(4),
+                1L, 5L, BookingStatus.PENDING);
+        var user = new com.bookingapp.domain.model.User();
+        user.setId(5L);
+
+        assertThatThrownBy(() -> provider.createPaymentSession(payment, booking, null, user))
+                .isInstanceOf(PaymentProviderGatewayException.class)
+                .hasMessage("Payment provider request failed");
+    }
+
+    @Test
+    void shouldClassifyCheckoutExpiryConnectionFailuresAsTemporarilyUnavailable() throws Exception {
+        when(client.checkout().sessions().expire("sess_test"))
+                .thenThrow(new ApiConnectionException("connection timeout"));
+
+        assertThatThrownBy(() -> provider.expireUnpaidSession("sess_test"))
+                .isInstanceOf(PaymentProviderUnavailableException.class);
     }
 }

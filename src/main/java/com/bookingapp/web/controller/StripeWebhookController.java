@@ -1,7 +1,8 @@
 package com.bookingapp.web.controller;
 
 import com.bookingapp.exception.BusinessValidationException;
-import com.bookingapp.exception.DomainException;
+import com.bookingapp.exception.EntityNotFoundDomainException;
+import com.bookingapp.exception.PaymentProviderUnavailableException;
 import com.bookingapp.infrastructure.config.StripeProperties;
 import com.bookingapp.service.PaymentService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -68,7 +69,7 @@ public class StripeWebhookController {
         }
         try {
             paymentService.handleWebhookSuccess(sessionId, paymentId);
-        } catch (DomainException exception) {
+        } catch (PaymentProviderUnavailableException | EntityNotFoundDomainException exception) {
             // Stripe retries non-2xx responses, including callbacks racing the local commit.
             return ResponseEntity.status(503).build();
         }

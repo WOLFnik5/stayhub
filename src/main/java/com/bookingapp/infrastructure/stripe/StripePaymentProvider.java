@@ -4,10 +4,14 @@ import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.Payment;
 import com.bookingapp.domain.model.User;
+import com.bookingapp.exception.PaymentProviderGatewayException;
+import com.bookingapp.exception.PaymentProviderUnavailableException;
 import com.bookingapp.exception.PaymentStateException;
 import com.bookingapp.infrastructure.config.StripeProperties;
 import com.bookingapp.web.dto.PaymentSessionResult;
 import com.stripe.StripeClient;
+import com.stripe.exception.ApiConnectionException;
+import com.stripe.exception.RateLimitException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.RequestOptions;
@@ -67,7 +71,7 @@ public class StripePaymentProvider {
                     payment.getAmountToPay()
             );
         } catch (StripeException exception) {
-            throw new PaymentStateException("Failed to create Stripe checkout session");
+            throw mapStripeException(exception);
         }
     }
 
@@ -132,7 +136,7 @@ public class StripePaymentProvider {
             }
             return true;
         } catch (StripeException exception) {
-            throw new PaymentStateException("Unable to close Stripe checkout; retry later");
+            throw mapStripeException(exception);
         }
     }
 
@@ -162,8 +166,20 @@ public class StripePaymentProvider {
         try {
             return stripeClient.checkout().sessions().retrieve(sessionId);
         } catch (StripeException exception) {
-            throw new PaymentStateException("Failed to retrieve Stripe checkout session");
+            throw mapStripeException(exception);
         }
+    }
+
+    private RuntimeException mapStripeException(StripeException exception) {
+        Integer statusCode = exception.getStatusCode();
+        if (exception instanceof ApiConnectionException
+                || exception instanceof RateLimitException
+                || statusCode != null && statusCode >= 500) {
+            return new PaymentProviderUnavailableException(
+                    exception.getClass().getSimpleName(), statusCode, exception.getRequestId());
+        }
+        return new PaymentProviderGatewayException(
+                exception.getClass().getSimpleName(), statusCode, exception.getRequestId());
     }
 
     private String buildSuccessUrl(Booking booking) {

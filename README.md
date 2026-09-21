@@ -80,7 +80,7 @@ publication from notification processing.
 
 ## Environment Configuration
 
-Secrets and integration settings are externalized through environment variables. Start by copying `.env.sample` to `.env` and adjusting values if needed.
+Secrets and integration settings are externalized through environment variables. Start by copying `.env.sample` to `.env` and replacing every template value.
 
 ```bash
 cp .env.sample .env
@@ -100,16 +100,30 @@ Default local development values in `.env.sample` assume:
 
 Required variables you should review before demo/use:
 
+- `DB_PASSWORD`
 - `JWT_SECRET`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 
+There is no implicit Spring profile. The `dev` profile is an explicit local
+choice (`SPRING_PROFILES_ACTIVE=dev` in the sample) and enables SQL plus bind
+parameter diagnostics. Without it, SQL output and bind tracing are disabled.
+The application and Compose startup require `DB_PASSWORD`; Compose also
+requires `SPRING_PROFILES_ACTIVE`. Placeholder credentials in `.env.sample`
+are documentation only and are rejected by startup validation.
+
 Authentication endpoints limit login and registration attempts per client address.
 The defaults can be tuned with `AUTH_RATE_LIMIT_LOGIN_ATTEMPTS`,
 `AUTH_RATE_LIMIT_REGISTER_ATTEMPTS`, `AUTH_RATE_LIMIT_WINDOW_SECONDS`, and
 `AUTH_RATE_LIMIT_MAX_CLIENTS`.
+
+Account email identity is case-insensitive. Registration, login, and profile
+updates store `trim().toLowerCase(Locale.ROOT)`; therefore original casing and
+surrounding whitespace are intentionally not retained. The email migration is
+irreversible with respect to that removed formatting: rolling back its database
+constraint does not restore the prior values.
 
 **Known limitation:** authentication rate-limit counters are stored in memory
 per application instance and reset on restart. Replicas do not share counters,
@@ -137,6 +151,15 @@ Run `mvn spring-boot:run` from that terminal. For Docker Compose, populate
 it through `env_file`. Maven does not automatically load `.env`.
 Keep the key stable across restarts and shared by instances of the same
 environment. Rotating it invalidates existing access tokens.
+
+Each authenticated request verifies the JWT signature and expiration, then
+performs one lookup of the user by the immutable `userId` claim. The current
+database email and role become the principal and authorities, so role changes
+take effect on the next request and email changes do not break identification.
+A missing user receives 401; a database lookup failure is a handled 5xx rather
+than an invalid-token response. JWT TTL is not an instant revocation
+mechanism: a token may remain valid until expiration unless the user lookup
+rejects it.
 
 Database variables:
 
@@ -342,6 +365,9 @@ $env:SPRING_PROFILES_ACTIVE = 'observability,tracing'
 mvn spring-boot:run
 ```
 
+Keep `SPRING_PROFILES_ACTIVE=dev` only when you need the explicit development
+SQL diagnostics; use another profile or unset it for a non-diagnostic run.
+
 Open [Jaeger](http://localhost:16686), select service `booking-app`, or search for
 the `traceId` from a log. Trigger a booking/accommodation event and allow time
 for the outbox poll and exporter batch. A failing Telegram call produces an ERROR
@@ -408,12 +434,17 @@ Main business endpoints:
   header, not a bearer token. Supports `checkout.session.completed` and
   `checkout.session.async_payment_succeeded`.
 - `GET /payments/success`
-  Public Stripe success callback endpoint.
+  Public, neutral checkout-return landing. It does not verify payment, read
+  Stripe, change the database, or expose payment/booking data; the signed
+  webhook finalizes payment state. A `session_id` query parameter is accepted
+  for Stripe redirects but is ignored.
 - `GET /payments/cancel`
-  Authenticated checkout status lookup. Only the booking owner or an admin can
-  retrieve the payment session, using `booking_id` or `session_id`. If both are
-  supplied, they must identify the same booking. Anonymous requests receive 401;
-  access to another customer's payment receives 403.
+  Authenticated, local payment-status lookup. Only the booking owner or an admin
+  can retrieve it, using `booking_id` or `session_id`. It does not refresh or
+  reconcile Stripe state; pending checkout should be created or recovered with
+  `POST /payments`. If both identifiers are supplied, they must identify the
+  same booking. Anonymous requests receive 401; access to another customer's
+  payment receives 403.
 - `GET /payments/cancel/return`
   Public Stripe return endpoint with a generic message only. It exposes no
   payment details and does not change payment state.
@@ -486,7 +517,7 @@ Stripe setup notes:
   payment details. Never put the JWT in the return URL.
 
 Webhook processing returns 503 for temporary processing failures so Stripe can
-retry. The browser success URL remains a convenience; it is not required for
+retry. The browser success URL is a neutral landing page only and is not required for
 confirmation. See [Stripe fulfillment](https://docs.stripe.com/checkout/fulfillment).
 
 Migration `009` adds attempt timestamps, currency and a unique index allowing

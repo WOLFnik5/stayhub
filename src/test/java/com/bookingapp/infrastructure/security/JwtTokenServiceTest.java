@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.bookingapp.domain.model.User;
 import com.bookingapp.domain.model.enums.UserRole;
 import com.bookingapp.infrastructure.config.JwtProperties;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.security.SignatureException;
 import java.io.IOException;
 import java.security.SecureRandom;
@@ -79,6 +80,19 @@ class JwtTokenServiceTest {
                     assertThatThrownBy(() -> context.getBean(JwtTokenService.class)
                             .parsePrincipal(forgedToken)).isInstanceOf(SignatureException.class);
                 });
+    }
+
+    @Test
+    void shouldRejectExpiredToken() {
+        JwtProperties properties = new JwtProperties();
+        properties.setSecret(randomKey(32));
+        properties.setExpirationMinutes(-1);
+        JwtTokenService service = new JwtTokenService(properties);
+        User user = new User(17L, "expired@example.com", "Expired", "User",
+                "unused-test-hash", UserRole.CUSTOMER);
+
+        assertThatThrownBy(() -> service.parseUserId(service.generateToken(user)))
+                .isInstanceOf(ExpiredJwtException.class);
     }
 
     private String randomKey(int size) {

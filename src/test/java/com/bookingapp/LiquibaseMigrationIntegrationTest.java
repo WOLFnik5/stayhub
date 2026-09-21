@@ -94,4 +94,27 @@ class LiquibaseMigrationIntegrationTest extends PostgreSqlLiquibaseIntegrationTe
         assertThat(usersTableCount).isEqualTo(1);
         assertThat(paymentsTableCount).isEqualTo(1);
     }
+
+    @Test
+    void shouldRejectRawSqlThatBypassesCanonicalEmailPolicy() {
+        String canonicalEmail = java.util.UUID.randomUUID() + "@example.com";
+        Long userId = jdbcTemplate.queryForObject("""
+                INSERT INTO users (email, first_name, last_name, password, role)
+                VALUES (?, 'Test', 'Customer', 'test', 'CUSTOMER') RETURNING id
+                """, Long.class, canonicalEmail);
+        try {
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> jdbcTemplate.update("""
+                    INSERT INTO users (email, first_name, last_name, password, role)
+                    VALUES (?, 'Other', 'Customer', 'test', 'CUSTOMER')
+                    """, canonicalEmail.toUpperCase()))
+                    .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class)
+                    .hasStackTraceContaining("ck_users_email_canonical");
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> jdbcTemplate.update(
+                    "UPDATE users SET email = ? WHERE id = ?", " " + canonicalEmail, userId))
+                    .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class)
+                    .hasStackTraceContaining("ck_users_email_canonical");
+        } finally {
+            jdbcTemplate.update("DELETE FROM users WHERE id = ?", userId);
+        }
+    }
 }

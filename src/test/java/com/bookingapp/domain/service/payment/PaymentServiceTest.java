@@ -37,6 +37,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -222,7 +223,7 @@ class PaymentServiceTest {
     }
 
     @Test
-    void handlePaymentCancelShouldReturnRecoverableResultWhenSessionIsStillActive() {
+    void handlePaymentCancelShouldReturnLocalPendingStateWithoutStripeReconciliation() {
         Payment pendingPayment = new Payment(
                 100L,
                 PaymentStatus.PENDING,
@@ -233,22 +234,21 @@ class PaymentServiceTest {
         );
 
         when(paymentRepository.findBySessionId("sess_123")).thenReturn(Optional.of(pendingPayment));
-        when(paymentRepository.refresh(100L)).thenReturn(pendingPayment);
-        when(stripePaymentProvider.isPaymentSessionActive("sess_123")).thenReturn(true);
 
-        allowBookingOwner();
+        allowBookingOwnerReadOnly();
 
         var result = paymentService.handlePaymentCancel("sess_123");
 
         assertThat(result.paymentId()).isEqualTo(100L);
-        assertThat(result.canBeCompletedLater()).isTrue();
+        assertThat(result.canBeCompletedLater()).isFalse();
         assertThat(result.paymentStatus()).isEqualTo(PaymentStatus.PENDING);
-        assertThat(result.message()).contains("pay later");
+        assertThat(result.message()).contains("POST /payments");
         verify(paymentRepository, never()).save(any(Payment.class));
+        verifyNoInteractions(stripePaymentProvider, kafkaEventPublisher);
     }
 
     @Test
-    void handlePaymentCancelShouldExpireInactiveSession() {
+    void handlePaymentCancelShouldNotExpireInactiveSession() {
         Payment pendingPayment = new Payment(
                 100L,
                 PaymentStatus.PENDING,
@@ -259,19 +259,16 @@ class PaymentServiceTest {
         );
 
         when(paymentRepository.findBySessionId("sess_123")).thenReturn(Optional.of(pendingPayment));
-        when(paymentRepository.refresh(100L)).thenReturn(pendingPayment);
-        when(stripePaymentProvider.isPaymentSessionActive("sess_123")).thenReturn(false);
-        when(stripePaymentProvider.isPaymentSessionExpired("sess_123")).thenReturn(true);
-        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        allowBookingOwner();
+        allowBookingOwnerReadOnly();
 
         var result = paymentService.handlePaymentCancel("sess_123");
 
-        assertThat(result.paymentStatus()).isEqualTo(PaymentStatus.EXPIRED);
+        assertThat(result.paymentStatus()).isEqualTo(PaymentStatus.PENDING);
         assertThat(result.canBeCompletedLater()).isFalse();
-        assertThat(result.message()).contains("Create a new checkout session");
-        verify(paymentRepository).save(any(Payment.class));
+        assertThat(result.message()).contains("POST /payments");
+        verify(paymentRepository, never()).save(any(Payment.class));
+        verifyNoInteractions(stripePaymentProvider, kafkaEventPublisher);
     }
 
     @Test
@@ -286,16 +283,15 @@ class PaymentServiceTest {
         );
 
         when(paymentRepository.findByBookingId(11L)).thenReturn(Optional.of(pendingPayment));
-        when(paymentRepository.refresh(100L)).thenReturn(pendingPayment);
-        when(stripePaymentProvider.isPaymentSessionActive("sess_123")).thenReturn(true);
 
-        allowBookingOwner();
+        allowBookingOwnerReadOnly();
 
         var result = paymentService.handlePaymentCancel(null, 11L);
 
         assertThat(result.paymentId()).isEqualTo(100L);
         assertThat(result.sessionId()).isEqualTo("sess_123");
-        assertThat(result.canBeCompletedLater()).isTrue();
+        assertThat(result.canBeCompletedLater()).isFalse();
+        verifyNoInteractions(stripePaymentProvider, kafkaEventPublisher);
     }
 
     @Test
@@ -320,6 +316,13 @@ class PaymentServiceTest {
         when(currentUserService.getCurrentUser()).thenReturn(
                 new CurrentUser(15L, "customer@example.com", UserRole.CUSTOMER));
         allowBookingLock();
+    }
+    private void allowBookingOwnerReadOnly() {
+        when(currentUserService.getCurrentUser()).thenReturn(
+                new CurrentUser(15L, "customer@example.com", UserRole.CUSTOMER));
+        when(bookingRepository.findById(11L)).thenReturn(Optional.of(
+                new Booking(11L, LocalDate.now().plusDays(5), LocalDate.now().plusDays(8),
+                        3L, 15L, BookingStatus.PENDING)));
     }
     private void allowBookingLock() {
         when(bookingRepository.findByIdForUpdate(11L)).thenReturn(Optional.of(

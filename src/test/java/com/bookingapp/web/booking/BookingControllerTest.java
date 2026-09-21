@@ -1,5 +1,6 @@
 package com.bookingapp.web.booking;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -34,7 +35,10 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.test.web.servlet.MockMvc;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 @WebMvcTest(
         controllers = BookingController.class,
@@ -44,6 +48,7 @@ import org.springframework.test.web.servlet.MockMvc;
         )
 )
 @Import({ControllerTestSecurityConfig.class, GlobalExceptionHandler.class, BookingWebMapperImpl.class})
+@ExtendWith(OutputCaptureExtension.class)
 class BookingControllerTest {
 
     @Autowired
@@ -149,6 +154,30 @@ class BookingControllerTest {
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").exists())
                 .andExpect(jsonPath("$.path").value("/bookings"));
+    }
+
+    @Test
+    void unexpectedExceptionShouldLogDiagnosticsWithoutRequestSecrets(CapturedOutput output)
+            throws Exception {
+        when(bookingService.listBookingsPage(any(), eq(0), eq(20)))
+                .thenThrow(new IllegalStateException("safe diagnostic failure"));
+
+        mockMvc.perform(get("/bookings")
+                        .with(user("customer@example.com").roles("CUSTOMER"))
+                        .header("X-Debug-Secret", "header-secret")
+                        .param("secret", "query-secret"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.message").value("Unexpected error occurred"))
+                .andExpect(jsonPath("$.path").value("/bookings"));
+
+        assertThat(output).contains("Unhandled request exception")
+                .contains("\"httpMethod\":\"GET\"")
+                .contains("\"uri\":\"/bookings\"")
+                .contains("\"correlationId\":")
+                .contains("IllegalStateException")
+                .doesNotContain("header-secret")
+                .doesNotContain("query-secret");
     }
 
     @Test

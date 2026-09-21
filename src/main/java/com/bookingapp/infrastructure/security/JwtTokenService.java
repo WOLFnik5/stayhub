@@ -42,17 +42,29 @@ public class JwtTokenService {
     }
 
     public AuthenticatedUserPrincipal parsePrincipal(String token) {
-        Claims claims = Jwts.parser()
-                .verifyWith(signingKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+        Claims claims = parseClaims(token);
 
         Long userId = claims.get(CLAIM_USER_ID, Long.class);
         String email = claims.getSubject();
         String role = claims.get(CLAIM_ROLE, String.class);
 
         return new AuthenticatedUserPrincipal(userId, email, UserRole.valueOf(role));
+    }
+
+    public Long parseUserId(String token) {
+        Long userId = parseClaims(token).get(CLAIM_USER_ID, Long.class);
+        if (userId == null) {
+            throw new IllegalArgumentException("JWT userId claim is missing");
+        }
+        return userId;
+    }
+
+    private Claims parseClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(signingKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     private SecretKey createSigningKey(String secret) {

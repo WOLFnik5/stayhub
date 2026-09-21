@@ -1,5 +1,6 @@
 package com.bookingapp.service;
 
+import static com.bookingapp.service.validation.EmailNormalizationUtils.normalize;
 import static com.bookingapp.service.validation.TextValidationUtils.requireNonBlank;
 import static com.bookingapp.service.validation.TextValidationUtils.selectNonBlank;
 
@@ -39,7 +40,9 @@ public class UserService {
     public User updateCurrentUserProfile(UpdateCurrentUserRequest request) {
         CurrentUser currentUser = currentUserService.getCurrentUser();
         User existingUser = getUserById(currentUser.id());
-        String normalizedEmail = requireNonBlank(request.email(), "User email must not be blank");
+        String normalizedEmail = normalize(requireNonBlank(
+                request.email(), "User email must not be blank"
+        ));
 
         if (!existingUser.getEmail().equals(normalizedEmail)
                 && userRepository.existsByEmail(normalizedEmail)) {
@@ -77,7 +80,9 @@ public class UserService {
         CurrentUser currentUser = currentUserService.getCurrentUser();
         User existing = getUserById(currentUser.id());
 
-        String email = selectNonBlank(request.email(), existing.getEmail(), "email");
+        String email = request.email() == null
+                ? existing.getEmail()
+                : normalize(selectNonBlank(request.email(), existing.getEmail(), "email"));
         String firstName = selectNonBlank(
                 request.firstName(),
                 existing.getFirstName(),

@@ -87,6 +87,17 @@ class AuthServiceTest {
     }
 
     @Test
+    void registerShouldNormalizeEmailBeforeCheckingForDuplicates() {
+        when(userRepository.existsByEmail("customer@example.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.register(new RegisterRequest(
+                " Customer@Example.COM ", "John", "Doe", "raw-password"
+        )))
+                .isInstanceOf(BusinessValidationException.class)
+                .hasMessageContaining("customer@example.com");
+    }
+
+    @Test
     void loginShouldReturnTokenForValidCredentials() {
         User existingUser = new User(
                 7L,
@@ -119,6 +130,19 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.login(request))
                 .isInstanceOf(BusinessValidationException.class)
                 .hasMessageContaining("Invalid email or password");
+    }
+
+    @Test
+    void loginShouldNormalizeEmailBeforeLookup() {
+        when(userRepository.findByEmail("admin@example.com"))
+                .thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> authService.login(new LoginRequest(
+                " Admin@Example.COM ", "raw-password"
+        )))
+                .isInstanceOf(BusinessValidationException.class);
+
+        verify(userRepository).findByEmail("admin@example.com");
     }
 
     @Test

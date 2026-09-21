@@ -1,0 +1,32 @@
+databaseChangeLog:
+  - changeSet:
+      id: 016-normalize-user-emails
+      author: bookingapp
+      preConditions:
+        - onFail: HALT
+        - onError: HALT
+        - onFailMessage: "Cannot normalize users.email: canonical email conflicts exist"
+        - sqlCheck:
+            expectedResult: "0"
+            sql: >-
+              SELECT COUNT(*) FROM (
+                SELECT lower(btrim(email, E' \t\n\r\f'))
+                FROM users
+                GROUP BY lower(btrim(email, E' \t\n\r\f'))
+                HAVING COUNT(*) > 1
+              ) AS email_conflicts
+      changes:
+        - sql:
+            sql: >-
+              UPDATE users
+              SET email = lower(btrim(email, E' \t\n\r\f'))
+              WHERE email <> lower(btrim(email, E' \t\n\r\f'))
+        - sql:
+            sql: >-
+              ALTER TABLE users
+              ADD CONSTRAINT ck_users_email_canonical
+              CHECK (email = lower(btrim(email, E' \t\n\r\f')))
+      rollback:
+        # Restoring the check cannot restore casing or whitespace removed by this migration.
+        - sql:
+            sql: ALTER TABLE users DROP CONSTRAINT ck_users_email_canonical

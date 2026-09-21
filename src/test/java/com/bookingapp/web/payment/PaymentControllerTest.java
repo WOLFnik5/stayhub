@@ -25,6 +25,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -57,17 +58,15 @@ class PaymentControllerTest {
 
     @Test
     void handlePaymentSuccessShouldBeAccessibleWithoutAuthentication() throws Exception {
-        when(paymentService.handlePaymentSuccess("sess_public")).thenReturn(
-                new Payment(101L, PaymentStatus.PAID, 12L, "https://checkout.example/sess_public", "sess_public", BigDecimal.valueOf(320))
-        );
-
         mockMvc.perform(get("/payments/success")
                         .param("session_id", "sess_public"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.message").value("Payment completed successfully."))
-                .andExpect(jsonPath("$.payment.sessionId").value("sess_public"))
-                .andExpect(jsonPath("$.payment.status").value("PAID"));
+                .andExpect(jsonPath("$.message").value(
+                        "Checkout completed. Sign in to view the current payment status."))
+                .andExpect(jsonPath("$.payment").doesNotExist());
+
+        verifyNoInteractions(paymentService);
     }
 
     @Test
@@ -137,18 +136,16 @@ class PaymentControllerTest {
 
     @Test
     void handlePaymentSuccessShouldReturnUserFriendlyResponse() throws Exception {
-        when(paymentService.handlePaymentSuccess("sess_123")).thenReturn(
-                new Payment(100L, PaymentStatus.PAID, 11L, "https://checkout.example/sess_123", "sess_123", BigDecimal.valueOf(450))
-        );
-
         mockMvc.perform(get("/payments/success")
                         .with(user("customer@example.com").roles("CUSTOMER"))
                         .param("session_id", "sess_123"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.message").value("Payment completed successfully."))
-                .andExpect(jsonPath("$.payment.id").value(100))
-                .andExpect(jsonPath("$.payment.status").value("PAID"));
+                .andExpect(jsonPath("$.message").value(
+                        "Checkout completed. Sign in to view the current payment status."))
+                .andExpect(jsonPath("$.payment").doesNotExist());
+
+        verifyNoInteractions(paymentService);
     }
 
     @Test
@@ -159,8 +156,8 @@ class PaymentControllerTest {
                         "sess_123",
                         "https://checkout.example/sess_123",
                         PaymentStatus.PENDING,
-                        true,
-                        "Payment was canceled on the provider page. You can pay later using the same session for a limited time."
+                        false,
+                        "Payment is pending. Use POST /payments to create or recover checkout."
                 )
         );
 
@@ -172,7 +169,7 @@ class PaymentControllerTest {
                 .andExpect(jsonPath("$.paymentId").value(100))
                 .andExpect(jsonPath("$.paymentStatus").value("PENDING"))
                 .andExpect(jsonPath("$.sessionId").value("sess_123"))
-                .andExpect(jsonPath("$.canBeCompletedLater").value(true));
+                .andExpect(jsonPath("$.canBeCompletedLater").value(false));
     }
 
     @Test
@@ -184,7 +181,7 @@ class PaymentControllerTest {
                         "https://checkout.example/sess_123",
                         PaymentStatus.EXPIRED,
                         false,
-                        "Payment session is no longer active. Create a new checkout session if you want to pay later."
+                        "Payment is pending. Use POST /payments to create or recover checkout."
                 )
         );
 

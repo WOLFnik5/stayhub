@@ -87,6 +87,22 @@ class UserServiceTest {
     }
 
     @Test
+    void updateCurrentUserProfileShouldAllowChangingOnlyEmailCasing() {
+        CurrentUser currentUser = new CurrentUser(15L, "owner@example.com", UserRole.CUSTOMER);
+        User existingUser = new User(15L, "owner@example.com", "John", "Doe", "encoded",
+                UserRole.CUSTOMER);
+        when(currentUserService.getCurrentUser()).thenReturn(currentUser);
+        when(userRepository.findById(15L)).thenReturn(Optional.of(existingUser));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        User result = userService.updateCurrentUserProfile(new UpdateCurrentUserRequest(
+                " OWNER@EXAMPLE.COM ", "John", "Doe"
+        ));
+
+        assertThat(result.getEmail()).isEqualTo("owner@example.com");
+    }
+
+    @Test
     void updateUserRoleShouldPersistChangedRole() {
         User existingUser = new User(15L, "user@example.com", "John", "Doe", "encoded", UserRole.CUSTOMER);
         when(userRepository.findById(15L)).thenReturn(Optional.of(existingUser));
