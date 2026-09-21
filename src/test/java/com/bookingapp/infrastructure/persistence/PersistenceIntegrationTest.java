@@ -160,7 +160,7 @@ class PersistenceIntegrationTest extends PostgreSqlIntegrationTestSupport {
         assertThat(bookingRepository.countActiveBookingOverlaps(
                 savedAccommodation.getId(),
                 LocalDate.of(2099, 6, 12),
-                LocalDate.of(2099, 6, 18),
+                LocalDate.of(2099, 6, 14),
                 activeBooking.getId()
         )).isZero();
 

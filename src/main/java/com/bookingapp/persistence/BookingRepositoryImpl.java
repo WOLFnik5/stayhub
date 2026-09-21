@@ -142,7 +142,10 @@ public class BookingRepositoryImpl {
                         FROM bookings b
                         WHERE b.accommodation_id = :accommodationId
                           AND b.status NOT IN ('CANCELED', 'EXPIRED')
-                          AND (:excludedBookingId IS NULL OR b.id <> :excludedBookingId)
+                          AND (
+                              CAST(:excludedBookingId AS bigint) IS NULL
+                              OR b.id <> CAST(:excludedBookingId AS bigint)
+                          )
                           AND b.check_in_date <= candidate_dates.candidate_date
                           AND candidate_dates.candidate_date < b.check_out_date
                     )
@@ -154,7 +157,10 @@ public class BookingRepositoryImpl {
                     FROM bookings b
                     WHERE b.accommodation_id = :accommodationId
                       AND b.status NOT IN ('CANCELED', 'EXPIRED')
-                      AND (:excludedBookingId IS NULL OR b.id <> :excludedBookingId)
+                      AND (
+                          CAST(:excludedBookingId AS bigint) IS NULL
+                          OR b.id <> CAST(:excludedBookingId AS bigint)
+                      )
                       AND b.check_in_date >= CAST(:checkInDate AS date)
                       AND b.check_in_date < CAST(:checkOutDate AS date)
                 ) candidate_dates

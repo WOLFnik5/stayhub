@@ -59,6 +59,7 @@ class BookingCheckoutIntegrationTest extends AbstractControllerIntegrationTest {
         String token = authorizationHeader(owner);
         CountDownLatch firstFinished = new CountDownLatch(1);
         CountDownLatch commitFirst = new CountDownLatch(1);
+
         when(stripePaymentProvider.createPaymentSession(any(), any(), any(), any()))
                 .thenAnswer(invocation -> {
                     if (checkoutFirst) {
@@ -66,37 +67,61 @@ class BookingCheckoutIntegrationTest extends AbstractControllerIntegrationTest {
                         assertThat(commitFirst.await(10, TimeUnit.SECONDS)).isTrue();
                     }
                     Payment payment = invocation.getArgument(0);
-                    return new PaymentSessionResult("sess_race", "https://checkout.example/race",
-                            null, "PENDING", booking.getId(), payment.getAmountToPay());
+                    return new PaymentSessionResult(
+                            "sess_race",
+                            "https://checkout.example/race",
+                            null,
+                            "PENDING",
+                            booking.getId(),
+                            payment.getAmountToPay()
+                    );
                 });
+
         var executor = Executors.newFixedThreadPool(2);
         try {
             var first = executor.submit(() -> {
                 if (checkoutFirst) {
                     return checkout(booking, token);
                 }
+
                 return transactionTemplate.execute(tx -> {
-                try {
-                    int status = checkoutFirst ? checkout(booking, token)
-                            : updateDates(method, booking, token);
-                    firstFinished.countDown();
-                    assertThat(commitFirst.await(10, TimeUnit.SECONDS)).isTrue();
-                    return status;
-                } catch (Exception exception) {
-                    throw new IllegalStateException(exception);
-                }
+                    try {
+                        int status = updateDates(method, booking, token);
+                        firstFinished.countDown();
+                        assertThat(commitFirst.await(10, TimeUnit.SECONDS)).isTrue();
+                        return status;
+                    } catch (Exception exception) {
+                        throw new IllegalStateException(exception);
+                    }
                 });
             });
-            assertThat(firstFinished.await(10, TimeUnit.SECONDS)).isTrue();
-            var second = executor.submit(() -> checkoutFirst
-                    ? updateDates(method, booking, token) : checkout(booking, token));
 
-            // Observe an actual PostgreSQL lock wait, not just simultaneous thread starts.
-            awaitBookingLockWait();
-            assertThat(second.isDone()).isFalse();
-            commitFirst.countDown();
-            assertThat(first.get(10, TimeUnit.SECONDS)).isEqualTo(200);
-            assertThat(second.get(10, TimeUnit.SECONDS)).isEqualTo(checkoutFirst ? 400 : 200);
+            assertThat(firstFinished.await(10, TimeUnit.SECONDS)).isTrue();
+
+            var second = executor.submit(() -> checkoutFirst
+                    ? updateDates(method, booking, token)
+                    : checkout(booking, token));
+
+            if (checkoutFirst) {
+                // The checkout attempt is committed before the external Stripe call.
+                // The date update therefore must be rejected by the persisted payment,
+                // rather than waiting for a PostgreSQL booking row lock.
+                assertThat(second.get(10, TimeUnit.SECONDS)).isEqualTo(400);
+
+                commitFirst.countDown();
+
+                assertThat(first.get(10, TimeUnit.SECONDS)).isEqualTo(200);
+            } else {
+                // The date-update transaction still owns the booking row lock.
+                // Checkout must wait until that transaction commits.
+                awaitBookingLockWait();
+                assertThat(second.isDone()).isFalse();
+
+                commitFirst.countDown();
+
+                assertThat(first.get(10, TimeUnit.SECONDS)).isEqualTo(200);
+                assertThat(second.get(10, TimeUnit.SECONDS)).isEqualTo(200);
+            }
         } finally {
             commitFirst.countDown();
             executor.shutdownNow();
@@ -105,17 +130,31 @@ class BookingCheckoutIntegrationTest extends AbstractControllerIntegrationTest {
 
         Booking saved = bookingRepository.findById(booking.getId()).orElseThrow();
         Payment payment = paymentRepository.findByBookingId(booking.getId()).orElseThrow();
+
         assertThat(saved.getCheckInDate()).isEqualTo(booking.getCheckInDate());
         assertThat(saved.getCheckOutDate()).isEqualTo(checkoutFirst
-                ? booking.getCheckOutDate() : booking.getCheckInDate().plusDays(10));
-        assertThat(payment.getAmountToPay()).isEqualByComparingTo(checkoutFirst ? "100" : "1000");
+                ? booking.getCheckOutDate()
+                : booking.getCheckInDate().plusDays(10));
+        assertThat(payment.getAmountToPay())
+                .isEqualByComparingTo(checkoutFirst ? "100" : "1000");
     }
 
     private Booking createBooking(User owner) {
-        var accommodation = persistAccommodation(AccommodationType.APARTMENT,
-                "Warsaw", "Studio", List.of("wifi"), BigDecimal.valueOf(100), 1);
-        return persistBooking(futureDate(10), futureDate(11), accommodation.getId(),
-                owner.getId(), BookingStatus.PENDING);
+        var accommodation = persistAccommodation(
+                AccommodationType.APARTMENT,
+                "Warsaw",
+                "Studio",
+                List.of("wifi"),
+                BigDecimal.valueOf(100),
+                1
+        );
+        return persistBooking(
+                futureDate(10),
+                futureDate(11),
+                accommodation.getId(),
+                owner.getId(),
+                BookingStatus.PENDING
+        );
     }
 
     private int checkout(Booking booking, String token) throws Exception {
@@ -123,31 +162,46 @@ class BookingCheckoutIntegrationTest extends AbstractControllerIntegrationTest {
                         .header("Authorization", token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJson(new CreatePaymentRequest(booking.getId()))))
-                .andReturn().getResponse().getStatus();
+                .andReturn()
+                .getResponse()
+                .getStatus();
     }
 
     private int updateDates(String method, Booking booking, String token) throws Exception {
-        return mockMvc.perform(request(HttpMethod.valueOf(method), "/bookings/{id}", booking.getId())
+        return mockMvc.perform(request(
+                        HttpMethod.valueOf(method),
+                        "/bookings/{id}",
+                        booking.getId())
                         .header("Authorization", token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJson(new UpdateBookingRequest(booking.getCheckInDate(),
-                                booking.getCheckInDate().plusDays(10)))))
-                .andReturn().getResponse().getStatus();
+                        .content(asJson(new UpdateBookingRequest(
+                                booking.getCheckInDate(),
+                                booking.getCheckInDate().plusDays(10)
+                        ))))
+                .andReturn()
+                .getResponse()
+                .getStatus();
     }
 
     private void awaitBookingLockWait() throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+
         while (System.nanoTime() < deadline) {
             Number waiting = (Number) entityManager.createNativeQuery("""
-                    SELECT COUNT(*) FROM pg_stat_activity
-                    WHERE datname = current_database() AND wait_event_type = 'Lock'
+                    SELECT COUNT(*)
+                    FROM pg_stat_activity
+                    WHERE datname = current_database()
+                      AND wait_event_type = 'Lock'
                       AND query LIKE '%bookings%'
                     """).getSingleResult();
+
             if (waiting.intValue() > 0) {
                 return;
             }
+
             Thread.sleep(20);
         }
+
         throw new AssertionError("Concurrent request did not wait for the booking lock");
     }
 }
