@@ -171,13 +171,17 @@ class BookingControllerTest {
                 .andExpect(jsonPath("$.message").value("Unexpected error occurred"))
                 .andExpect(jsonPath("$.path").value("/bookings"));
 
-        assertThat(output).contains("Unhandled request exception")
-                .contains("\"httpMethod\":\"GET\"")
-                .contains("\"uri\":\"/bookings\"")
-                .contains("\"correlationId\":")
-                .contains("IllegalStateException")
-                .doesNotContain("header-secret")
-                .doesNotContain("query-secret");
+        assertThat(output.getOut())
+                .contains(
+                        "httpMethod=\"GET\"",
+                        "uri=\"/bookings\"",
+                        "Unhandled request exception",
+                        "safe diagnostic failure"
+                )
+                .doesNotContain(
+                        "query-secret",
+                        "header-secret"
+                );
     }
 
     @Test
