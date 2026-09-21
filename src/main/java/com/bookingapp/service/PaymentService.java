@@ -270,26 +270,6 @@ public class PaymentService {
                 markVerifiedPaymentPaid(payment.getBookingId(), payment.getId(), sessionId));
     }
 
-    private Payment completePayment(Payment payment, String sessionId) {
-        lockBooking(payment.getBookingId());
-        payment = paymentRepository.refresh(payment.getId());
-        if (payment.getSessionId() != null && !payment.getSessionId().equals(sessionId)) {
-            throw new PaymentStateException("Stripe session does not match this attempt");
-        }
-        // Only a verified webhook can reach an attempt whose session ID was not committed yet.
-        payment.setSessionId(sessionId);
-        if (payment.getStatus() == PaymentStatus.PAID) {
-            return payment;
-        }
-        if (!stripePaymentProvider.isPaymentSuccessful(sessionId)) {
-            throw new PaymentStateException("Payment session '"
-                    + sessionId
-                    + "' is not confirmed as successful");
-        }
-
-        return confirmPayment(payment);
-    }
-
     private Payment confirmPayment(Payment payment) {
         stripePaymentProvider.validatePayment(payment);
         Payment savedPayment = paymentRepository.save(markPaid(payment));

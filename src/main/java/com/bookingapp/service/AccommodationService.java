@@ -128,28 +128,6 @@ public class AccommodationService {
         return accommodationRepository.save(updated);
     }
 
-    @Transactional
-    public Accommodation decreaseAvailability(Long accommodationId, int units) {
-        Accommodation accommodation = getAccommodationById(accommodationId);
-        validateAvailabilityUnits(units);
-
-        int updatedAvailability = accommodation.getAvailability() - units;
-        if (updatedAvailability < 0) {
-            throw new BusinessValidationException("Accommodation availability cannot be negative");
-        }
-
-        accommodation.setAvailability(updatedAvailability);
-        return accommodationRepository.save(accommodation);
-    }
-
-    @Transactional
-    public Accommodation increaseAvailability(Long accommodationId, int units) {
-        Accommodation accommodation = getAccommodationById(accommodationId);
-        validateAvailabilityUnits(units);
-        accommodation.setAvailability(accommodation.getAvailability() + units);
-        return accommodationRepository.save(accommodation);
-    }
-
     private Accommodation buildAccommodation(
             Long id,
             AccommodationType type,
@@ -206,14 +184,6 @@ public class AccommodationService {
             throw new BusinessValidationException("Accommodation availability cannot be negative");
         }
         return availability;
-    }
-
-    private static void validateAvailabilityUnits(int units) {
-        if (units <= 0) {
-            throw new BusinessValidationException(
-                    "Availability change units must be greater than zero"
-            );
-        }
     }
 
     private static void validatePagination(int page, int size) {
