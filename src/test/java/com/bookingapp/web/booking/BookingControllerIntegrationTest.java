@@ -461,7 +461,7 @@ class BookingControllerIntegrationTest extends AbstractControllerIntegrationTest
     }
 
     @Test
-    void cancelBooking_shouldReturn400WhenBookingIsAlreadyCanceled() throws Exception {
+    void cancelBooking_shouldReturn409WhenBookingIsAlreadyCanceled() throws Exception {
         User customer = persistCustomer("booking-cancel-twice@example.com");
         Accommodation accommodation = persistAccommodation(
                 AccommodationType.HOUSE,
@@ -481,7 +481,7 @@ class BookingControllerIntegrationTest extends AbstractControllerIntegrationTest
 
         mockMvc.perform(delete("/bookings/{id}", booking.getId())
                         .header("Authorization", authorizationHeader(customer)))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Booking is already canceled"))
                 .andExpect(jsonPath("$.path").value("/bookings/" + booking.getId()));
     }

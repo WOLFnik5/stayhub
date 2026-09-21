@@ -165,7 +165,7 @@ class AccommodationControllerTest {
     void deleteAccommodationShouldNotMislabelOtherIntegrityViolation()
             throws Exception {
         doThrow(new DataIntegrityViolationException(
-                "duplicate key violates constraint uk_users_email"))
+                "update violates foreign key constraint fk_bookings_user"))
                 .when(accommodationService).deleteAccommodation(1L);
 
         mockMvc.perform(delete("/accommodations/1")

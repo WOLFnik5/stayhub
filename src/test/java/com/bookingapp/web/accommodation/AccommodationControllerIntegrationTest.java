@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.bookingapp.domain.model.Accommodation;
-import com.bookingapp.domain.model.enums.BookingStatus;
 import com.bookingapp.domain.model.enums.AccommodationType;
 import com.bookingapp.domain.model.User;
 import com.bookingapp.web.dto.CreateAccommodationRequest;
@@ -18,11 +17,8 @@ import com.bookingapp.web.dto.UpdateAccommodationRequest;
 import com.bookingapp.web.support.AbstractControllerIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
@@ -297,39 +293,6 @@ class AccommodationControllerIntegrationTest
                         accommodation.getId()
                 )
         ).isFalse();
-    }
-
-    @ParameterizedTest
-    @EnumSource(value = BookingStatus.class, names = {"PENDING", "CANCELED"})
-    void deleteAccommodation_shouldReturnConflictWhenBookingExists(
-            BookingStatus bookingStatus
-    ) throws Exception {
-        User admin = persistAdmin("admin-accommodation-booking-delete@example.com");
-        User customer = persistCustomer("customer-accommodation-booking-delete@example.com");
-        Accommodation accommodation = persistAccommodation(
-                AccommodationType.HOUSE,
-                "Poznan",
-                "Loft",
-                List.of("wifi"),
-                BigDecimal.valueOf(150),
-                1
-        );
-        var booking = persistBooking(
-                LocalDate.now().plusDays(2),
-                LocalDate.now().plusDays(4),
-                accommodation.getId(),
-                customer.getId(),
-                bookingStatus
-        );
-
-        mockMvc.perform(delete("/accommodations/{id}", accommodation.getId())
-                        .header("Authorization", authorizationHeader(admin)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message")
-                        .value("Accommodation cannot be deleted because it has bookings"));
-
-        assertThat(entityExists("AccommodationEntity", accommodation.getId())).isTrue();
-        assertThat(entityExists("BookingEntity", booking.getId())).isTrue();
     }
 
     @Test

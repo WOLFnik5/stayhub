@@ -136,6 +136,7 @@ public class AccommodationRepositoryImpl {
 
         if (entity != null) {
             entityManager.remove(entity);
+            entityManager.flush();
         }
     }
 
