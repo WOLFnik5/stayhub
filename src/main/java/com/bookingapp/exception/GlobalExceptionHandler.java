@@ -182,6 +182,13 @@ public class GlobalExceptionHandler {
                     request.getRequestURI()
             );
         }
+        if (rootMessage != null && rootMessage.contains("fk_bookings_accommodation")) {
+            return buildResponse(
+                    HttpStatus.CONFLICT,
+                    "Accommodation cannot be deleted because it has bookings",
+                    request.getRequestURI()
+            );
+        }
         return buildResponse(HttpStatus.CONFLICT, "Data integrity violation",
                 request.getRequestURI());
     }

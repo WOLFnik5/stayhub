@@ -1,8 +1,10 @@
 package com.bookingapp.web.accommodation;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -22,6 +24,7 @@ import com.bookingapp.web.mapper.AccommodationWebMapperImpl;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
@@ -156,6 +159,19 @@ class AccommodationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validCreateRequest()))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void deleteAccommodationShouldNotMislabelOtherIntegrityViolation()
+            throws Exception {
+        doThrow(new DataIntegrityViolationException(
+                "duplicate key violates constraint uk_users_email"))
+                .when(accommodationService).deleteAccommodation(1L);
+
+        mockMvc.perform(delete("/accommodations/1")
+                        .with(user("admin@example.com").roles("ADMIN")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Data integrity violation"));
     }
 
     @Test
