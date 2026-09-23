@@ -2,7 +2,6 @@ package com.bookingapp.infrastructure.observability;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,21 +41,11 @@ class ReadableLoggingTest {
                 .findFirst()
                 .orElseThrow();
 
-        var json = new ObjectMapper().readTree(line);
-
-        assertThat(json.get("correlationId").asText())
-                .isEqualTo("text-request");
-
-        assertThat(json.get("eventId").asText())
-                .isEqualTo("text-event");
-
-        assertThat(json.get("stage").asText())
-                .isEqualTo("telegram");
-
-        assertThat(json.get("outcome").asText())
-                .isEqualTo("accepted");
-
-        assertThat(json.has("durationMs"))
-                .isTrue();
+        assertThat(line)
+                .contains("correlationId=text-request")
+                .contains("eventId=text-event")
+                .contains("stage=\"telegram\"")
+                .contains("outcome=\"accepted\"")
+                .contains("durationMs=");
     }
 }

@@ -173,8 +173,8 @@ class BookingControllerTest {
 
         assertThat(output.getOut())
                 .contains(
-                        "httpMethod=\"GET\"",
-                        "uri=\"/bookings\"",
+                        "\"httpMethod\":\"GET\"",
+                        "\"uri\":\"/bookings\"",
                         "Unhandled request exception",
                         "safe diagnostic failure"
                 )
