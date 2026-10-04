@@ -15,7 +15,7 @@ workflow changes are pushed to GitHub; it has not been executed locally.
 CD is disabled unless the repository Actions variable `ENABLE_CD` is `true`.
 This change prepares delivery; no server or cloud account has been provisioned.
 
-1. Prepare a dedicated Linux x64 host with Docker Engine, Compose 2.24.4 or newer,
+1. Prepare a dedicated Linux x64 host with Docker Engine 28 or newer, Compose 2.24.4 or newer,
    Bash and `flock` (util-linux). The runner account must be able to use Docker.
    Reserve application port 8080 and sufficient resources for PostgreSQL/Kafka.
 2. Create a deployment directory, for example `/srv/stayhub`, owned by that
@@ -23,6 +23,9 @@ This change prepares delivery; no server or cloud account has been provisioned.
    actual server credentials and `SPRING_PROFILES_ACTIVE=observability`.
    Restrict this file's access, for example `chmod 600 /srv/stayhub/.env`.
    Use Docker's internal Kafka address `kafka:29092`.
+   Set distinct `POSTGRES_ADMIN_PASSWORD`, `LIQUIBASE_PASSWORD`, and `DB_PASSWORD`.
+   For existing database volumes, complete the [role transition](../database-roles.md)
+   before deploying this version.
 3. If the GHCR package is private, authenticate Docker on the host using a
    read-only package token and `docker login ghcr.io --password-stdin`.
    Keep the credentials on the host. Public packages can be pulled anonymously.
@@ -41,11 +44,16 @@ and Kafka volumes. Database and broker ports are not published on the host, and
 the application binds to `127.0.0.1:8080`. A public cloud deployment still needs
 an explicitly configured HTTPS reverse proxy, network access and backups.
 The monitoring overlay is a separate local setup and is not enabled by this CD.
+Kafka UI requires the explicit `tools` profile. See the
+[network access runbook](network-access.md) for port bindings and remote access.
 
 ## Health checks and rollback
 
 The runtime image includes curl and runs as UID/GID 10001. Deployment pulls the
-new image before replacing the running application. Compose waits up to 240
+same immutable image for the API and the separate migration process. After the
+infrastructure is healthy, it runs `booking-migrate` with migration credentials;
+a migration failure returns an error before replacing the API image. The API uses
+runtime credentials with Liquibase disabled. Compose waits up to 240
 seconds for PostgreSQL, Kafka and the application's `/actuator/health` check.
 This uses aggregate health, including the datasource; `/health` alone only
 demonstrates that the HTTP handler is alive.

@@ -101,6 +101,8 @@ Default local development values in `.env.sample` assume:
 Required variables you should review before demo/use:
 
 - `DB_PASSWORD`
+- `POSTGRES_ADMIN_PASSWORD`
+- `LIQUIBASE_PASSWORD`
 - `JWT_SECRET`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
@@ -170,6 +172,11 @@ Database variables:
 - `DB_PASSWORD`
 - `POSTGRES_DB`
 
+PostgreSQL uses separate bootstrap, migration, and runtime roles. Set distinct
+passwords for all three. Compose runs `booking-migrate` before the API; the API
+has data privileges and runs with Liquibase disabled. Existing volumes require
+an explicit role transition: see [database roles and migration runbook](docs/database-roles.md).
+
 ## Setup Instructions
 
 Prerequisites:
@@ -186,10 +193,16 @@ Use this mode when you want to run Spring Boot on your machine and keep PostgreS
 2. Start infrastructure dependencies:
 
 ```bash
-docker compose up postgres kafka kafka-ui -d
+docker compose up postgres kafka -d
 ```
 
-3. Run the application:
+3. Apply migrations using the separate migration container:
+
+```bash
+docker compose run --build --rm booking-migrate
+```
+
+4. Run the application with runtime credentials in your terminal or IDE:
 
 ```bash
 mvn spring-boot:run
@@ -215,14 +228,25 @@ In Compose mode:
 - Kafka runs as `kafka:29092` inside the Compose network
 - the `booking-app` container gets those internal addresses from `docker-compose.yml`
 
-Public URLs after startup:
+Local URLs after startup:
 
 - API base URL: `http://localhost:8080`
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
 - OpenAPI docs: `http://localhost:8080/api-docs`
 - Custom health endpoint: `http://localhost:8080/health`
 - Actuator health: `http://localhost:8080/actuator/health`
-- Kafka UI: `http://localhost:8081`
+
+Published ports bind to `127.0.0.1`. Kafka's internal listener `29092` is
+available within the Compose network; host clients use `localhost:9092`.
+Kafka UI starts only when requested:
+
+```bash
+docker compose --profile tools up -d kafka-ui
+```
+
+The UI is then available at `http://localhost:8081`.
+See [Compose network access](docs/deployment/network-access.md) for deployment
+and remote access instructions.
 
 ## Health Endpoints
 
@@ -511,7 +535,11 @@ Stripe requires at least 30 minutes of remaining session lifetime.
 
 Creating checkout for a canceled/expired booking, or after its checkout date,
 is rejected. Canceling a booking closes its unpaid Stripe sessions first. If
-Stripe cannot confirm closure, cancellation fails and can be retried. A paid
+Stripe cannot confirm closure, `CANCELING` keeps the reservation until retry or
+background recovery. `EXPIRING` serves the same purpose for completed stays.
+These states prevent new checkout and date changes, and still count toward
+capacity. Provider calls run outside database transactions; short transactions
+record the intent and finalize the booking after rechecking payment state. A paid
 booking requires a separate refund process before cancellation; refunds are not
 automatically issued. The expiration job also closes unpaid sessions and waits
 for processing payments to settle. A late successful payment is recorded without
@@ -526,6 +554,18 @@ without emitting another success event. Terminal booking statuses stay unchanged
 late settlement requires a separate reconciliation/refund decision.
 A signed webhook can recover a durable attempt by Stripe's `paymentId` metadata
 if the session ID was not saved after a network failure.
+
+Old unresolved attempts enter `RECONCILIATION_REQUIRED`; known sessions are checked
+by a bounded background job. Administrators can recover a lost session through
+`POST /payments/{id}/reconcile` with a verified Stripe session ID. New checkout
+stays blocked until the previous attempt's outcome is established. See the
+[reconciliation runbook](docs/payment-reconciliation.md) for recovery and rollout.
+
+Interrupted booking closure is resumed in batches of 100 by a separate job,
+configured through `BOOKING_CLOSURE_RECOVERY_ENABLED` and
+`BOOKING_CLOSURE_RECOVERY_DELAY_MS` (default five minutes). A verified payment
+during cancellation preserves the paid booking as `CONFIRMED` and requires a
+refund decision. Final booking status and its outbox event commit together.
 
 Stripe setup notes:
 

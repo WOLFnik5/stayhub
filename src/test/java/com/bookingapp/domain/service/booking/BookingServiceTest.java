@@ -60,7 +60,7 @@ class BookingServiceTest {
     private KafkaEventPublisher kafkaEventPublisher;
 
     @Mock
-    private com.bookingapp.service.PaymentService paymentService;
+    private com.bookingapp.service.BookingClosureService closureService;
 
     @InjectMocks
     private BookingService bookingService;
@@ -175,13 +175,16 @@ class BookingServiceTest {
         );
 
         when(currentUserService.getCurrentUser()).thenReturn(currentUser);
-        when(bookingRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(existingBooking));
-        when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(bookingRepository.findById(8L)).thenReturn(Optional.of(existingBooking));
+        when(closureService.cancel(8L)).thenAnswer(invocation -> {
+            existingBooking.setStatus(BookingStatus.CANCELED);
+            return existingBooking;
+        });
 
         Booking result = bookingService.cancelBooking(8L);
 
         assertThat(result.getStatus()).isEqualTo(BookingStatus.CANCELED);
-        verify(kafkaEventPublisher).publishBookingCanceled(result);
+        verify(closureService).cancel(8L);
     }
 
     @Test
@@ -197,7 +200,7 @@ class BookingServiceTest {
         );
 
         when(currentUserService.getCurrentUser()).thenReturn(currentUser);
-        when(bookingRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(canceledBooking));
+        when(bookingRepository.findById(8L)).thenReturn(Optional.of(canceledBooking));
 
         assertThatThrownBy(() -> bookingService.cancelBooking(8L))
                 .isInstanceOf(InvalidBookingStateException.class)

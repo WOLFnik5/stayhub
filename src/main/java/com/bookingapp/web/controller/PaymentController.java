@@ -6,6 +6,7 @@ import com.bookingapp.web.dto.PageResponse;
 import com.bookingapp.web.dto.PaymentCancelResponse;
 import com.bookingapp.web.dto.PaymentResponse;
 import com.bookingapp.web.dto.PaymentSessionResult;
+import com.bookingapp.web.dto.ReconcilePaymentRequest;
 import com.bookingapp.web.mapper.PaymentWebMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -13,7 +14,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -63,6 +66,16 @@ public class PaymentController {
     public Map<String, String> paymentCancelReturn() {
         return Map.of("message", "You returned from checkout. "
                 + "Sign in to view your booking and payment options.");
+    }
+
+    @PostMapping("/{id}/reconcile")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Reconcile a payment attempt with a verified Stripe session",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    public PaymentResponse reconcilePayment(@PathVariable("id") Long id,
+            @Valid @RequestBody ReconcilePaymentRequest request) {
+        return paymentWebMapper.toResponse(
+                paymentService.reconcileCheckout(id, request.sessionId()));
     }
 
     @GetMapping("/cancel")

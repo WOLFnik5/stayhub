@@ -23,8 +23,13 @@ if [[ -n "$container" ]]; then
 fi
 
 # Pull before changing any running service. Server Docker credentials stay on host.
-"${compose[@]}" pull booking-app
-if "${compose[@]}" up -d --no-build --wait --wait-timeout 240 postgres kafka booking-app; then
+"${compose[@]}" pull booking-app booking-migrate
+"${compose[@]}" up -d --no-build --wait --wait-timeout 240 postgres kafka
+if ! "${compose[@]}" run --rm --no-deps booking-migrate; then
+    echo 'Migration failed; application image was not replaced' >&2
+    exit 1
+fi
+if "${compose[@]}" up -d --no-build --no-deps --wait --wait-timeout 240 booking-app; then
     printf '%s\n' "$image" > "$directory/current-image.tmp"
     mv -- "$directory/current-image.tmp" "$directory/current-image"
     echo "Deployment healthy: $image"

@@ -13,6 +13,11 @@ spring:
       enabled: false
 
 app:
+  scheduler:
+    booking-closure:
+      enabled: false
+    payment-reconciliation:
+      enabled: false
   security:
     auth-rate-limit:
       login-attempts: 1000

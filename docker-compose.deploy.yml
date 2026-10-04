@@ -9,6 +9,9 @@ services:
     profiles: [tools]
     container_name: !reset null
     ports: !override ["127.0.0.1:8081:8080"]
+  booking-migrate:
+    build: !reset null
+    image: ${STAYHUB_IMAGE:?STAYHUB_IMAGE must be an immutable image reference}
   booking-app:
     container_name: !reset null
     build: !reset null

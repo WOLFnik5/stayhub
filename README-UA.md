@@ -105,6 +105,8 @@ Copy-Item .env.sample .env
 | Група | Змінні |
 | --- | --- |
 | База даних | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`, `POSTGRES_DB` |
+| Адміністрування БД | `POSTGRES_ADMIN_USER`, `POSTGRES_ADMIN_PASSWORD` |
+| Окремий процес міграцій | `LIQUIBASE_USERNAME`, `LIQUIBASE_PASSWORD`, `LIQUIBASE_URL` |
 | Безпека | `JWT_SECRET`, `JWT_EXPIRATION_MINUTES` |
 | Обмеження автентифікації | `AUTH_RATE_LIMIT_LOGIN_ATTEMPTS`, `AUTH_RATE_LIMIT_REGISTER_ATTEMPTS`, `AUTH_RATE_LIMIT_WINDOW_SECONDS`, `AUTH_RATE_LIMIT_MAX_CLIENTS` |
 | Kafka | `KAFKA_BOOTSTRAP_SERVERS`, `KAFKA_CONSUMER_GROUP_ID`, `KAFKA_TOPIC_*` |
@@ -157,10 +159,17 @@ Email облікового запису є нечутливим до регіс�
 2. Запустіть залежності:
 
    ```powershell
-   docker compose up postgres kafka kafka-ui -d
+   docker compose up postgres kafka -d
    ```
 
-3. Встановіть необхідні значення середовища (зокрема `JWT_SECRET`) і запустіть застосунок:
+3. Запустіть окремий процес міграцій:
+
+   ```powershell
+   docker compose run --build --rm booking-migrate
+   ```
+
+4. Встановіть runtime-значення середовища (зокрема `DB_USERNAME`, `DB_PASSWORD`
+   і `JWT_SECRET`) у терміналі або IDE та запустіть застосунок:
 
    ```powershell
    mvn spring-boot:run
@@ -184,8 +193,18 @@ docker compose up --build
 - Swagger UI: `http://localhost:8080/swagger-ui.html`;
 - OpenAPI: `http://localhost:8080/api-docs`;
 - custom health: `http://localhost:8080/health`;
-- Actuator health: `http://localhost:8080/actuator/health`;
-- Kafka UI: `http://localhost:8081`.
+- Actuator health: `http://localhost:8080/actuator/health`.
+
+Опубліковані порти прив'язані до `127.0.0.1`. Внутрішній Kafka listener
+`29092` доступний у мережі Compose; клієнти на хості використовують
+`localhost:9092`. Kafka UI вмикається окремо:
+
+```powershell
+docker compose --profile tools up -d kafka-ui
+```
+
+Після цього UI доступний на `http://localhost:8081`.
+Деплой і віддалений доступ описано в [інструкції мережевого доступу](docs/deployment/network-access.md).
 
 ## API та доступ
 
@@ -218,6 +237,15 @@ docker compose up --build
 
 Кожна спроба оплати фіксується перед зверненням до Stripe та має власний ідемпотентний ключ. Повторний запит повертає активну/оброблювану сесію; після завершення її строку створюється новий запис спроби. Для скасованого, простроченого або вже оплаченого бронювання Checkout не створюється. Скасування закриває неоплачені Stripe-сесії; для оплаченої броні повернення коштів не виконується автоматично.
 
+Скасування й завершення використовують стани `CANCELING` та `EXPIRING`: вони
+утримують місткість і блокують checkout/редагування дат. Виклики Stripe виконуються
+поза транзакціями БД. Після відповіді provider коротка транзакція повторно перевіряє
+платежі та атомарно записує остаточний статус і outbox-подію. Незавершені операції
+відновлює фоновий job, максимум 100 за запуск; параметри —
+`BOOKING_CLOSURE_RECOVERY_ENABLED` і `BOOKING_CLOSURE_RECOVERY_DELAY_MS` (типово 5 хв).
+Оплата, що завершилася під час скасування, зберігає бронювання `CONFIRMED` і потребує
+окремого рішення щодо повернення коштів.
+
 Webhook приймає `checkout.session.completed` і `checkout.session.async_payment_succeeded`. Він звіряє суму, валюту, бронювання та спробу оплати; повторні callback-и не створюють повторної події успіху.
 
 Статус платежу `PAID`, перехід бронювання `PENDING` → `CONFIRMED` і подія outbox
@@ -225,6 +253,11 @@ Webhook приймає `checkout.session.completed` і `checkout.session.async_p
 відкочує обидва статуси. Повторна перевірка вже оплаченого платежу виправляє старе
 `PAID + PENDING` без повторної події. Запізніла оплата не відновлює `CANCELED` або
 `EXPIRED`; для неї потрібне окреме рішення щодо reconciliation чи повернення коштів.
+
+Старі спроби без session ID переходять у `RECONCILIATION_REQUIRED`; відомі сесії
+перевіряє фоновий job. Admin може прив'язати втрачену сесію через
+`POST /payments/{id}/reconcile`. Інструкція відновлення й порядок розгортання:
+[payment-reconciliation.md](docs/payment-reconciliation.md).
 
 Для локальної перевірки webhook можна використати Stripe CLI:
 
@@ -256,7 +289,7 @@ docker compose --profile tracing up --build -d
 
 ## Міграції БД
 
-Liquibase запускається під час старту, а Hibernate працює у режимі `validate`. Головний changelog — `src/main/resources/db/changelog/db.changelog-master.yaml`. Він створює таблиці користувачів, помешкань, зручностей, бронювань, оплат, outbox, дедуплікації подій, а також обмеження місткості, перетину бронювань, lease обробника та поля correlation/trace context.
+Liquibase запускається окремим процесом `booking-migrate` перед API, а Hibernate працює у режимі `validate`. API використовує runtime-роль із DML-правами; адміністратор і міграції мають окремі логіни та паролі. Для наявного volume потрібен явний перехід: [інструкція з ролей БД](docs/database-roles.md). Головний changelog — `src/main/resources/db/changelog/db.changelog-master.yaml`. Він створює таблиці користувачів, помешкань, зручностей, бронювань, оплат, outbox, дедуплікації подій, а також обмеження місткості, перетину бронювань, lease обробника та поля correlation/trace context.
 
 ## Тести та перевірка якості
 

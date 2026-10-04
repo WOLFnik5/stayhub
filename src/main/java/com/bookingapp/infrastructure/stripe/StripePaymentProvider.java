@@ -4,6 +4,7 @@ import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.Booking;
 import com.bookingapp.domain.model.Payment;
 import com.bookingapp.domain.model.User;
+import com.bookingapp.domain.model.enums.PaymentStatus;
 import com.bookingapp.exception.PaymentProviderGatewayException;
 import com.bookingapp.exception.PaymentProviderUnavailableException;
 import com.bookingapp.exception.PaymentStateException;
@@ -104,6 +105,31 @@ public class StripePaymentProvider {
 
     public void validatePayment(Payment payment) {
         Session session = retrieveSession(payment.getSessionId());
+        validateSession(payment, session, false);
+    }
+
+    public VerifiedCheckout inspectCheckout(Payment payment, String sessionId) {
+        Session session = retrieveSession(sessionId);
+        validateSession(payment, session, payment.getSessionId() == null);
+        if (!sessionId.equals(session.getId())) {
+            throw new PaymentStateException("Stripe session ID does not match");
+        }
+        PaymentStatus status;
+        if ("paid".equalsIgnoreCase(session.getPaymentStatus())) {
+            status = PaymentStatus.PAID;
+        } else if ("expired".equalsIgnoreCase(session.getStatus())
+                && "unpaid".equalsIgnoreCase(session.getPaymentStatus())) {
+            status = PaymentStatus.EXPIRED;
+        } else if ("open".equalsIgnoreCase(session.getStatus())
+                || "complete".equalsIgnoreCase(session.getStatus())) {
+            status = PaymentStatus.PENDING;
+        } else {
+            throw new PaymentStateException("Stripe checkout state is unresolved");
+        }
+        return new VerifiedCheckout(session.getId(), session.getUrl(), status);
+    }
+
+    private void validateSession(Payment payment, Session session, boolean requireAttemptMetadata) {
         String currency = payment.getCurrency() == null
                 ? stripeProperties.getCurrency() : payment.getCurrency();
         if (!Long.valueOf(toMinorUnits(payment.getAmountToPay())).equals(session.getAmountTotal())
@@ -113,7 +139,9 @@ public class StripePaymentProvider {
                         .equals(session.getMetadata().get("bookingId"))
                 || (session.getMetadata().containsKey("paymentId")
                         && !String.valueOf(payment.getId())
-                                .equals(session.getMetadata().get("paymentId")))) {
+                                .equals(session.getMetadata().get("paymentId")))
+                || requireAttemptMetadata && !String.valueOf(payment.getId())
+                        .equals(session.getMetadata().get("paymentId"))) {
             throw new PaymentStateException("Stripe payment does not match the stored payment");
         }
     }

@@ -33,3 +33,5 @@ databaseChangeLog:
       file: db/changelog/changes/016-normalize-user-emails.yaml
   - include:
       file: db/changelog/changes/017-booking-user-pagination-index.yaml
+  - include:
+      file: db/changelog/changes/018-payment-reconciliation.yaml

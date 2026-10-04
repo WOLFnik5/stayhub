@@ -189,4 +189,14 @@ public class BookingRepositoryImpl {
                 .map(bookingPersistenceMapper::toDomain)
                 .toList();
     }
+
+    public List<Booking> findPendingClosures(long afterId, int limit) {
+        return entityManager.createQuery("""
+                SELECT b FROM BookingEntity b
+                WHERE b.status IN :statuses AND b.id > :afterId ORDER BY b.id
+                """, BookingEntity.class)
+                .setParameter("statuses", List.of(BookingStatus.CANCELING, BookingStatus.EXPIRING))
+                .setParameter("afterId", afterId).setMaxResults(limit).getResultList().stream()
+                .map(bookingPersistenceMapper::toDomain).toList();
+    }
 }

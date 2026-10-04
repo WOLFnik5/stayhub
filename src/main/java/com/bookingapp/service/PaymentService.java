@@ -19,6 +19,7 @@ import com.bookingapp.infrastructure.kafka.KafkaEventPublisher;
 import com.bookingapp.infrastructure.security.CurrentUser;
 import com.bookingapp.infrastructure.security.CurrentUserService;
 import com.bookingapp.infrastructure.stripe.StripePaymentProvider;
+import com.bookingapp.infrastructure.stripe.VerifiedCheckout;
 import com.bookingapp.persistence.AccommodationRepositoryImpl;
 import com.bookingapp.persistence.BookingRepositoryImpl;
 import com.bookingapp.persistence.PaymentFilterQuery;
@@ -90,6 +91,11 @@ public class PaymentService {
         if (paymentRepository.findAllByBookingId(bookingId).stream()
                 .anyMatch(payment -> payment.getStatus() == PaymentStatus.PAID)) {
             throw new PaymentStateException("Payment has already been completed");
+        }
+        if (paymentRepository.findAllByBookingId(bookingId).stream()
+                .anyMatch(payment -> payment.getStatus()
+                        == PaymentStatus.RECONCILIATION_REQUIRED)) {
+            throw new PaymentStateException("Checkout requires Stripe reconciliation");
         }
         Payment previous = paymentRepository.findByBookingId(bookingId).orElse(null);
         if (previous != null && previous.getStatus() == PaymentStatus.PAID) {
@@ -184,7 +190,8 @@ public class PaymentService {
         payment.setSessionId(sessionId);
         // The booking lock serializes webhook retries, cancellation and expiration.
         // Late settlement records the payment without reviving a terminal booking.
-        if (booking.getStatus() == BookingStatus.PENDING) {
+        if (booking.getStatus() == BookingStatus.PENDING
+                || booking.getStatus() == BookingStatus.CANCELING) {
             booking.setStatus(BookingStatus.CONFIRMED);
             bookingRepository.save(booking);
         }
@@ -207,8 +214,15 @@ public class PaymentService {
         }
         PaymentSessionResult session = stripePaymentProvider.createPaymentSession(payment, booking,
                 getAccommodation(booking.getAccommodationId()), getUser(booking.getUserId()));
-        return paymentRepository.save(
-                attachSession(payment, session.sessionId(), session.sessionUrl()));
+        return transactionTemplate.execute(status -> {
+            lockBooking(booking.getId());
+            Payment current = paymentRepository.refresh(payment.getId());
+            if (current.getSessionId() != null || current.getStatus() == PaymentStatus.PAID) {
+                return current;
+            }
+            return paymentRepository.save(
+                    attachSession(current, session.sessionId(), session.sessionUrl()));
+        });
     }
 
     private PaymentSessionResult sessionResult(Payment savedPayment) {
@@ -276,10 +290,72 @@ public class PaymentService {
                 markVerifiedPaymentPaid(payment.getBookingId(), payment.getId(), sessionId));
     }
 
-    private Payment confirmPayment(Payment payment) {
-        stripePaymentProvider.validatePayment(payment);
-        return markVerifiedPaymentPaid(payment.getBookingId(), payment.getId(),
-                payment.getSessionId());
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public Payment reconcileCheckout(Long paymentId, String sessionId) {
+        Payment snapshot = paymentRepository.findById(paymentId).orElseThrow(() ->
+                new EntityNotFoundDomainException("Payment attempt was not found"));
+        String candidate = requireNonBlank(sessionId, "Stripe session ID is required");
+        if (snapshot.getSessionId() != null && !snapshot.getSessionId().equals(candidate)) {
+            throw new PaymentStateException("Stripe session does not match this attempt");
+        }
+        // Provider I/O must finish before acquiring the booking lock.
+        VerifiedCheckout verified = stripePaymentProvider.inspectCheckout(snapshot, candidate);
+        return transactionTemplate.execute(status -> applyReconciliation(snapshot, verified));
+    }
+
+    private Payment applyReconciliation(Payment snapshot, VerifiedCheckout verified) {
+        lockBooking(snapshot.getBookingId());
+        Payment current = paymentRepository.refresh(snapshot.getId());
+        if (current.getSessionId() != null
+                && !current.getSessionId().equals(verified.sessionId())) {
+            throw new PaymentStateException("Stripe session does not match this attempt");
+        }
+        if (verified.status() == PaymentStatus.PAID) {
+            return markVerifiedPaymentPaid(current.getBookingId(), current.getId(),
+                    verified.sessionId());
+        }
+        if (current.getStatus() == PaymentStatus.PAID) {
+            return current;
+        }
+        current.setSessionId(verified.sessionId());
+        current.setSessionUrl(verified.sessionUrl());
+        if (current.getStatus() != PaymentStatus.EXPIRED) {
+            current.setStatus(verified.status());
+        }
+        return paymentRepository.save(current);
+    }
+
+    public List<Payment> reconciliationCandidates(int limit) {
+        return reconciliationCandidates(limit, 0);
+    }
+
+    public List<Payment> reconciliationCandidates(int limit, long afterId) {
+        return paymentRepository.findReconciliationBatch(
+                Instant.now().minus(23, ChronoUnit.HOURS), limit, afterId);
+    }
+
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public void reconcileStaleAttempt(Payment snapshot) {
+        if (snapshot.getSessionId() != null) {
+            reconcileCheckout(snapshot.getId(), snapshot.getSessionId());
+        } else {
+            transactionTemplate.executeWithoutResult(status ->
+                    markReconciliationRequired(snapshot));
+        }
+    }
+
+    private void markReconciliationRequired(Payment snapshot) {
+        if (snapshot.getStatus() != PaymentStatus.PENDING || snapshot.getSessionId() != null
+                || snapshot.getCreatedAt() != null && snapshot.getCreatedAt()
+                        .isAfter(Instant.now().minus(23, ChronoUnit.HOURS))) {
+            return;
+        }
+        lockBooking(snapshot.getBookingId());
+        Payment current = paymentRepository.refresh(snapshot.getId());
+        if (current.getStatus() == PaymentStatus.PENDING && current.getSessionId() == null) {
+            current.setStatus(PaymentStatus.RECONCILIATION_REQUIRED);
+            paymentRepository.save(current);
+        }
     }
 
     public PaymentCancelResult handlePaymentCancel(String sessionId) {
@@ -379,8 +455,8 @@ public class PaymentService {
     }
 
     private boolean isBookingPayable(Booking booking) {
-        return booking.getStatus() != BookingStatus.CANCELED
-                && booking.getStatus() != BookingStatus.EXPIRED
+        return (booking.getStatus() == BookingStatus.PENDING
+                || booking.getStatus() == BookingStatus.CONFIRMED)
                 && booking.getCheckOutDate().isAfter(LocalDate.now());
     }
 
@@ -390,11 +466,10 @@ public class PaymentService {
         }
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void closeCheckoutForBooking(Booking booking, boolean cancellation) {
-        lockBooking(booking.getId());
         for (Payment snapshot : paymentRepository.findAllByBookingId(booking.getId())) {
-            Payment payment = paymentRepository.refresh(snapshot.getId());
+            Payment payment = paymentRepository.findById(snapshot.getId()).orElseThrow();
             if (payment.getStatus() == PaymentStatus.PAID) {
                 if (cancellation) {
                     throw new PaymentStateException(
@@ -406,14 +481,30 @@ public class PaymentService {
                 continue;
             }
             payment = attachOrRecoverSession(payment, booking);
+            if (payment.getStatus() == PaymentStatus.PAID) {
+                if (cancellation) {
+                    throw new PaymentStateException("Paid booking requires a refund");
+                }
+                continue;
+            }
             if (!stripePaymentProvider.expireUnpaidSession(payment.getSessionId())) {
+                stripePaymentProvider.validatePayment(payment);
+                Payment verified = payment;
+                transactionTemplate.execute(status -> markVerifiedPaymentPaid(
+                        booking.getId(), verified.getId(), verified.getSessionId()));
                 if (cancellation) {
                     throw new PaymentStateException(
                             "Payment completed; refund before cancellation");
                 }
-                confirmPayment(payment);
             } else {
-                paymentRepository.save(expirePayment(payment));
+                Payment closed = payment;
+                transactionTemplate.executeWithoutResult(status -> {
+                    lockBooking(booking.getId());
+                    Payment current = paymentRepository.refresh(closed.getId());
+                    if (current.getStatus() != PaymentStatus.PAID) {
+                        paymentRepository.save(expirePayment(current));
+                    }
+                });
             }
         }
     }

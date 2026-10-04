@@ -2,11 +2,13 @@ package com.bookingapp.persistence;
 
 import com.bookingapp.domain.model.PageResult;
 import com.bookingapp.domain.model.Payment;
+import com.bookingapp.domain.model.enums.PaymentStatus;
 import com.bookingapp.persistence.entity.PaymentEntity;
 import com.bookingapp.persistence.mapper.PaymentPersistenceMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
@@ -78,6 +80,19 @@ public class PaymentRepositoryImpl {
 
     public void flush() {
         entityManager.flush();
+    }
+
+    public List<Payment> findReconciliationBatch(Instant cutoff, int limit, long afterId) {
+        return entityManager.createQuery("""
+                SELECT p FROM PaymentEntity p
+                WHERE p.status = :pending AND p.createdAt <= :cutoff
+                  AND p.id > :afterId
+                ORDER BY p.id
+                """, PaymentEntity.class)
+                .setParameter("pending", PaymentStatus.PENDING)
+                .setParameter("afterId", afterId)
+                .setParameter("cutoff", cutoff).setMaxResults(limit).getResultList().stream()
+                .map(paymentPersistenceMapper::toDomain).toList();
     }
 
     public Payment refresh(Long id) {

@@ -28,6 +28,7 @@ import com.bookingapp.web.dto.UpdateBookingRequest;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -39,7 +40,7 @@ public class BookingService {
     private final PaymentRepositoryImpl paymentRepository;
     private final CurrentUserService currentUserService;
     private final KafkaEventPublisher kafkaEventPublisher;
-    private final PaymentService paymentService;
+    private final BookingClosureService closureService;
 
     public BookingService(
             BookingRepositoryImpl bookingRepository,
@@ -47,14 +48,14 @@ public class BookingService {
             PaymentRepositoryImpl paymentRepository,
             CurrentUserService currentUserService,
             KafkaEventPublisher kafkaEventPublisher,
-            PaymentService paymentService
+            BookingClosureService closureService
     ) {
         this.bookingRepository = bookingRepository;
         this.accommodationRepository = accommodationRepository;
         this.paymentRepository = paymentRepository;
         this.currentUserService = currentUserService;
         this.kafkaEventPublisher = kafkaEventPublisher;
-        this.paymentService = paymentService;
+        this.closureService = closureService;
     }
 
     @Transactional
@@ -154,17 +155,12 @@ public class BookingService {
         return bookingRepository.save(existingBooking);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public Booking cancelBooking(Long bookingId) {
-        Booking existingBooking = findBookingForUpdate(bookingId);
+        Booking existingBooking = findBookingById(bookingId);
         ensureCurrentUserCanAccessBooking(existingBooking);
         ensureBookingCanBeCanceled(existingBooking);
-        paymentService.closeCheckoutForBooking(existingBooking, true);
-
-        existingBooking.setStatus(BookingStatus.CANCELED);
-        Booking savedBooking = bookingRepository.save(existingBooking);
-        kafkaEventPublisher.publishBookingCanceled(savedBooking);
-        return savedBooking;
+        return closureService.cancel(bookingId);
     }
 
     @Transactional
@@ -230,8 +226,8 @@ public class BookingService {
                     "Booking dates cannot be changed after checkout has been created");
         }
 
-        if (booking.getStatus() == BookingStatus.CANCELED
-                || booking.getStatus() == BookingStatus.EXPIRED) {
+        if (booking.getStatus() != BookingStatus.PENDING
+                && booking.getStatus() != BookingStatus.CONFIRMED) {
             throw new BusinessValidationException("Only active bookings can be updated");
         }
     }

@@ -129,6 +129,40 @@ class StripePaymentProviderTest {
         provider.validatePayment(payment);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"paid", "expired", "open", "complete"})
+    void reconciliationShouldUseVerifiedRemoteState(String state) {
+        session.setStatus(state.equals("paid") ? "complete" : state);
+        session.setPaymentStatus(state.equals("paid") ? "paid" : "unpaid");
+        var result = provider.inspectCheckout(payment, "sess_test");
+        assertThat(result.status()).isEqualTo(state.equals("paid") ? PaymentStatus.PAID
+                : state.equals("expired") ? PaymentStatus.EXPIRED : PaymentStatus.PENDING);
+    }
+
+    @Test
+    void lostSessionRecoveryMustRequireAttemptMetadata() {
+        payment.setSessionId(null);
+        session.setMetadata(Map.of("bookingId", "17"));
+        assertThatThrownBy(() -> provider.inspectCheckout(payment, "sess_test"))
+                .isInstanceOf(PaymentStateException.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"amount", "currency", "booking", "attempt", "session", "state"})
+    void reconciliationMustRejectUnverifiedEvidence(String mismatch) {
+        switch (mismatch) {
+            case "amount" -> session.setAmountTotal(1L);
+            case "currency" -> session.setCurrency("eur");
+            case "booking" -> session.setMetadata(Map.of("bookingId", "999", "paymentId", "123"));
+            case "attempt" -> session.setMetadata(Map.of("bookingId", "17", "paymentId", "999"));
+            case "session" -> session.setId("sess_other");
+            case "state" -> session.setStatus("unknown");
+            default -> throw new AssertionError(mismatch);
+        }
+        assertThatThrownBy(() -> provider.inspectCheckout(payment, "sess_test"))
+                .isInstanceOf(PaymentStateException.class);
+    }
+
     @Test
     void shouldCloseOpenCheckoutAndTreatAlreadyExpiredAsClosed() throws Exception {
         Session expired = new Session();

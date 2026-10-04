@@ -163,7 +163,7 @@ class PaymentLifecycleIntegrationTest extends AbstractControllerIntegrationTest 
         when(stripePaymentProvider.expireUnpaidSession(latest().getSessionId()))
                 .thenThrow(new PaymentProviderUnavailableException("ApiConnectionException", null, null));
         assertThat(cancel()).isEqualTo(503);
-        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.PENDING);
+        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.CANCELING);
         assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PENDING);
     }
 
@@ -367,7 +367,8 @@ class PaymentLifecycleIntegrationTest extends AbstractControllerIntegrationTest 
         assertThat(checkout()).isEqualTo(200);
         when(stripePaymentProvider.expireUnpaidSession(latest().getSessionId())).thenReturn(false);
         assertThat(cancel()).isEqualTo(409);
-        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.PENDING);
+        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.CONFIRMED);
+        assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PAID);
     }
 
     @Test

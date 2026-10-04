@@ -1,0 +1,27 @@
+databaseChangeLog:
+  - changeSet:
+      id: 018-payment-reconciliation
+      author: admin
+      changes:
+        - sql:
+            sql: DROP INDEX uk_payments_pending_booking;
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uk_payments_pending_booking ON payments (booking_id)
+              WHERE status IN ('PENDING', 'RECONCILIATION_REQUIRED');
+        - sql:
+            sql: >
+              CREATE INDEX idx_payments_reconciliation ON payments (id, created_at)
+              WHERE status = 'PENDING';
+      rollback:
+        - sql:
+            sql: >
+              UPDATE payments SET status = 'PENDING' WHERE status = 'RECONCILIATION_REQUIRED';
+        - sql:
+            sql: DROP INDEX idx_payments_reconciliation;
+        - sql:
+            sql: DROP INDEX uk_payments_pending_booking;
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uk_payments_pending_booking ON payments (booking_id)
+              WHERE status = 'PENDING';

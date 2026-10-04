@@ -12,11 +12,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.MDC;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(name = "app.outbox.publisher.enabled",
+        havingValue = "true", matchIfMissing = true)
 public class OutboxKafkaPublisher {
 
     public static final String EVENT_ID_HEADER = "eventId";

@@ -19,11 +19,12 @@ if [[ "$*" == *'ps -q booking-app'* ]]; then
     if [[ "$SCENARIO" != first ]]; then echo existing-container; fi
 fi
 if [[ "$*" == *'pull booking-app'* && "$SCENARIO" == pull ]]; then exit 1; fi
-if [[ "$*" == *'up -d'* && "$SCENARIO" != success && "${STAYHUB_IMAGE:-}" != "$OLD_IMAGE" ]]; then exit 1; fi
+if [[ "$*" == *'run --rm --no-deps booking-migrate'* && "$SCENARIO" == migration ]]; then exit 1; fi
+if [[ "$*" == *'up -d'*' booking-app'* && "$SCENARIO" != success && "${STAYHUB_IMAGE:-}" != "$OLD_IMAGE" ]]; then exit 1; fi
 STUB
 chmod +x "$workspace/bin/docker"
 
-for scenario in success unhealthy first pull; do
+for scenario in success unhealthy first pull migration; do
     export SCENARIO="$scenario"
     : > "$TEST_LOG"
     rm -f -- "$workspace/state/current-image"
@@ -38,6 +39,7 @@ for scenario in success unhealthy first pull; do
         unhealthy) grep -q "$OLD_IMAGE.*up -d.*--no-deps" "$TEST_LOG" ;;
         first) grep -q 'stop booking-app' "$TEST_LOG" ;;
         pull) ! grep -q 'up -d' "$TEST_LOG" ;;
+        migration) ! grep -q 'up -d.* booking-app' "$TEST_LOG" ;;
     esac
     echo "PASS: $scenario"
 done
