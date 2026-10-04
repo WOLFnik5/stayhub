@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 017-booking-user-pagination-index
+      author: bookingapp
+      changes:
+        - sql:
+            sql: >-
+              CREATE INDEX idx_bookings_user_checkin_id
+              ON bookings (user_id, check_in_date ASC, id DESC)
+      rollback:
+        - sql:
+            sql: DROP INDEX idx_bookings_user_checkin_id

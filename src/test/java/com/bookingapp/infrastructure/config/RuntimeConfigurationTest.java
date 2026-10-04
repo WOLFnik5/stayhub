@@ -66,6 +66,18 @@ class RuntimeConfigurationTest {
                 .run(context -> assertThat(context).hasNotFailed());
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "app.stripe.connect-timeout-ms=0",
+        "app.stripe.read-timeout-ms=-1",
+        "app.telegram.connect-timeout-ms=0",
+        "app.telegram.read-timeout-ms=60001"
+    })
+    void invalidTimeoutsFailStartupValidation(String property) throws IOException {
+        propertiesRunner().withPropertyValues(validProperties()).withPropertyValues(property)
+                .run(context -> assertThat(context).hasFailed());
+    }
+
     private ApplicationContextRunner propertiesRunner() throws IOException {
         var sources = new YamlPropertySourceLoader().load(
                 "application", new ClassPathResource("application.yml"));

@@ -1,5 +1,7 @@
 package com.bookingapp.infrastructure.config;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
@@ -24,5 +26,13 @@ public class TelegramProperties {
     private String chatId;
 
     private String baseUrl = "https://api.telegram.org";
+
+    @Min(1)
+    @Max(60000)
+    private int connectTimeoutMs = 3000;
+
+    @Min(1)
+    @Max(60000)
+    private int readTimeoutMs = 10000;
 
 }

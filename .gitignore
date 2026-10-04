@@ -2,6 +2,7 @@ target/
 .idea/
 *.iml
 .env
+.interview-notes.md
 logs/
 *.log
 

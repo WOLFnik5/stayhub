@@ -1,0 +1,10 @@
+.git
+.env
+.env.*
+target
+target-*
+docs
+.idea
+.codex
+.agents
+ops/monitoring/secrets

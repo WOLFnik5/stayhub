@@ -11,6 +11,12 @@ public class StripeConfiguration {
 
     @Bean
     public StripeClient stripeClient(StripeProperties stripeProperties) {
-        return new StripeClient(stripeProperties.getSecretKey());
+        return StripeClient.builder()
+                .setApiKey(stripeProperties.getSecretKey())
+                .setConnectTimeout(stripeProperties.getConnectTimeoutMs())
+                .setReadTimeout(stripeProperties.getReadTimeoutMs())
+                // Durable payment attempts own retries; avoid multiplying HTTP latency here.
+                .setMaxNetworkRetries(0)
+                .build();
     }
 }

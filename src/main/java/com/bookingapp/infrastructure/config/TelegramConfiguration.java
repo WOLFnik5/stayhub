@@ -3,6 +3,7 @@ package com.bookingapp.infrastructure.config;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 @Configuration
@@ -11,9 +12,13 @@ public class TelegramConfiguration {
 
     @Bean
     public RestClient telegramRestClient(TelegramProperties telegramProperties) {
+        var requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(telegramProperties.getConnectTimeoutMs());
+        requestFactory.setReadTimeout(telegramProperties.getReadTimeoutMs());
         // TelegramBotClient owns the CLIENT span, omitting the secret-bearing URL and raw errors.
         return RestClient.builder()
                 .baseUrl(telegramProperties.getBaseUrl())
+                .requestFactory(requestFactory)
                 .build();
     }
 }

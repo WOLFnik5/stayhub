@@ -9,7 +9,6 @@ import com.bookingapp.domain.model.Accommodation;
 import com.bookingapp.domain.model.enums.AccommodationType;
 import com.bookingapp.infrastructure.kafka.OutboxKafkaEventPublisher;
 import com.bookingapp.infrastructure.outbox.OutboxKafkaPublisher;
-import com.bookingapp.persistence.outbox.OutboxEventJpaRepository;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;

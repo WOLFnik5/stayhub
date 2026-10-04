@@ -31,3 +31,5 @@ databaseChangeLog:
       file: db/changelog/changes/015-fix-capacity-overlap-calculation.yaml
   - include:
       file: db/changelog/changes/016-normalize-user-emails.yaml
+  - include:
+      file: db/changelog/changes/017-booking-user-pagination-index.yaml

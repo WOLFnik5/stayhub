@@ -547,6 +547,44 @@ Kafka / eventing notes:
 
 ## Testing and Coverage
 
+HTTP clients have explicit connect/read timeouts (milliseconds, range 1–60000):
+`STRIPE_CONNECT_TIMEOUT_MS` and `TELEGRAM_CONNECT_TIMEOUT_MS` default to 3000;
+`STRIPE_READ_TIMEOUT_MS` and `TELEGRAM_READ_TIMEOUT_MS` default to 10000.
+These are connection/read inactivity limits, not a total request deadline.
+Stripe SDK network retries are disabled; durable payment attempts own retries,
+and Telegram failures propagate to the Kafka retry/DLT handler.
+`HttpTimeoutTest` exercises stalled headers and stalled response bodies on a local server.
+
+Run the opt-in read benchmark and PostgreSQL index experiment:
+
+```bash
+mvn -Dtest=ReadPerformanceTest -Dstayhub.performance=true test
+```
+
+It requires Docker and seeds only a disposable Testcontainers database.
+The default run measures 5/20/50 concurrent clients for 15 seconds each, before
+and after a candidate booking index. Each stage has a separate 3-second warm-up.
+Override the measurement duration with `-Dstayhub.performance.seconds=60`.
+The JSON report at `target/performance/read-performance.json` contains per-endpoint
+throughput, error rate, p50/p95/p99, and five `EXPLAIN (ANALYZE, BUFFERS)` plans per query.
+See [performance methodology and results](docs/performance/README.md) for scope and limits.
+
+Run the opt-in mixed read/write stress test:
+
+```bash
+mvn -Dtest=BookingStressTest -Dstayhub.stress=true test
+```
+
+It uses increasing open-loop arrival rates, a separate race of 100 requests against
+capacity 5, sampled Hikari queue metrics, and database/Outbox integrity checks after
+drain. See [stress methodology](docs/performance/STRESS.md) for configuration,
+stop conditions, actual versus offered load, and the limits of a local generator.
+
+For repeated Hikari pool 10/20 comparisons, run
+`./ops/performance/Compare-Hikari.ps1` with JDK 21 and Docker.
+See [connection budget measurements](docs/performance/HIKARI.md) for raw evidence
+and why the measured variation did not justify changing the standard pool size.
+
 Run the full verification pipeline:
 
 ```bash
@@ -565,6 +603,23 @@ Coverage:
 - the HTML report is produced under `target/site/jacoco/index.html`
 - the build fails when overall line coverage for project code drops below 60%
 - the Spring Boot bootstrap class `BookingAppApplication` is excluded from the JaCoCo gate because it contains only framework startup boilerplate
+
+## Container Delivery
+
+After verification, default-branch CI publishes a commit-tagged image to GHCR.
+Optional CD deploys its immutable digest to a dedicated Linux runner, checks
+application health and restores the previous image on failure.
+See [registry and CD setup](docs/deployment/README.md). CD is disabled until
+the server runner and GitHub variables are configured.
+
+## Local Monitoring
+
+Run `./ops/monitoring/Initialize-Secrets.ps1`, then
+`docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up --build -d`.
+The optional stack includes protected Prometheus scraping, a provisioned Grafana
+dashboard, and eight local alert rules with Alertmanager.
+See [monitoring setup and verification](docs/monitoring/README.md) for credentials,
+ports, thresholds and commands.
 
 ## Non-Functional Assumptions and Lightweight Verification
 

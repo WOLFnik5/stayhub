@@ -71,6 +71,15 @@ class LiquibaseMigrationIntegrationTest extends PostgreSqlLiquibaseIntegrationTe
     }
 
     @Test
+    void shouldIndexUserBookingPaginationWithMatchingOrder() {
+        String definition = jdbcTemplate.queryForObject("""
+                SELECT indexdef FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = 'idx_bookings_user_checkin_id'
+                """, String.class);
+        assertThat(definition).contains("(user_id, check_in_date, id DESC)");
+    }
+
+    @Test
     void shouldCreateUsersAndPaymentsTables() {
         Integer usersTableCount = jdbcTemplate.queryForObject(
                 """

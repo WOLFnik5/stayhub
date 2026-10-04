@@ -1,0 +1,919 @@
+{
+  "order": [
+    "hikari-10-a",
+    "hikari-20-a",
+    "hikari-20-b",
+    "hikari-10-b"
+  ],
+  "methodology": "Sequential ABBA; fresh JVM and disposable database per trial; same fixture, warm-up and offered rates",
+  "reports": [
+    {
+      "startedAt": "2026-10-02T22:16:23.354061200Z",
+      "java": "21.0.8",
+      "os": "Windows 11",
+      "processors": 16,
+      "postgresVersion": "PostgreSQL 17.9 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+      "hikariMaximumPoolSize": 10,
+      "hikariMinimumIdle": 10,
+      "hikariConnectionTimeoutMs": 30000,
+      "warmupSeconds": 10,
+      "warmupRate": 600,
+      "maxInFlight": 256,
+      "stageSeconds": 15,
+      "arrivalScheduler": "Spin wait for final 25ms to avoid coarse sleep timers; consumes a client CPU core",
+      "rates": [
+        1200,
+        1800,
+        2400
+      ],
+      "fixture": {
+        "users": 200,
+        "canceledBookings": 100000,
+        "accommodations": 5000
+      },
+      "workload": "Open-loop: 40% accommodations, 40% own bookings, 20% create booking; real Outbox persistence, mocked Kafka delivery",
+      "stages": [
+        {
+          "targetRequestsPerSecond": 1200,
+          "offered": 18000,
+          "submitted": 17918,
+          "generatorMissed": 82,
+          "generatorMissRate": 0.004555555555555556,
+          "loadGeneratorLimited": false,
+          "submittedRequestsPerSecondDuringArrivalWindow": 1194.5333333333333,
+          "clientInFlightLimitDrops": 0,
+          "elapsedIncludingDrainSeconds": 15.0152048,
+          "successfulRequestsPerSecondIncludingDrain": 1193.3237167700836,
+          "httpErrorRate": 0.0,
+          "peakHikariActive": 10,
+          "peakHikariPending": 190,
+          "meanSampledHikariPending": 52.98671096345515,
+          "hikariAcquisitions": 35837,
+          "meanHikariAcquireMs": 22.226654962747997,
+          "meanHikariConnectionUseMs": 3.021486173507827,
+          "operations": [
+            {
+              "p95ServiceMs": 164.6405,
+              "statuses": {
+                "200": 7169
+              },
+              "p99ArrivalMs": 229.15041,
+              "failures": {},
+              "operation": "accommodations",
+              "p50ArrivalMs": 21.004945,
+              "requests": 7169,
+              "p95ArrivalMs": 164.77966
+            },
+            {
+              "p95ServiceMs": 164.2458,
+              "statuses": {
+                "200": 7165
+              },
+              "p99ArrivalMs": 235.309269,
+              "failures": {},
+              "operation": "history",
+              "p50ArrivalMs": 19.204149,
+              "requests": 7165,
+              "p95ArrivalMs": 164.516866
+            },
+            {
+              "p95ServiceMs": 171.3781,
+              "statuses": {
+                "200": 3584
+              },
+              "p99ArrivalMs": 240.569418,
+              "failures": {},
+              "operation": "create",
+              "p50ArrivalMs": 25.761998,
+              "requests": 3584,
+              "p95ArrivalMs": 171.413573
+            }
+          ],
+          "thresholdReasons": [],
+          "thresholdBreached": false
+        },
+        {
+          "targetRequestsPerSecond": 1800,
+          "offered": 27000,
+          "submitted": 25907,
+          "generatorMissed": 136,
+          "generatorMissRate": 0.005037037037037037,
+          "loadGeneratorLimited": false,
+          "submittedRequestsPerSecondDuringArrivalWindow": 1727.1333333333334,
+          "clientInFlightLimitDrops": 957,
+          "elapsedIncludingDrainSeconds": 15.0821007,
+          "successfulRequestsPerSecondIncludingDrain": 1717.7315358993724,
+          "httpErrorRate": 0.0,
+          "peakHikariActive": 10,
+          "peakHikariPending": 190,
+          "meanSampledHikariPending": 183.77152317880794,
+          "hikariAcquisitions": 51814,
+          "meanHikariAcquireMs": 53.541355365345275,
+          "meanHikariConnectionUseMs": 2.387501447485236,
+          "operations": [
+            {
+              "p95ServiceMs": 191.8101,
+              "statuses": {
+                "200": 10364
+              },
+              "p99ArrivalMs": 239.701625,
+              "failures": {},
+              "operation": "accommodations",
+              "p50ArrivalMs": 128.423175,
+              "requests": 10364,
+              "p95ArrivalMs": 191.839545
+            },
+            {
+              "p95ServiceMs": 189.9711,
+              "statuses": {
+                "200": 10362
+              },
+              "p99ArrivalMs": 242.53499,
+              "failures": {},
+              "operation": "history",
+              "p50ArrivalMs": 127.407485,
+              "requests": 10362,
+              "p95ArrivalMs": 190.01786
+            },
+            {
+              "p95ServiceMs": 198.8649,
+              "statuses": {
+                "200": 5181
+              },
+              "p99ArrivalMs": 248.402105,
+              "failures": {},
+              "operation": "create",
+              "p50ArrivalMs": 131.39853,
+              "requests": 5181,
+              "p95ArrivalMs": 198.884455
+            }
+          ],
+          "thresholdReasons": [
+            "client in-flight cap drops exceed 1%"
+          ],
+          "thresholdBreached": true
+        }
+      ],
+      "capacityRace": {
+        "statusCounts": {
+          "200": 5,
+          "409": 95
+        },
+        "committed": 5,
+        "requests": 100,
+        "capacity": 5
+      },
+      "warmup": {
+        "targetRequestsPerSecond": 600,
+        "offered": 6000,
+        "submitted": 5988,
+        "generatorMissed": 12,
+        "generatorMissRate": 0.002,
+        "loadGeneratorLimited": false,
+        "submittedRequestsPerSecondDuringArrivalWindow": 598.8,
+        "clientInFlightLimitDrops": 0,
+        "elapsedIncludingDrainSeconds": 10.0083437,
+        "successfulRequestsPerSecondIncludingDrain": 598.3007957650376,
+        "httpErrorRate": 0.0,
+        "peakHikariActive": 10,
+        "peakHikariPending": 189,
+        "meanSampledHikariPending": 14.059701492537313,
+        "hikariAcquisitions": 11976,
+        "meanHikariAcquireMs": 11.72396439545758,
+        "meanHikariConnectionUseMs": 3.460671342685371,
+        "operations": [
+          {
+            "p95ServiceMs": 217.5124,
+            "statuses": {
+              "200": 2394
+            },
+            "p99ArrivalMs": 365.83755,
+            "failures": {},
+            "operation": "accommodations",
+            "p50ArrivalMs": 8.36899,
+            "requests": 2394,
+            "p95ArrivalMs": 218.38606
+          },
+          {
+            "p95ServiceMs": 222.3801,
+            "statuses": {
+              "200": 2396
+            },
+            "p99ArrivalMs": 376.472438,
+            "failures": {},
+            "operation": "history",
+            "p50ArrivalMs": 6.751682,
+            "requests": 2396,
+            "p95ArrivalMs": 222.522048
+          },
+          {
+            "p95ServiceMs": 237.8223,
+            "statuses": {
+              "200": 1198
+            },
+            "p99ArrivalMs": 444.749596,
+            "failures": {},
+            "operation": "create",
+            "p50ArrivalMs": 12.158876,
+            "requests": 1198,
+            "p95ArrivalMs": 237.891336
+          }
+        ],
+        "thresholdReasons": [],
+        "thresholdBreached": false
+      },
+      "stoppedAtRate": 1800,
+      "recoveryHealthStatus": 200,
+      "integrity": {
+        "committedMixedBookings": 9963,
+        "submittedWrites": 9963,
+        "duplicateEvents": 0,
+        "overCapacityDates": 0,
+        "successfulWriteResponses": 9963,
+        "createdEventsIncludingCapacityRace": 9968
+      },
+      "finishedAt": "2026-10-02T22:17:05.271467800Z"
+    },
+    {
+      "startedAt": "2026-10-02T22:17:34.060907400Z",
+      "java": "21.0.8",
+      "os": "Windows 11",
+      "processors": 16,
+      "postgresVersion": "PostgreSQL 17.9 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+      "hikariMaximumPoolSize": 20,
+      "hikariMinimumIdle": 20,
+      "hikariConnectionTimeoutMs": 30000,
+      "warmupSeconds": 10,
+      "warmupRate": 600,
+      "maxInFlight": 256,
+      "stageSeconds": 15,
+      "arrivalScheduler": "Spin wait for final 25ms to avoid coarse sleep timers; consumes a client CPU core",
+      "rates": [
+        1200,
+        1800,
+        2400
+      ],
+      "fixture": {
+        "users": 200,
+        "accommodations": 5000,
+        "canceledBookings": 100000
+      },
+      "workload": "Open-loop: 40% accommodations, 40% own bookings, 20% create booking; real Outbox persistence, mocked Kafka delivery",
+      "stages": [
+        {
+          "targetRequestsPerSecond": 1200,
+          "offered": 18000,
+          "submitted": 15628,
+          "generatorMissed": 296,
+          "generatorMissRate": 0.016444444444444446,
+          "loadGeneratorLimited": true,
+          "submittedRequestsPerSecondDuringArrivalWindow": 1041.8666666666666,
+          "clientInFlightLimitDrops": 2076,
+          "elapsedIncludingDrainSeconds": 15.1855646,
+          "successfulRequestsPerSecondIncludingDrain": 1029.1352617867103,
+          "httpErrorRate": 0.0,
+          "peakHikariActive": 20,
+          "peakHikariPending": 180,
+          "meanSampledHikariPending": 88.21710526315789,
+          "hikariAcquisitions": 31257,
+          "meanHikariAcquireMs": 42.91317959497073,
+          "meanHikariConnectionUseMs": 7.812777937741946,
+          "operations": [
+            {
+              "failures": {},
+              "p99ArrivalMs": 992.248447,
+              "statuses": {
+                "200": 6257
+              },
+              "p95ServiceMs": 421.3912,
+              "p95ArrivalMs": 421.671275,
+              "requests": 6257,
+              "p50ArrivalMs": 49.54892,
+              "operation": "accommodations"
+            },
+            {
+              "failures": {},
+              "p99ArrivalMs": 968.756914,
+              "statuses": {
+                "200": 6251
+              },
+              "p95ServiceMs": 419.5864,
+              "p95ArrivalMs": 419.614234,
+              "requests": 6251,
+              "p50ArrivalMs": 46.783526,
+              "operation": "history"
+            },
+            {
+              "failures": {},
+              "p99ArrivalMs": 1005.835098,
+              "statuses": {
+                "200": 3120
+              },
+              "p95ServiceMs": 448.8668,
+              "p95ArrivalMs": 449.048988,
+              "requests": 3120,
+              "p50ArrivalMs": 62.120988,
+              "operation": "create"
+            }
+          ],
+          "thresholdReasons": [
+            "client in-flight cap drops exceed 1%"
+          ],
+          "thresholdBreached": true
+        }
+      ],
+      "capacityRace": {
+        "committed": 5,
+        "statusCounts": {
+          "200": 5,
+          "409": 95
+        },
+        "capacity": 5,
+        "requests": 100
+      },
+      "warmup": {
+        "targetRequestsPerSecond": 600,
+        "offered": 6000,
+        "submitted": 5987,
+        "generatorMissed": 13,
+        "generatorMissRate": 0.0021666666666666666,
+        "loadGeneratorLimited": false,
+        "submittedRequestsPerSecondDuringArrivalWindow": 598.7,
+        "clientInFlightLimitDrops": 0,
+        "elapsedIncludingDrainSeconds": 10.0068447,
+        "successfulRequestsPerSecondIncludingDrain": 598.2904881096036,
+        "httpErrorRate": 0.0,
+        "peakHikariActive": 20,
+        "peakHikariPending": 78,
+        "meanSampledHikariPending": 2.7611940298507465,
+        "hikariAcquisitions": 11974,
+        "meanHikariAcquireMs": 2.3789383998663776,
+        "meanHikariConnectionUseMs": 3.7546350425922834,
+        "operations": [
+          {
+            "failures": {},
+            "p99ArrivalMs": 207.881994,
+            "statuses": {
+              "200": 2392
+            },
+            "p95ServiceMs": 71.2121,
+            "p95ArrivalMs": 71.607724,
+            "requests": 2392,
+            "p50ArrivalMs": 8.49781,
+            "operation": "accommodations"
+          },
+          {
+            "failures": {},
+            "p99ArrivalMs": 183.375082,
+            "statuses": {
+              "200": 2397
+            },
+            "p95ServiceMs": 66.8327,
+            "p95ArrivalMs": 67.558288,
+            "requests": 2397,
+            "p50ArrivalMs": 6.833578,
+            "operation": "history"
+          },
+          {
+            "failures": {},
+            "p99ArrivalMs": 192.260366,
+            "statuses": {
+              "200": 1198
+            },
+            "p95ServiceMs": 51.319,
+            "p95ArrivalMs": 62.183696,
+            "requests": 1198,
+            "p50ArrivalMs": 12.266626,
+            "operation": "create"
+          }
+        ],
+        "thresholdReasons": [],
+        "thresholdBreached": false
+      },
+      "stoppedAtRate": 1200,
+      "recoveryHealthStatus": 200,
+      "integrity": {
+        "overCapacityDates": 0,
+        "duplicateEvents": 0,
+        "submittedWrites": 4318,
+        "committedMixedBookings": 4318,
+        "createdEventsIncludingCapacityRace": 4323,
+        "successfulWriteResponses": 4318
+      },
+      "finishedAt": "2026-10-02T22:18:01.115547100Z"
+    },
+    {
+      "startedAt": "2026-10-02T22:18:28.583592700Z",
+      "java": "21.0.8",
+      "os": "Windows 11",
+      "processors": 16,
+      "postgresVersion": "PostgreSQL 17.9 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+      "hikariMaximumPoolSize": 20,
+      "hikariMinimumIdle": 20,
+      "hikariConnectionTimeoutMs": 30000,
+      "warmupSeconds": 10,
+      "warmupRate": 600,
+      "maxInFlight": 256,
+      "stageSeconds": 15,
+      "arrivalScheduler": "Spin wait for final 25ms to avoid coarse sleep timers; consumes a client CPU core",
+      "rates": [
+        1200,
+        1800,
+        2400
+      ],
+      "fixture": {
+        "users": 200,
+        "canceledBookings": 100000,
+        "accommodations": 5000
+      },
+      "workload": "Open-loop: 40% accommodations, 40% own bookings, 20% create booking; real Outbox persistence, mocked Kafka delivery",
+      "stages": [
+        {
+          "targetRequestsPerSecond": 1200,
+          "offered": 18000,
+          "submitted": 17950,
+          "generatorMissed": 50,
+          "generatorMissRate": 0.002777777777777778,
+          "loadGeneratorLimited": false,
+          "submittedRequestsPerSecondDuringArrivalWindow": 1196.6666666666667,
+          "clientInFlightLimitDrops": 0,
+          "elapsedIncludingDrainSeconds": 15.0081267,
+          "successfulRequestsPerSecondIncludingDrain": 1196.018687662065,
+          "httpErrorRate": 0.0,
+          "peakHikariActive": 20,
+          "peakHikariPending": 102,
+          "meanSampledHikariPending": 2.8172757475083055,
+          "hikariAcquisitions": 35901,
+          "meanHikariAcquireMs": 1.1653139717556613,
+          "meanHikariConnectionUseMs": 3.2167627642684047,
+          "operations": [
+            {
+              "statuses": {
+                "200": 7181
+              },
+              "p99ArrivalMs": 89.890977,
+              "failures": {},
+              "operation": "accommodations",
+              "p50ArrivalMs": 6.489542,
+              "requests": 7181,
+              "p95ArrivalMs": 26.769687,
+              "p95ServiceMs": 26.553
+            },
+            {
+              "statuses": {
+                "200": 7178
+              },
+              "p99ArrivalMs": 84.723984,
+              "failures": {},
+              "operation": "history",
+              "p50ArrivalMs": 5.419726,
+              "requests": 7178,
+              "p95ArrivalMs": 24.423829,
+              "p95ServiceMs": 24.2709
+            },
+            {
+              "statuses": {
+                "200": 3591
+              },
+              "p99ArrivalMs": 105.763443,
+              "failures": {},
+              "operation": "create",
+              "p50ArrivalMs": 9.480453,
+              "requests": 3591,
+              "p95ArrivalMs": 38.158953,
+              "p95ServiceMs": 37.7408
+            }
+          ],
+          "thresholdReasons": [],
+          "thresholdBreached": false
+        },
+        {
+          "targetRequestsPerSecond": 1800,
+          "offered": 27000,
+          "submitted": 26655,
+          "generatorMissed": 92,
+          "generatorMissRate": 0.0034074074074074076,
+          "loadGeneratorLimited": false,
+          "submittedRequestsPerSecondDuringArrivalWindow": 1777.0,
+          "clientInFlightLimitDrops": 253,
+          "elapsedIncludingDrainSeconds": 15.0077562,
+          "successfulRequestsPerSecondIncludingDrain": 1776.08162371401,
+          "httpErrorRate": 0.0,
+          "peakHikariActive": 20,
+          "peakHikariPending": 180,
+          "meanSampledHikariPending": 33.90033222591362,
+          "hikariAcquisitions": 53310,
+          "meanHikariAcquireMs": 9.493467807165636,
+          "meanHikariConnectionUseMs": 3.6306321515663105,
+          "operations": [
+            {
+              "statuses": {
+                "200": 10668
+              },
+              "p99ArrivalMs": 222.097525,
+              "failures": {},
+              "operation": "accommodations",
+              "p50ArrivalMs": 8.090245,
+              "requests": 10668,
+              "p95ArrivalMs": 143.868895,
+              "p95ServiceMs": 143.846
+            },
+            {
+              "statuses": {
+                "200": 10649
+              },
+              "p99ArrivalMs": 224.083485,
+              "failures": {},
+              "operation": "history",
+              "p50ArrivalMs": 6.904365,
+              "requests": 10649,
+              "p95ArrivalMs": 141.84489,
+              "p95ServiceMs": 141.7579
+            },
+            {
+              "statuses": {
+                "200": 5338
+              },
+              "p99ArrivalMs": 234.04748,
+              "failures": {},
+              "operation": "create",
+              "p50ArrivalMs": 12.07268,
+              "requests": 5338,
+              "p95ArrivalMs": 157.46523,
+              "p95ServiceMs": 157.4322
+            }
+          ],
+          "thresholdReasons": [],
+          "thresholdBreached": false
+        },
+        {
+          "targetRequestsPerSecond": 2400,
+          "offered": 36000,
+          "submitted": 28077,
+          "generatorMissed": 1579,
+          "generatorMissRate": 0.04386111111111111,
+          "loadGeneratorLimited": true,
+          "submittedRequestsPerSecondDuringArrivalWindow": 1871.8,
+          "clientInFlightLimitDrops": 6344,
+          "elapsedIncludingDrainSeconds": 15.4554613,
+          "successfulRequestsPerSecondIncludingDrain": 1816.6394037038544,
+          "httpErrorRate": 0.0,
+          "peakHikariActive": 20,
+          "peakHikariPending": 181,
+          "meanSampledHikariPending": 175.90967741935484,
+          "hikariAcquisitions": 56155,
+          "meanHikariAcquireMs": 48.559341282165434,
+          "meanHikariConnectionUseMs": 4.952043451161963,
+          "operations": [
+            {
+              "statuses": {
+                "200": 11216
+              },
+              "p99ArrivalMs": 785.488314,
+              "failures": {},
+              "operation": "accommodations",
+              "p50ArrivalMs": 111.754334,
+              "requests": 11216,
+              "p95ArrivalMs": 236.693694,
+              "p95ServiceMs": 236.5405
+            },
+            {
+              "statuses": {
+                "200": 11256
+              },
+              "p99ArrivalMs": 699.987452,
+              "failures": {},
+              "operation": "history",
+              "p50ArrivalMs": 110.065168,
+              "requests": 11256,
+              "p95ArrivalMs": 235.400532,
+              "p95ServiceMs": 235.3835
+            },
+            {
+              "statuses": {
+                "200": 5605
+              },
+              "p99ArrivalMs": 805.515116,
+              "failures": {},
+              "operation": "create",
+              "p50ArrivalMs": 119.176436,
+              "requests": 5605,
+              "p95ArrivalMs": 251.232996,
+              "p95ServiceMs": 251.2138
+            }
+          ],
+          "thresholdReasons": [
+            "client in-flight cap drops exceed 1%"
+          ],
+          "thresholdBreached": true
+        }
+      ],
+      "capacityRace": {
+        "statusCounts": {
+          "200": 5,
+          "409": 95
+        },
+        "committed": 5,
+        "requests": 100,
+        "capacity": 5
+      },
+      "warmup": {
+        "targetRequestsPerSecond": 600,
+        "offered": 6000,
+        "submitted": 5982,
+        "generatorMissed": 18,
+        "generatorMissRate": 0.003,
+        "loadGeneratorLimited": false,
+        "submittedRequestsPerSecondDuringArrivalWindow": 598.2,
+        "clientInFlightLimitDrops": 0,
+        "elapsedIncludingDrainSeconds": 10.0288896,
+        "successfulRequestsPerSecondIncludingDrain": 596.476802377005,
+        "httpErrorRate": 0.0,
+        "peakHikariActive": 20,
+        "peakHikariPending": 44,
+        "meanSampledHikariPending": 0.736318407960199,
+        "hikariAcquisitions": 11964,
+        "meanHikariAcquireMs": 0.613226629889669,
+        "meanHikariConnectionUseMs": 3.363674356402541,
+        "operations": [
+          {
+            "statuses": {
+              "200": 2394
+            },
+            "p99ArrivalMs": 108.73983,
+            "failures": {},
+            "operation": "accommodations",
+            "p50ArrivalMs": 8.16849,
+            "requests": 2394,
+            "p95ArrivalMs": 19.718634,
+            "p95ServiceMs": 19.0835
+          },
+          {
+            "statuses": {
+              "200": 2393
+            },
+            "p99ArrivalMs": 92.169088,
+            "failures": {},
+            "operation": "history",
+            "p50ArrivalMs": 6.634728,
+            "requests": 2393,
+            "p95ArrivalMs": 16.332888,
+            "p95ServiceMs": 15.5274
+          },
+          {
+            "statuses": {
+              "200": 1195
+            },
+            "p99ArrivalMs": 94.129326,
+            "failures": {},
+            "operation": "create",
+            "p50ArrivalMs": 11.987466,
+            "requests": 1195,
+            "p95ArrivalMs": 27.342526,
+            "p95ServiceMs": 26.2279
+          }
+        ],
+        "thresholdReasons": [],
+        "thresholdBreached": false
+      },
+      "stoppedAtRate": 2400,
+      "recoveryHealthStatus": 200,
+      "integrity": {
+        "submittedWrites": 15729,
+        "duplicateEvents": 0,
+        "overCapacityDates": 0,
+        "successfulWriteResponses": 15729,
+        "createdEventsIncludingCapacityRace": 15734,
+        "committedMixedBookings": 15729
+      },
+      "finishedAt": "2026-10-02T22:19:26.011437300Z"
+    },
+    {
+      "startedAt": "2026-10-02T22:19:54.085881600Z",
+      "java": "21.0.8",
+      "os": "Windows 11",
+      "processors": 16,
+      "postgresVersion": "PostgreSQL 17.9 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+      "hikariMaximumPoolSize": 10,
+      "hikariMinimumIdle": 10,
+      "hikariConnectionTimeoutMs": 30000,
+      "warmupSeconds": 10,
+      "warmupRate": 600,
+      "maxInFlight": 256,
+      "stageSeconds": 15,
+      "arrivalScheduler": "Spin wait for final 25ms to avoid coarse sleep timers; consumes a client CPU core",
+      "rates": [
+        1200,
+        1800,
+        2400
+      ],
+      "fixture": {
+        "canceledBookings": 100000,
+        "users": 200,
+        "accommodations": 5000
+      },
+      "workload": "Open-loop: 40% accommodations, 40% own bookings, 20% create booking; real Outbox persistence, mocked Kafka delivery",
+      "stages": [
+        {
+          "targetRequestsPerSecond": 1200,
+          "offered": 18000,
+          "submitted": 17964,
+          "generatorMissed": 36,
+          "generatorMissRate": 0.002,
+          "loadGeneratorLimited": false,
+          "submittedRequestsPerSecondDuringArrivalWindow": 1197.6,
+          "clientInFlightLimitDrops": 0,
+          "elapsedIncludingDrainSeconds": 15.0057192,
+          "successfulRequestsPerSecondIncludingDrain": 1197.1435531060717,
+          "httpErrorRate": 0.0,
+          "peakHikariActive": 10,
+          "peakHikariPending": 67,
+          "meanSampledHikariPending": 2.533333333333333,
+          "hikariAcquisitions": 35929,
+          "meanHikariAcquireMs": 1.06710452559214,
+          "meanHikariConnectionUseMs": 2.300425839850817,
+          "operations": [
+            {
+              "p50ArrivalMs": 5.569482,
+              "operation": "accommodations",
+              "failures": {},
+              "p99ArrivalMs": 50.184475,
+              "statuses": {
+                "200": 7187
+              },
+              "p95ServiceMs": 26.55,
+              "p95ArrivalMs": 26.61846,
+              "requests": 7187
+            },
+            {
+              "p50ArrivalMs": 4.661264,
+              "operation": "history",
+              "failures": {},
+              "p99ArrivalMs": 47.838874,
+              "statuses": {
+                "200": 7186
+              },
+              "p95ServiceMs": 24.7294,
+              "p95ArrivalMs": 24.867181,
+              "requests": 7186
+            },
+            {
+              "p50ArrivalMs": 8.266378,
+              "operation": "create",
+              "failures": {},
+              "p99ArrivalMs": 56.558433,
+              "statuses": {
+                "200": 3591
+              },
+              "p95ServiceMs": 30.7641,
+              "p95ArrivalMs": 30.903898,
+              "requests": 3591
+            }
+          ],
+          "thresholdReasons": [],
+          "thresholdBreached": false
+        },
+        {
+          "targetRequestsPerSecond": 1800,
+          "offered": 27000,
+          "submitted": 26400,
+          "generatorMissed": 108,
+          "generatorMissRate": 0.004,
+          "loadGeneratorLimited": false,
+          "submittedRequestsPerSecondDuringArrivalWindow": 1760.0,
+          "clientInFlightLimitDrops": 492,
+          "elapsedIncludingDrainSeconds": 15.1115418,
+          "successfulRequestsPerSecondIncludingDrain": 1747.0090312028917,
+          "httpErrorRate": 0.0,
+          "peakHikariActive": 10,
+          "peakHikariPending": 190,
+          "meanSampledHikariPending": 151.74834437086093,
+          "hikariAcquisitions": 52800,
+          "meanHikariAcquireMs": 43.37841637689394,
+          "meanHikariConnectionUseMs": 2.3405681818181816,
+          "operations": [
+            {
+              "p50ArrivalMs": 109.50835,
+              "operation": "accommodations",
+              "failures": {},
+              "p99ArrivalMs": 228.8041,
+              "statuses": {
+                "200": 10570
+              },
+              "p95ServiceMs": 177.6766,
+              "p95ArrivalMs": 177.692825,
+              "requests": 10570
+            },
+            {
+              "p50ArrivalMs": 108.20004,
+              "operation": "history",
+              "failures": {},
+              "p99ArrivalMs": 227.32351,
+              "statuses": {
+                "200": 10549
+              },
+              "p95ServiceMs": 175.192,
+              "p95ArrivalMs": 175.249665,
+              "requests": 10549
+            },
+            {
+              "p50ArrivalMs": 112.04233,
+              "operation": "create",
+              "failures": {},
+              "p99ArrivalMs": 230.58923,
+              "statuses": {
+                "200": 5281
+              },
+              "p95ServiceMs": 179.8932,
+              "p95ArrivalMs": 179.915855,
+              "requests": 5281
+            }
+          ],
+          "thresholdReasons": [
+            "client in-flight cap drops exceed 1%"
+          ],
+          "thresholdBreached": true
+        }
+      ],
+      "capacityRace": {
+        "requests": 100,
+        "committed": 5,
+        "statusCounts": {
+          "200": 5,
+          "409": 95
+        },
+        "capacity": 5
+      },
+      "warmup": {
+        "targetRequestsPerSecond": 600,
+        "offered": 6000,
+        "submitted": 5985,
+        "generatorMissed": 15,
+        "generatorMissRate": 0.0025,
+        "loadGeneratorLimited": false,
+        "submittedRequestsPerSecondDuringArrivalWindow": 598.5,
+        "clientInFlightLimitDrops": 0,
+        "elapsedIncludingDrainSeconds": 10.0082836,
+        "successfulRequestsPerSecondIncludingDrain": 598.0046368789949,
+        "httpErrorRate": 0.0,
+        "peakHikariActive": 10,
+        "peakHikariPending": 52,
+        "meanSampledHikariPending": 1.175,
+        "hikariAcquisitions": 11970,
+        "meanHikariAcquireMs": 0.9811799248120303,
+        "meanHikariConnectionUseMs": 2.9940685045948205,
+        "operations": [
+          {
+            "p50ArrivalMs": 8.111504,
+            "operation": "accommodations",
+            "failures": {},
+            "p99ArrivalMs": 107.161154,
+            "statuses": {
+              "200": 2394
+            },
+            "p95ServiceMs": 20.1269,
+            "p95ArrivalMs": 20.50101,
+            "requests": 2394
+          },
+          {
+            "p50ArrivalMs": 6.633888,
+            "operation": "history",
+            "failures": {},
+            "p99ArrivalMs": 93.814032,
+            "statuses": {
+              "200": 2395
+            },
+            "p95ServiceMs": 16.9902,
+            "p95ArrivalMs": 17.534208,
+            "requests": 2395
+          },
+          {
+            "p50ArrivalMs": 11.979476,
+            "operation": "create",
+            "failures": {},
+            "p99ArrivalMs": 98.006466,
+            "statuses": {
+              "200": 1196
+            },
+            "p95ServiceMs": 26.4239,
+            "p95ArrivalMs": 26.520266,
+            "requests": 1196
+          }
+        ],
+        "thresholdReasons": [],
+        "thresholdBreached": false
+      },
+      "stoppedAtRate": 1800,
+      "recoveryHealthStatus": 200,
+      "integrity": {
+        "successfulWriteResponses": 10068,
+        "overCapacityDates": 0,
+        "duplicateEvents": 0,
+        "submittedWrites": 10068,
+        "committedMixedBookings": 10068,
+        "createdEventsIncludingCapacityRace": 10073
+      },
+      "finishedAt": "2026-10-02T22:20:35.904497400Z"
+    }
+  ]
+}

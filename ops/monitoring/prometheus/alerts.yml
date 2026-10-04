@@ -1,0 +1,66 @@
+groups:
+  - name: stayhub
+    rules:
+      - alert: StayHubTargetDown
+        expr: (up{job="stayhub"} == 0) or absent(up{job="stayhub"})
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: StayHub scrape target is unavailable
+      - alert: StayHubHttpErrors
+        expr: >-
+          (sum by (job, instance) (rate(http_server_requests_seconds_count{job="stayhub",status=~"5..",uri!~"/actuator.*|/health"}[5m]))
+          / sum by (job, instance) (rate(http_server_requests_seconds_count{job="stayhub",uri!~"/actuator.*|/health"}[5m])) > 0.05)
+          and on (job, instance)
+          (sum by (job, instance) (rate(http_server_requests_seconds_count{job="stayhub",uri!~"/actuator.*|/health"}[5m])) > 1)
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: StayHub HTTP 5xx ratio exceeds 5 percent
+      - alert: StayHubHttpLatency
+        expr: >-
+          (histogram_quantile(0.95, sum by (job, instance, le)
+          (rate(http_server_requests_seconds_bucket{job="stayhub",uri!~"/actuator.*|/health"}[5m]))) > 1)
+          and on (job, instance)
+          (sum by (job, instance) (rate(http_server_requests_seconds_count{job="stayhub",uri!~"/actuator.*|/health"}[5m])) > 1)
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: StayHub HTTP p95 exceeds one second
+      - alert: StayHubHikariQueue
+        expr: hikaricp_connections_pending{job="stayhub"} > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: StayHub database connection queue persists
+      - alert: StayHubOutboxDead
+        expr: booking_outbox_events{job="stayhub",status="DEAD"} > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: StayHub Outbox contains dead events
+      - alert: StayHubOutboxLag
+        expr: booking_outbox_oldest_age_seconds{job="stayhub"} > 120
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: StayHub oldest pending Outbox event exceeds two minutes
+      - alert: StayHubOutboxSnapshotStale
+        expr: time() - booking_outbox_snapshot_timestamp{job="stayhub"} > 90
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: StayHub Outbox metric snapshot is stale
+      - alert: StayHubDeadLetter
+        expr: increase(booking_flow_events_total{job="stayhub",stage="consumer",outcome="dead_letter"}[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: StayHub consumer sent an event to DLT

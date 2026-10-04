@@ -90,12 +90,16 @@ app:
       accommodation-created: ${KAFKA_TOPIC_ACCOMMODATION_CREATED:accommodation.created}
       payment-succeeded: ${KAFKA_TOPIC_PAYMENT_SUCCEEDED:payment.succeeded}
   stripe:
+    connect-timeout-ms: ${STRIPE_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${STRIPE_READ_TIMEOUT_MS:10000}
     secret-key: ${STRIPE_SECRET_KEY}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
     success-url: ${STRIPE_SUCCESS_URL:http://localhost:8080/payments/success}
     cancel-url: ${STRIPE_CANCEL_URL:http://localhost:8080/payments/cancel/return}
     currency: ${STRIPE_CURRENCY:usd}
   telegram:
+    connect-timeout-ms: ${TELEGRAM_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${TELEGRAM_READ_TIMEOUT_MS:10000}
     bot-token: ${TELEGRAM_BOT_TOKEN}
     chat-id: ${TELEGRAM_CHAT_ID}
   scheduler:

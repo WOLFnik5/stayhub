@@ -1,0 +1,114 @@
+rule_files:
+  - alerts.yml
+evaluation_interval: 30s
+tests:
+  - interval: 30s
+    input_series:
+      - series: 'up{job="stayhub",instance="booking-app:8080"}'
+        values: '0x12'
+    alert_rule_test:
+      - eval_time: 30s
+        alertname: StayHubTargetDown
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: StayHubTargetDown
+        exp_alerts:
+          - exp_labels:
+              job: stayhub
+              instance: booking-app:8080
+              severity: critical
+            exp_annotations:
+              summary: StayHub scrape target is unavailable
+  - interval: 30s
+    input_series:
+      - series: 'up{job="stayhub",instance="booking-app:8080"}'
+        values: '1x20'
+      - series: 'hikaricp_connections_pending{job="stayhub",instance="booking-app:8080",pool="HikariPool-1"}'
+        values: '3x20'
+      - series: 'booking_outbox_events{job="stayhub",instance="booking-app:8080",status="DEAD"}'
+        values: '1x20'
+      - series: 'booking_outbox_oldest_age_seconds{job="stayhub",instance="booking-app:8080"}'
+        values: '180x20'
+      - series: 'booking_outbox_snapshot_timestamp{job="stayhub",instance="booking-app:8080"}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: StayHubHikariQueue
+        exp_alerts:
+          - exp_labels: {job: stayhub, instance: 'booking-app:8080', pool: HikariPool-1, severity: warning}
+            exp_annotations: {summary: StayHub database connection queue persists}
+      - eval_time: 3m
+        alertname: StayHubOutboxDead
+        exp_alerts:
+          - exp_labels: {job: stayhub, instance: 'booking-app:8080', status: DEAD, severity: critical}
+            exp_annotations: {summary: StayHub Outbox contains dead events}
+      - eval_time: 3m
+        alertname: StayHubOutboxLag
+        exp_alerts:
+          - exp_labels: {job: stayhub, instance: 'booking-app:8080', severity: warning}
+            exp_annotations: {summary: StayHub oldest pending Outbox event exceeds two minutes}
+      - eval_time: 5m
+        alertname: StayHubOutboxSnapshotStale
+        exp_alerts:
+          - exp_labels: {job: stayhub, instance: 'booking-app:8080', severity: warning}
+            exp_annotations: {summary: StayHub Outbox metric snapshot is stale}
+  - interval: 30s
+    input_series:
+      - series: 'up{job="stayhub",instance="booking-app:8080"}'
+        values: '1x20'
+      - series: 'http_server_requests_seconds_count{job="stayhub",instance="booking-app:8080",status="200",uri="/bookings"}'
+        values: '0+270x20'
+      - series: 'http_server_requests_seconds_count{job="stayhub",instance="booking-app:8080",status="503",uri="/bookings"}'
+        values: '0+30x20'
+      - series: 'http_server_requests_seconds_bucket{job="stayhub",instance="booking-app:8080",le="1",uri="/bookings"}'
+        values: '0+180x20'
+      - series: 'http_server_requests_seconds_bucket{job="stayhub",instance="booking-app:8080",le="2",uri="/bookings"}'
+        values: '0+270x20'
+      - series: 'http_server_requests_seconds_bucket{job="stayhub",instance="booking-app:8080",le="+Inf",uri="/bookings"}'
+        values: '0+300x20'
+      - series: 'booking_flow_events_total{job="stayhub",instance="booking-app:8080",stage="consumer",outcome="dead_letter"}'
+        values: '0 1 1 1 1 1 1 1 1 1 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: StayHubHttpErrors
+        exp_alerts:
+          - exp_labels: {job: stayhub, instance: 'booking-app:8080', severity: warning}
+            exp_annotations: {summary: StayHub HTTP 5xx ratio exceeds 5 percent}
+      - eval_time: 7m
+        alertname: StayHubHttpLatency
+        exp_alerts:
+          - exp_labels: {job: stayhub, instance: 'booking-app:8080', severity: warning}
+            exp_annotations: {summary: StayHub HTTP p95 exceeds one second}
+      - eval_time: 1m
+        alertname: StayHubDeadLetter
+        exp_alerts:
+          - exp_labels: {job: stayhub, instance: 'booking-app:8080', stage: consumer, outcome: dead_letter, severity: warning}
+            exp_annotations: {summary: StayHub consumer sent an event to DLT}
+  - interval: 30s
+    input_series:
+      - series: 'up{job="stayhub",instance="booking-app:8080"}'
+        values: '1x20'
+      - series: 'hikaricp_connections_pending{job="stayhub",instance="booking-app:8080",pool="HikariPool-1"}'
+        values: '0x20'
+      - series: 'booking_outbox_events{job="stayhub",instance="booking-app:8080",status="DEAD"}'
+        values: '0x20'
+      - series: 'booking_outbox_oldest_age_seconds{job="stayhub",instance="booking-app:8080"}'
+        values: '0x20'
+      - series: 'booking_outbox_snapshot_timestamp{job="stayhub",instance="booking-app:8080"}'
+        values: '0+30x20'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: StayHubTargetDown
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: StayHubHikariQueue
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: StayHubOutboxDead
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: StayHubOutboxLag
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: StayHubOutboxSnapshotStale
+        exp_alerts: []
