@@ -121,7 +121,7 @@ services:
       LIQUIBASE_ENABLED: "false"
       LIQUIBASE_PASSWORD: ""
       POSTGRES_ADMIN_PASSWORD: ""
-      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_CONTAINER_BOOTSTRAP_SERVERS:-kafka:29092}
       STRIPE_SUCCESS_URL: ${STRIPE_SUCCESS_URL:-http://localhost:8080/payments/success}
       STRIPE_CANCEL_URL: ${STRIPE_CANCEL_URL:-http://localhost:8080/payments/cancel/return}
     ports:

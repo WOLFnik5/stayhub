@@ -61,6 +61,8 @@ def main():
             "LIQUIBASE_USERNAME": "booking_migrator",
             "LIQUIBASE_PASSWORD": "test_migration_password",
             "KAFKA_CLUSTER_ID": "MkU3OEVBNTcwNTJENDM2Qk",
+            "KAFKA_BOOTSTRAP_SERVERS": "localhost:9092",
+            "KAFKA_CONTAINER_BOOTSTRAP_SERVERS": "kafka:29092",
             "STAYHUB_IMAGE": "ghcr.io/test/stayhub@sha256:" + "a" * 64,
             "STAYHUB_ENV_FILE": str(env_file),
         }
@@ -78,6 +80,8 @@ def main():
         ):
             model = config(env_file, environment, overlays, profiles=("tools", "tracing"))
             verify_ports(model, deployed)
+            check(model["services"]["booking-app"]["environment"]["KAFKA_BOOTSTRAP_SERVERS"]
+                  == "kafka:29092", "API container must use the internal Kafka listener")
             print(f"PASS: {label} effective port bindings and optional tools")
         print("PASS: default service selection and explicit tools profile")
 

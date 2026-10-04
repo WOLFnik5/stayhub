@@ -6,7 +6,6 @@ import com.bookingapp.infrastructure.observability.FlowTracing;
 import com.bookingapp.infrastructure.observability.TelegramRecordInterceptor;
 import io.opentelemetry.api.trace.SpanKind;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
@@ -14,6 +13,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.kafka.autoconfigure.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -28,19 +28,19 @@ import org.springframework.util.backoff.FixedBackOff;
 
 @Configuration
 @EnableKafka
-@EnableConfigurationProperties(KafkaTopicsProperties.class)
+@EnableConfigurationProperties({KafkaTopicsProperties.class, KafkaProperties.class})
 public class KafkaConsumerConfiguration {
 
     @Bean
     public ConsumerFactory<String, String> telegramConsumerFactory(
-            @Value("${spring.kafka.bootstrap-servers}") String bootstrapServers,
-            @Value("${spring.kafka.consumer.group-id:booking-app}") String groupId,
-            @Value("${spring.kafka.consumer.auto-offset-reset:earliest}") String autoOffsetReset
+            KafkaProperties kafkaProperties
     ) {
-        Map<String, Object> properties = new HashMap<>();
-        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        properties.put(ConsumerConfig.GROUP_ID_CONFIG, groupId + "-telegram");
-        properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, autoOffsetReset);
+        Map<String, Object> properties = kafkaProperties.buildConsumerProperties();
+        // Keep the notification group separate from other application consumers.
+        String groupId = kafkaProperties.getConsumer().getGroupId();
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG,
+                (groupId == null ? "booking-app" : groupId) + "-telegram");
+        properties.putIfAbsent(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         return new DefaultKafkaConsumerFactory<>(properties);
@@ -50,6 +50,7 @@ public class KafkaConsumerConfiguration {
     public ConcurrentKafkaListenerContainerFactory<String,
             String> telegramKafkaListenerContainerFactory(
             ConsumerFactory<String, String> telegramConsumerFactory,
+            KafkaProperties kafkaProperties,
             TelegramRecordInterceptor interceptor, FlowTelemetry telemetry, FlowTracing tracing,
             KafkaTemplate<String, String> kafkaTemplate,
             @Value("${app.kafka.consumer.retry.max-attempts:4}") int maxAttempts,
@@ -59,6 +60,7 @@ public class KafkaConsumerConfiguration {
         ConcurrentKafkaListenerContainerFactory<String, String> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(telegramConsumerFactory);
+        factory.setAutoStartup(kafkaProperties.getListener().isAutoStartup());
         // The interceptor owns one CONSUMER span per delivery, including retries.
         factory.setRecordInterceptor(interceptor);
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(

@@ -228,6 +228,11 @@ In Compose mode:
 - Kafka runs as `kafka:29092` inside the Compose network
 - the `booking-app` container gets those internal addresses from `docker-compose.yml`
 
+`KAFKA_BOOTSTRAP_SERVERS` configures host clients; Compose uses
+`KAFKA_CONTAINER_BOOTSTRAP_SERVERS` (default `kafka:29092`) for the API container.
+Standard `spring.kafka` client properties now reach the producer and Telegram
+consumer factories. See [Kafka client security configuration](docs/deployment/kafka-security.md).
+
 Local URLs after startup:
 
 - API base URL: `http://localhost:8080`

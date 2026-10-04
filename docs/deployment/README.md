@@ -22,7 +22,7 @@ This change prepares delivery; no server or cloud account has been provisioned.
    account. Create `/srv/stayhub/.env` from the project's `.env.sample`, with
    actual server credentials and `SPRING_PROFILES_ACTIVE=observability`.
    Restrict this file's access, for example `chmod 600 /srv/stayhub/.env`.
-   Use Docker's internal Kafka address `kafka:29092`.
+   Use `KAFKA_CONTAINER_BOOTSTRAP_SERVERS=kafka:29092` for Docker's internal Kafka address.
    Set distinct `POSTGRES_ADMIN_PASSWORD`, `LIQUIBASE_PASSWORD`, and `DB_PASSWORD`.
    For existing database volumes, complete the [role transition](../database-roles.md)
    before deploying this version.

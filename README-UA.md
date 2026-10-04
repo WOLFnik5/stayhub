@@ -187,6 +187,11 @@ docker compose up --build
 
 Контейнер `booking-app` читає `.env`, але отримує внутрішні адреси `postgres:5432` та `kafka:29092` з `docker-compose.yml`. Дані PostgreSQL і Kafka зберігаються в іменованих Docker volumes.
 
+`KAFKA_BOOTSTRAP_SERVERS` налаштовує клієнта на хості, а Compose використовує
+`KAFKA_CONTAINER_BOOTSTRAP_SERVERS` (default `kafka:29092`) для API-контейнера.
+Стандартні `spring.kafka` properties передаються producer і Telegram consumer
+factories: [інструкція TLS/SASL](docs/deployment/kafka-security.md).
+
 Після старту доступні:
 
 - API: `http://localhost:8080`;
