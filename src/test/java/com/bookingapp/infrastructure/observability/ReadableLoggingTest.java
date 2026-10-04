@@ -12,7 +12,8 @@ import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest(
         classes = StructuredLoggingTest.LoggingOnly.class,
-        webEnvironment = SpringBootTest.WebEnvironment.NONE
+        webEnvironment = SpringBootTest.WebEnvironment.NONE,
+        properties = "logging.structured.format.console="
 )
 @ActiveProfiles("test")
 @ExtendWith(OutputCaptureExtension.class)
