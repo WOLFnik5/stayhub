@@ -42,6 +42,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 @WebMvcTest(
         controllers = BookingController.class,
+        properties = "logging.structured.format.console=ecs",
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.REGEX,
                 pattern = "com\\.bookingapp\\.infrastructure\\.security\\..*"

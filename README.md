@@ -455,6 +455,32 @@ Main business endpoints:
 
 Swagger is available at [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html).
 
+### Input validation and error responses
+
+Registration passwords require at least eight characters and must fit within
+BCrypt's 72-byte UTF-8 limit. Login uses the same byte limit. Unicode characters
+can consume multiple bytes; passwords are neither trimmed nor truncated.
+Existing BCrypt hashes remain compatible.
+
+Email, first/last name, accommodation location/size, and each amenity are limited
+to 255 characters. Accommodation `dailyRate` must be nonnegative, with at most
+10 integer digits and two fractional digits, matching PostgreSQL `NUMERIC(12,2)`.
+Booking/payment creation identifiers must be positive. PATCH fields remain
+optional; supplied values follow the same storage limits as POST/PUT.
+
+API errors use the JSON fields `timestamp`, `status`, `error`, `message`, and `path`:
+
+- `400`: invalid fields, unreadable/missing JSON bodies, or invalid path/query types.
+- `404`: missing routes/resources or domain entities.
+- `405`: unsupported HTTP methods, preserving the `Allow` header.
+- `406`: an unsupported response representation requested through `Accept`.
+- `415`: an unsupported request `Content-Type`.
+- `500`: unexpected server failures, with a generic message.
+
+Parsing errors do not expose the submitted body or parser diagnostics. Existing
+authentication, authorization, conflict, rate-limit, and payment-provider status
+codes keep their contracts.
+
 ## Roles and Permissions
 
 - Anonymous users:

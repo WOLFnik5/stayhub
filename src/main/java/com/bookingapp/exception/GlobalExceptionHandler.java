@@ -8,17 +8,28 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -193,6 +204,39 @@ public class GlobalExceptionHandler {
                 request.getRequestURI());
     }
 
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnreadableBody(
+            HttpMessageNotReadableException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Malformed or unreadable request body",
+                request.getRequestURI());
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleTypeMismatch(
+            MethodArgumentTypeMismatchException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(HttpStatus.BAD_REQUEST,
+                "Parameter '%s' has an invalid value".formatted(exception.getName()),
+                request.getRequestURI());
+    }
+
+    @ExceptionHandler({HttpRequestMethodNotSupportedException.class,
+            HttpMediaTypeNotSupportedException.class, HttpMediaTypeNotAcceptableException.class,
+            ServletRequestBindingException.class, NoHandlerFoundException.class,
+            NoResourceFoundException.class})
+    public ResponseEntity<ApiErrorResponse> handleFrameworkRequestError(
+            Exception exception,
+            HttpServletRequest request
+    ) {
+        ErrorResponse error = (ErrorResponse) exception;
+        HttpStatus status = HttpStatus.valueOf(error.getStatusCode().value());
+        return buildResponse(status, status.getReasonPhrase(), request.getRequestURI(),
+                error.getHeaders());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleUnhandledException(
             Exception exception,
@@ -210,7 +254,14 @@ public class GlobalExceptionHandler {
     private ResponseEntity<ApiErrorResponse> buildResponse(HttpStatus status,
                                                            String message,
                                                            String path) {
+        return buildResponse(status, message, path, HttpHeaders.EMPTY);
+    }
+
+    private ResponseEntity<ApiErrorResponse> buildResponse(HttpStatus status,
+            String message, String path, HttpHeaders headers) {
         return ResponseEntity.status(status)
+                .headers(headers)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(new ApiErrorResponse(
                         Instant.now(),
                         status.value(),

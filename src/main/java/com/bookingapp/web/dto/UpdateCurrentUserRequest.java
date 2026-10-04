@@ -4,11 +4,12 @@ import static com.bookingapp.service.validation.EmailNormalizationUtils.normaliz
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public record UpdateCurrentUserRequest(
-        @NotBlank @Email String email,
-        @NotBlank String firstName,
-        @NotBlank String lastName
+        @NotBlank @Email @Size(max = 255) String email,
+        @NotBlank @Size(max = 255) String firstName,
+        @NotBlank @Size(max = 255) String lastName
 ) {
     public UpdateCurrentUserRequest {
         email = normalize(email);
