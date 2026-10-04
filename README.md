@@ -518,8 +518,12 @@ for processing payments to settle. A late successful payment is recorded without
 reactivating a canceled/expired booking.
 
 Successful callbacks verify the stored amount, currency, booking and attempt
-against Stripe. Payment status and the outbox event commit in one transaction;
+against Stripe. Payment `PAID`, booking `PENDING` → `CONFIRMED`, and the outbox
+event commit in one transaction under the booking lock;
 repeated or concurrent webhook/browser callbacks emit only one success event.
+Verification of an already paid attempt also repairs a legacy pending booking
+without emitting another success event. Terminal booking statuses stay unchanged;
+late settlement requires a separate reconciliation/refund decision.
 A signed webhook can recover a durable attempt by Stripe's `paymentId` metadata
 if the session ID was not saved after a network failure.
 

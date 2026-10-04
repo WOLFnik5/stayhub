@@ -176,12 +176,18 @@ public class PaymentService {
     }
 
     private Payment markVerifiedPaymentPaid(Long bookingId, Long paymentId, String sessionId) {
-        lockBooking(bookingId);
+        Booking booking = lockBooking(bookingId);
         Payment payment = paymentRepository.refresh(paymentId);
         if (payment.getSessionId() != null && !payment.getSessionId().equals(sessionId)) {
             throw new PaymentStateException("Stripe session does not match this attempt");
         }
         payment.setSessionId(sessionId);
+        // The booking lock serializes webhook retries, cancellation and expiration.
+        // Late settlement records the payment without reviving a terminal booking.
+        if (booking.getStatus() == BookingStatus.PENDING) {
+            booking.setStatus(BookingStatus.CONFIRMED);
+            bookingRepository.save(booking);
+        }
         if (payment.getStatus() == PaymentStatus.PAID) {
             return payment;
         }
@@ -272,9 +278,8 @@ public class PaymentService {
 
     private Payment confirmPayment(Payment payment) {
         stripePaymentProvider.validatePayment(payment);
-        Payment savedPayment = paymentRepository.save(markPaid(payment));
-        kafkaEventPublisher.publishPaymentSucceeded(savedPayment);
-        return savedPayment;
+        return markVerifiedPaymentPaid(payment.getBookingId(), payment.getId(),
+                payment.getSessionId());
     }
 
     public PaymentCancelResult handlePaymentCancel(String sessionId) {

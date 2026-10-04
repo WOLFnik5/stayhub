@@ -3,6 +3,7 @@ package com.bookingapp.web.payment;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -21,6 +22,9 @@ import com.bookingapp.domain.model.enums.PaymentStatus;
 import com.bookingapp.exception.PaymentProviderGatewayException;
 import com.bookingapp.exception.PaymentProviderUnavailableException;
 import com.bookingapp.exception.PaymentStateException;
+import com.bookingapp.infrastructure.kafka.OutboxKafkaEventPublisher;
+import com.bookingapp.persistence.outbox.OutboxEventJpaRepository;
+import com.bookingapp.persistence.outbox.OutboxStatus;
 import com.bookingapp.service.BookingExpirationService;
 import com.bookingapp.web.dto.CreatePaymentRequest;
 import com.bookingapp.web.dto.PaymentSessionResult;
@@ -35,9 +39,11 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -47,8 +53,21 @@ import org.springframework.http.MediaType;
 class PaymentLifecycleIntegrationTest extends AbstractControllerIntegrationTest {
     @Autowired
     private BookingExpirationService expirationService;
+    @Autowired
+    private OutboxKafkaEventPublisher realEventPublisher;
+    @Autowired
+    private OutboxEventJpaRepository outboxRepository;
     private User owner;
     private Booking booking;
+
+    @AfterEach
+    void cleanPaymentOutbox() {
+        List<Long> paymentIds = paymentRepository.findAllByBookingId(booking.getId()).stream()
+                .map(Payment::getId).toList();
+        outboxRepository.deleteAll(outboxRepository.findAll().stream()
+                .filter(event -> event.getAggregateType().equals("Payment")
+                        && paymentIds.contains(event.getAggregateId())).toList());
+    }
 
     @BeforeEach
     void fixtures() {
@@ -174,10 +193,14 @@ class PaymentLifecycleIntegrationTest extends AbstractControllerIntegrationTest 
                 .param("session_id", payment.getSessionId())).andReturn().getResponse().getStatus())
                 .isEqualTo(200);
         assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PENDING);
+        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.PENDING);
         verifyNoInteractions(kafkaEventPublisher);
 
         assertThat(webhook(payload, sign(payload, Instant.now().getEpochSecond()))).isEqualTo(200);
         assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.CONFIRMED);
+        assertThat(webhook(payload, sign(payload, Instant.now().getEpochSecond()))).isEqualTo(200);
+        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.CONFIRMED);
         verify(kafkaEventPublisher, times(1)).publishPaymentSucceeded(any());
         assertThat(checkout()).isEqualTo(409);
     }
@@ -190,6 +213,7 @@ class PaymentLifecycleIntegrationTest extends AbstractControllerIntegrationTest 
         String payload = payload("checkout.session.completed", "paid");
         assertThat(webhook(payload, sign(payload, Instant.now().getEpochSecond()))).isEqualTo(200);
         assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.CONFIRMED);
     }
 
     @Test
@@ -208,7 +232,133 @@ class PaymentLifecycleIntegrationTest extends AbstractControllerIntegrationTest 
         assertThat(latest().getId()).isEqualTo(attempt.getId());
         assertThat(latest().getSessionId()).isEqualTo(sessionId);
         assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.CONFIRMED);
         verify(kafkaEventPublisher).publishPaymentSucceeded(any());
+    }
+
+    @Test
+    void checkoutRecoveryShouldConfirmBookingWhenStripeAlreadyReportsPaid() throws Exception {
+        successfulCheckout();
+        assertThat(checkout()).isEqualTo(200);
+        when(stripePaymentProvider.isPaymentSuccessful(latest().getSessionId())).thenReturn(true);
+        assertThat(checkout()).isEqualTo(200);
+        assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.CONFIRMED);
+        verify(kafkaEventPublisher).publishPaymentSucceeded(any());
+    }
+
+    @Test
+    void simultaneousWebhookRetriesShouldConfirmOnce() throws Exception {
+        successfulCheckout();
+        assertThat(checkout()).isEqualTo(200);
+        when(stripePaymentProvider.isPaymentSuccessful(latest().getSessionId())).thenReturn(true);
+        String payload = payload("checkout.session.completed", "paid");
+        String signature = sign(payload, Instant.now().getEpochSecond());
+        assertThat(concurrently(() -> webhook(payload, signature),
+                () -> webhook(payload, signature))).containsOnly(200);
+        assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.CONFIRMED);
+        verify(kafkaEventPublisher, times(1)).publishPaymentSucceeded(any());
+    }
+
+    @Test
+    void eventFailureShouldRollBackBothStatusesAndAllowRetry() throws Exception {
+        successfulCheckout();
+        assertThat(checkout()).isEqualTo(200);
+        when(stripePaymentProvider.isPaymentSuccessful(latest().getSessionId())).thenReturn(true);
+        AtomicBoolean fail = new AtomicBoolean(true);
+        doAnswer(invocation -> {
+            realEventPublisher.publishPaymentSucceeded(invocation.getArgument(0));
+            if (fail.getAndSet(false)) {
+                throw new IllegalStateException("Failure after outbox insert");
+            }
+            return null;
+        }).when(kafkaEventPublisher).publishPaymentSucceeded(any());
+        String payload = payload("checkout.session.completed", "paid");
+        String signature = sign(payload, Instant.now().getEpochSecond());
+        assertThat(webhook(payload, signature)).isEqualTo(500);
+        assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PENDING);
+        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.PENDING);
+        assertThat(paymentOutboxCount()).isZero();
+        assertThat(webhook(payload, signature)).isEqualTo(200);
+        assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.CONFIRMED);
+        assertThat(paymentOutboxCount()).isEqualTo(1);
+    }
+
+    @Test
+    void confirmationShouldCommitOneRealOutboxEventAcrossRetries() throws Exception {
+        successfulCheckout();
+        assertThat(checkout()).isEqualTo(200);
+        when(stripePaymentProvider.isPaymentSuccessful(latest().getSessionId())).thenReturn(true);
+        doAnswer(invocation -> {
+            realEventPublisher.publishPaymentSucceeded(invocation.getArgument(0));
+            return null;
+        }).when(kafkaEventPublisher).publishPaymentSucceeded(any());
+        String payload = payload("checkout.session.completed", "paid");
+        String signature = sign(payload, Instant.now().getEpochSecond());
+        assertThat(webhook(payload, signature)).isEqualTo(200);
+        assertThat(webhook(payload, signature)).isEqualTo(200);
+        assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.CONFIRMED);
+        assertThat(paymentOutboxCount()).isEqualTo(1);
+        assertThat(outboxRepository.findAll().stream()
+                .filter(event -> event.getAggregateType().equals("Payment")
+                        && event.getAggregateId().equals(latest().getId())).toList())
+                .allSatisfy(event -> {
+                    assertThat(event.getStatus()).isEqualTo(OutboxStatus.NEW);
+                    assertThat(event.getEventType()).isEqualTo("PaymentSucceededEvent");
+                });
+    }
+
+    private long paymentOutboxCount() {
+        Long paymentId = latest().getId();
+        return outboxRepository.findAll().stream()
+                .filter(event -> event.getAggregateType().equals("Payment")
+                        && event.getAggregateId().equals(paymentId)).count();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"CANCELED", "EXPIRED"})
+    void latePaymentShouldNotReviveTerminalBooking(String status) throws Exception {
+        successfulCheckout();
+        assertThat(checkout()).isEqualTo(200);
+        booking.setStatus(BookingStatus.valueOf(status));
+        bookingRepository.save(booking);
+        when(stripePaymentProvider.isPaymentSuccessful(latest().getSessionId())).thenReturn(true);
+        String payload = payload("checkout.session.completed", "paid");
+        String signature = sign(payload, Instant.now().getEpochSecond());
+        assertThat(webhook(payload, signature)).isEqualTo(200);
+        assertThat(webhook(payload, signature)).isEqualTo(200);
+        assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.valueOf(status));
+        verify(kafkaEventPublisher, times(1)).publishPaymentSucceeded(any());
+    }
+
+    @Test
+    void verifiedRetryShouldRepairLegacyPaidPendingBookingWithoutAnotherEvent() throws Exception {
+        successfulCheckout();
+        assertThat(checkout()).isEqualTo(200);
+        Payment payment = latest();
+        payment.setStatus(PaymentStatus.PAID);
+        paymentRepository.save(payment);
+        when(stripePaymentProvider.isPaymentSuccessful(payment.getSessionId())).thenReturn(true);
+        String payload = payload("checkout.session.completed", "paid");
+        assertThat(webhook(payload, sign(payload, Instant.now().getEpochSecond()))).isEqualTo(200);
+        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.CONFIRMED);
+        verifyNoInteractions(kafkaEventPublisher);
+    }
+
+    @Test
+    void expirationShouldRecordSettlementThenKeepBookingExpired() throws Exception {
+        successfulCheckout();
+        assertThat(checkout()).isEqualTo(200);
+        when(stripePaymentProvider.expireUnpaidSession(latest().getSessionId())).thenReturn(false);
+        expirationService.expireBookings(booking.getCheckOutDate());
+        assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.EXPIRED);
+        verify(kafkaEventPublisher).publishPaymentSucceeded(any());
+        verify(kafkaEventPublisher).publishBookingExpired(any());
     }
 
     @Test
@@ -262,6 +412,7 @@ class PaymentLifecycleIntegrationTest extends AbstractControllerIntegrationTest 
         String payload = payload("checkout.session.completed", "paid");
         assertThat(webhook(payload, sign(payload, Instant.now().getEpochSecond()))).isEqualTo(409);
         assertThat(latest().getStatus()).isEqualTo(PaymentStatus.PENDING);
+        assertThat(savedBooking().getStatus()).isEqualTo(BookingStatus.PENDING);
         verifyNoInteractions(kafkaEventPublisher);
     }
 

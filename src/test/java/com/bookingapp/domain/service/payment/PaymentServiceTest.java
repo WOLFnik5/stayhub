@@ -171,6 +171,9 @@ class PaymentServiceTest {
         Payment result = paymentService.handlePaymentSuccess("sess_123");
 
         assertThat(result.getStatus()).isEqualTo(PaymentStatus.PAID);
+        ArgumentCaptor<Booking> confirmedBooking = ArgumentCaptor.forClass(Booking.class);
+        verify(bookingRepository).save(confirmedBooking.capture());
+        assertThat(confirmedBooking.getValue().getStatus()).isEqualTo(BookingStatus.CONFIRMED);
         verify(kafkaEventPublisher).publishPaymentSucceeded(result);
     }
 
