@@ -1,69 +1,75 @@
-# Відновлення платіжних спроб
+# Payment attempt reconciliation
 
-Спроба Checkout зберігається до запиту в Stripe. Якщо відповідь загубилася,
-локальний `sessionId` може бути порожнім, хоча сесія існує й може бути оплачена.
-Через 23 години повторне створення такої сесії блокується: Stripe може видаляти
-idempotency keys після 24 годин. Див. [Stripe idempotency](https://docs.stripe.com/api/idempotent_requests).
+A Checkout attempt is persisted before the request to Stripe. If the response
+is lost, the local `sessionId` may be empty even though a session exists and can
+be paid. Recreating such a session is blocked after 23 hours because Stripe may
+prune idempotency keys after 24 hours. See
+[Stripe idempotency](https://docs.stripe.com/api/idempotent_requests).
 
-## Фонова перевірка
+## Background reconciliation
 
-`PAYMENT_RECONCILIATION_ENABLED=true` вмикає job; інтервал задає
-`PAYMENT_RECONCILIATION_DELAY_MS` (типово 300000, п'ять хвилин).
-За запуск перевіряються максимум 100 `PENDING` спроб віком від 23 годин.
-Stripe-запити виконуються поза транзакцією й блокуванням бронювання.
+`PAYMENT_RECONCILIATION_ENABLED=true` enables the job. Its interval is configured
+by `PAYMENT_RECONCILIATION_DELAY_MS`, defaulting to 300000 milliseconds (five
+minutes). Each run checks up to 100 `PENDING` attempts at least 23 hours old.
+Stripe requests execute outside database transactions and booking locks.
 
-- Відома сесія: Stripe підтверджує суму, валюту та booking metadata;
-  оплата переводиться в `PAID`, неоплачена закрита сесія — в `EXPIRED`.
-  Сесія, що ще обробляється, залишається `PENDING` і перевіряється знову.
-- Невідома сесія: спроба переходить у `RECONCILIATION_REQUIRED` без створення
-  нової сесії. Її видно в admin-списку `GET /payments`.
-- Помилка provider не змінює результат оплати; наступний запуск повторює перевірку.
-  Лог містить payment ID і тип помилки, без Stripe credentials чи даних сесії.
+- Known session: Stripe verifies the amount, currency, and booking metadata.
+  A paid attempt becomes `PAID`; an expired unpaid session becomes `EXPIRED`.
+  A session still being processed remains `PENDING` and is checked again.
+- Unknown session: the attempt becomes `RECONCILIATION_REQUIRED` without
+  creating another session. Administrators can find it through `GET /payments`.
+- Provider failure: the payment outcome is unchanged, and a later run retries
+  the check. Logs contain the payment ID and error type, without Stripe
+  credentials or session data.
 
-Міграція `018-payment-reconciliation` розширює унікальний індекс: для бронювання
-можлива лише одна спроба зі статусом `PENDING` або `RECONCILIATION_REQUIRED`.
-Нова оплата не обходить незавершену спробу навіть за наявності пізніших записів.
+Migration `018-payment-reconciliation` extends the unique index so a booking
+can have only one attempt in `PENDING` or `RECONCILIATION_REQUIRED`. A new
+payment cannot bypass an unresolved attempt, even if newer records exist.
 
-## Адміністративне відновлення
+## Administrative reconciliation
 
-1. Вибрати payment ID зі статусом `RECONCILIATION_REQUIRED`.
-2. Знайти створену Checkout Session у Stripe за metadata `paymentId` і `bookingId`
-   або журналом запиту з ключем `booking-payment-<paymentId>`.
-3. Під admin JWT виконати `POST /payments/<paymentId>/reconcile`:
+1. Select a payment ID with status `RECONCILIATION_REQUIRED`.
+2. Find the original Checkout Session in Stripe using its `paymentId` and
+   `bookingId` metadata or request logs containing `booking-payment-<paymentId>`.
+3. With an administrator JWT, call `POST /payments/<paymentId>/reconcile`:
 
    ```json
    {"sessionId": "cs_test_..."}
    ```
 
-Сервер сам отримує сесію через Stripe API. Перед прив'язкою втраченої сесії
-обов'язково перевіряються `paymentId`, `bookingId`, сума й валюта. Клієнт не задає
-статус, суму чи факт оплати. Неправильні metadata, інший session ID для вже
-прив'язаної спроби або непідтверджений стан дають `409`; доступ customer — `403`.
+The server retrieves the session through the Stripe API. Before binding a lost
+session, it verifies `paymentId`, `bookingId`, amount, and currency. The client
+cannot specify the status, amount, or payment outcome. Incorrect metadata, a
+different session ID for an already bound attempt, or an unverified state
+returns `409`; customer access returns `403`.
 
-`PAID` атомарно підтверджує активне бронювання та створює одну подію outbox.
-Перевірене `EXPIRED` дозволяє створити наступну спробу через звичайний
-`POST /payments`. Відкрита/оброблювана сесія лишається незавершеною.
-Повторна операція не дублює подію й не знижує `PAID` до попереднього статусу.
-Запізніла оплата не відновлює `CANCELED` або `EXPIRED` бронювання.
+`PAID` atomically confirms an active booking and creates one outbox event.
+A verified `EXPIRED` result allows a new attempt through the normal
+`POST /payments` endpoint. An open or processing session remains unresolved.
+Repeating reconciliation does not duplicate events or downgrade `PAID`.
+A late payment does not reopen a `CANCELED` or `EXPIRED` booking.
 
-Якщо сесію не знайдено, не позначайте спробу завершеною вручну й не видаляйте її:
-відсутність session ID не доводить відсутності списання. Потрібне розслідування
-в Stripe; ця операція не виконує refund і не звільняє місткість без доказу результату.
+If the session cannot be found, do not manually mark the attempt as complete
+or delete it: a missing session ID does not prove that no charge occurred.
+Investigate the outcome in Stripe. This operation does not issue refunds or
+release capacity without evidence of the payment outcome.
 
-## Розгортання
+## Deployment
 
-Незавершене скасування має статус `CANCELING`, завершення проживання — `EXPIRING`.
-Ці статуси блокують нову оплату й зміну дат; місткість зберігається до перевіреного
-закриття Stripe-сесій. Тимчасова помилка provider залишає намір у БД: запит можна
-повторити або дочекатися booking closure recovery job. Якщо пропав session ID
-старої платіжної спроби, спочатку виконати admin-reconciliation, описаний вище.
-При збої фінального outbox-запису платіжні результати зберігаються, а стан закриття
-лишається проміжним до успішного повтору фінальної транзакції.
+An unfinished cancellation has status `CANCELING`; an unfinished stay
+expiration has status `EXPIRING`. These states block new checkout attempts and
+date changes, retaining capacity until Stripe sessions are verifiably closed.
+A temporary provider failure leaves the closure intent in the database: retry
+the request or wait for the booking closure recovery job. If an old attempt has
+lost its session ID, perform administrative reconciliation first. If the final
+outbox write fails, payment outcomes remain persisted and the booking stays in
+its intermediate state until the final transaction succeeds on retry.
 
-Застосувати Liquibase-міграцію до ввімкнення нової версії застосунку. Старі replicas
-не підтримують новий статус і не повинні паралельно обробляти платежі після
-ввімкнення reconciliation або нових операцій закриття бронювання. Перед rollback
-спочатку завершити всі `CANCELING`/`EXPIRING` операції та зупинити jobs і нові replicas;
-rollback міграції переводить `RECONCILIATION_REQUIRED` назад у `PENDING`, зберігаючи
-заборону дубльованої незавершеної спроби. На самій відсутності callback чи віці
-платежу бронювання автоматично не скасовується.
+Apply the Liquibase migration before enabling the new application version.
+Older replicas do not support the new statuses and must not process payments
+alongside the new version once reconciliation or booking closure is enabled.
+Before rollback, complete all `CANCELING`/`EXPIRING` operations and stop the jobs
+and new replicas. Migration rollback changes `RECONCILIATION_REQUIRED` back to
+`PENDING`, retaining the restriction on duplicate unresolved attempts.
+A booking is not automatically canceled merely because a callback is missing
+or a payment attempt is old.

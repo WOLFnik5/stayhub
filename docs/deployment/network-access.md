@@ -1,76 +1,79 @@
-# Мережевий доступ Compose
+# Compose network access
 
-Базовий Compose призначений для локальної розробки. Усі публікації портів
-прив'язані до `127.0.0.1`:
+The base Compose configuration is intended for local development. All
+published ports bind to `127.0.0.1`:
 
-| Сервіс | Адреса на хості | Адреса в мережі Compose |
+| Service | Host address | Compose network address |
 | --- | --- | --- |
 | API | `127.0.0.1:8080` | `booking-app:8080` |
 | PostgreSQL | `127.0.0.1:5433` | `postgres:5432` |
-| Kafka для клієнтів на хості | `127.0.0.1:9092` | — |
-| Kafka для контейнерів | Не публікується | `kafka:29092` |
-| Kafka UI, профіль `tools` | `127.0.0.1:8081` | `kafka-ui:8080` |
-| Jaeger, профіль `tracing` | `127.0.0.1:16686`, `127.0.0.1:4318` | `jaeger:16686`, `jaeger:4318` |
+| Kafka for host clients | `127.0.0.1:9092` | — |
+| Kafka for containers | Not published | `kafka:29092` |
+| Kafka UI, `tools` profile | `127.0.0.1:8081` | `kafka-ui:8080` |
+| Jaeger, `tracing` profile | `127.0.0.1:16686`, `127.0.0.1:4318` | `jaeger:16686`, `jaeger:4318` |
 
-Kafka UI не стартує разом зі звичайним `docker compose up`. Для його запуску:
+Kafka UI does not start with a regular `docker compose up`. To start it:
 
 ```bash
 docker compose --profile tools up -d kafka-ui
 ```
 
-Він не має окремої авторизації та використовує внутрішній Kafka listener.
-Не публікуйте його в недовірену мережу. Прямий запуск сервісу за його назвою
-також активує його профіль — це [поведінка Compose profiles](https://docs.docker.com/compose/how-tos/profiles/).
+It has no separate authentication and uses the internal Kafka listener.
+Do not expose it to an untrusted network. Explicitly starting a service by name
+also activates its profile; see
+[Compose profile behavior](https://docs.docker.com/compose/how-tos/profiles/).
 
-Monitoring overlay зберігає loopback-прив'язки Prometheus `9090`, Alertmanager
-`9093` та Grafana `3000`. Deployment overlay прибирає публікації PostgreSQL і
-Kafka; API лишається на `127.0.0.1:8080`. Внутрішній обмін контейнерів з БД,
-broker та UI не потребує відкриття цих портів на хості.
+The monitoring overlay retains loopback bindings for Prometheus `9090`,
+Alertmanager `9093`, and Grafana `3000`. The deployment overlay removes
+PostgreSQL and Kafka port publications; the API remains on `127.0.0.1:8080`.
+Communication between containers and the database, broker, or UI does not
+require publishing these ports on the host.
 
-## Застосування до вже запущених контейнерів
+## Applying changes to running containers
 
-Зміна YAML сама по собі не змінює наявні bindings. У заплановане вікно
-перезапустіть сервіси через Compose, зі збереженням volumes:
+Editing YAML alone does not change existing port bindings. During a planned
+maintenance window, recreate services through Compose while retaining volumes:
 
 ```bash
 docker compose up -d --no-deps postgres kafka
-# Зупинити UI, якщо він був запущений раніше й тепер не потрібен:
+# Stop the UI if it was running previously and is no longer needed:
 docker compose --profile tools stop kafka-ui
-# Або пересоздати його з новою loopback-прив'язкою:
+# Alternatively, recreate it with the new loopback binding:
 docker compose --profile tools up -d --no-deps kafka-ui
 ```
 
-API отримає нову прив'язку під час звичайного запуску/деплою. Для наявної БД
-спершу виконайте [перехід ролей](../database-roles.md), якщо його ще не завершено.
-Не використовуйте `down -v`: зміна мережевих bindings не потребує видалення даних.
+The API receives its new binding during a normal startup or deployment.
+For an existing database, first complete the [role transition](../database-roles.md)
+if it has not already been done. Do not use `down -v`: changing network bindings
+does not require deleting data.
 
-## Віддалений доступ
+## Remote access
 
-Для доступу до API ззовні використовуйте налаштований HTTPS reverse proxy
-на хості. Для адміністрування UI можна використати SSH tunnel:
+Use a configured HTTPS reverse proxy on the host for external API access.
+An SSH tunnel can provide remote access to the administration UI:
 
 ```bash
 ssh -N -L 8081:127.0.0.1:8081 user@server
 ```
 
-Після цього відкрийте `http://127.0.0.1:8081` на своєму комп'ютері.
-Kafka listeners у цьому локальному стеку залишаються PLAINTEXT. Loopback
-bindings не додають TLS/SASL і не обмежують довіреність контейнерів однієї
-мережі; для зовнішнього broker потрібна окрема конфігурація автентифікації,
-TLS та ACL.
+Then open `http://127.0.0.1:8081` on your computer. Kafka listeners in this local
+stack remain PLAINTEXT. Loopback bindings do not add TLS/SASL or establish trust
+boundaries between containers on the same network. An external broker requires
+separate authentication, TLS, and ACL configuration.
 
-Розраховуйте на Docker Engine 28 або новіший: Docker документує можливість
-доступу з того самого L2-сегмента до localhost-публікацій у старіших версіях.
-Також перевірте firewall і нестандартні daemon/direct-routing налаштування
-на фактичному хості. [Документація port publishing](https://docs.docker.com/engine/network/port-publishing/).
+Use Docker Engine 28 or newer: Docker documents that older releases may allow
+hosts on the same L2 segment to access localhost port publications. Also check
+the firewall and any custom daemon/direct-routing settings on the actual host.
+See the [port publishing documentation](https://docs.docker.com/engine/network/port-publishing/).
 
-## Перевірка конфігурації
+## Configuration verification
 
 ```bash
 python3 ops/deployment/check-compose.py
 ```
 
-Скрипт перевіряє розгорнуту Compose-конфігурацію для базового стеку,
-monitoring, deployment та їх поєднання, а також вибір сервісів через profiles.
-Використовує лише тестові credentials, не читає `.env` і не запускає контейнери.
-Ця перевірка є частиною CI. Вона не замінює перевірку мережі реального хоста.
+The script checks the effective Compose configuration for the base stack,
+monitoring, deployment, and their combination, as well as service selection
+through profiles. It uses only test credentials, does not read `.env`, and does
+not start containers. This check runs in CI; it does not replace network testing
+on the actual host.

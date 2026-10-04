@@ -4,6 +4,8 @@ target/
 .env
 .interview-notes.md
 /docs/remediation/
+/docs/local-uk/
+/docs/audit/2026-10-04.md
 logs/
 *.log
 
