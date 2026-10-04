@@ -27,7 +27,13 @@ def config(env_file, environment, overlays=(), profiles=(), services_only=False)
     command += ["config", "--no-env-resolution"]
     command += ["--services"] if services_only else ["--format", "json"]
     result = subprocess.run(command, env=environment, capture_output=True,
-                            text=True, check=True, timeout=30)
+                            text=True, check=False, timeout=30)
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise RuntimeError(
+            f"Compose config failed for {', '.join(overlays) or 'local'} "
+            f"(exit {result.returncode}): {detail}"
+        )
     return set(result.stdout.splitlines()) if services_only else json.loads(result.stdout)
 
 
