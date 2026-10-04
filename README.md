@@ -672,6 +672,19 @@ Run tests only:
 mvn test
 ```
 
+Integration tests use disposable PostgreSQL and Kafka containers. The Kafka
+security tests verify SASL_SSL delivery and rejection of incorrect credentials
+and untrusted certificates; Docker must be available.
+
+CI also verifies effective Compose port bindings, optional service profiles,
+container broker addresses, and deployment failure handling. Run those checks
+separately with Python 3, Docker Compose, and Bash with `flock`:
+
+```bash
+python3 ops/deployment/check-compose.py
+bash ops/deployment/test-deploy.sh
+```
+
 Coverage:
 
 - JaCoCo report is generated during `verify`
@@ -682,8 +695,10 @@ Coverage:
 ## Container Delivery
 
 After verification, default-branch CI publishes a commit-tagged image to GHCR.
-Optional CD deploys its immutable digest to a dedicated Linux runner, checks
-application health and restores the previous image on failure.
+Optional CD deploys its immutable digest to a dedicated Linux runner. It runs
+database migrations in a separate process before replacing the API, then checks
+application health. A migration failure leaves the API image unchanged; failed
+application health checks trigger restoration of the previous image.
 See [registry and CD setup](docs/deployment/README.md). CD is disabled until
 the server runner and GitHub variables are configured.
 

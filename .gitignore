@@ -6,6 +6,7 @@ target/
 /docs/remediation/
 /docs/local-uk/
 /docs/audit/2026-10-04.md
+/README-UA.md
 logs/
 *.log
 
