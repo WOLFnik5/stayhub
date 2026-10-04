@@ -28,6 +28,12 @@ jobs:
       - name: Verify deployment failure handling
         run: bash ops/deployment/test-deploy.sh
 
+      - name: Prepare placeholder monitoring secrets
+        run: |
+          mkdir -p ops/monitoring/secrets
+          printf 'ci-metrics-password\n' > ops/monitoring/secrets/metrics-password
+          printf 'ci-grafana-password\n' > ops/monitoring/secrets/grafana-password
+
       - name: Verify Compose network exposure
         run: python3 ops/deployment/check-compose.py
 
