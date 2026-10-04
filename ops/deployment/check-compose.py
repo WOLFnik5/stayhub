@@ -56,6 +56,8 @@ def verify_ports(model, deployed):
 def main():
     # Override interpolated variables with test values. --no-env-resolution keeps
     # application env_file contents (including a developer's real .env) unread.
+    # Compose still requires the referenced .env file to exist, so create an
+    # empty one only when absent and remove it after the check.
     with tempfile.TemporaryDirectory(prefix="stayhub-compose-check-") as directory:
         env_file = Path(directory) / "test.env"
         env_file.write_text("", encoding="utf-8")
@@ -72,24 +74,37 @@ def main():
             "STAYHUB_IMAGE": "ghcr.io/test/stayhub@sha256:" + "a" * 64,
             "STAYHUB_ENV_FILE": str(env_file),
         }
-        default_services = config(env_file, environment, services_only=True)
-        check(default_services == {"postgres", "kafka", "booking-migrate", "booking-app"},
-              "Default startup must exclude optional administration and tracing services")
-        tools_services = config(env_file, environment, profiles=("tools",), services_only=True)
-        check("kafka-ui" in tools_services, "tools profile must enable Kafka UI")
-        for label, overlays, deployed in (
-            ("local", (), False),
-            ("monitoring", ("docker-compose.monitoring.yml",), False),
-            ("deployment", ("docker-compose.deploy.yml",), True),
-            ("deployment + monitoring",
-             ("docker-compose.deploy.yml", "docker-compose.monitoring.yml"), True),
-        ):
-            model = config(env_file, environment, overlays, profiles=("tools", "tracing"))
-            verify_ports(model, deployed)
-            check(model["services"]["booking-app"]["environment"]["KAFKA_BOOTSTRAP_SERVERS"]
-                  == "kafka:29092", "API container must use the internal Kafka listener")
-            print(f"PASS: {label} effective port bindings and optional tools")
-        print("PASS: default service selection and explicit tools profile")
+        placeholder_env = ROOT / ".env"
+        created_placeholder = False
+        try:
+            try:
+                with placeholder_env.open("x", encoding="utf-8"):
+                    pass
+                created_placeholder = True
+            except FileExistsError:
+                pass
+
+            default_services = config(env_file, environment, services_only=True)
+            check(default_services == {"postgres", "kafka", "booking-migrate", "booking-app"},
+                  "Default startup must exclude optional administration and tracing services")
+            tools_services = config(env_file, environment, profiles=("tools",), services_only=True)
+            check("kafka-ui" in tools_services, "tools profile must enable Kafka UI")
+            for label, overlays, deployed in (
+                ("local", (), False),
+                ("monitoring", ("docker-compose.monitoring.yml",), False),
+                ("deployment", ("docker-compose.deploy.yml",), True),
+                ("deployment + monitoring",
+                 ("docker-compose.deploy.yml", "docker-compose.monitoring.yml"), True),
+            ):
+                model = config(env_file, environment, overlays, profiles=("tools", "tracing"))
+                verify_ports(model, deployed)
+                check(model["services"]["booking-app"]["environment"]["KAFKA_BOOTSTRAP_SERVERS"]
+                      == "kafka:29092", "API container must use the internal Kafka listener")
+                print(f"PASS: {label} effective port bindings and optional tools")
+            print("PASS: default service selection and explicit tools profile")
+        finally:
+            if created_placeholder:
+                placeholder_env.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
