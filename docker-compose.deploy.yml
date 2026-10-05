@@ -17,7 +17,7 @@ services:
     ports: !override ["127.0.0.1:8081:8080"]
   booking-migrate:
     build: !reset null
-    image: ${STAYHUB_IMAGE:?STAYHUB_IMAGE must be an immutable image reference}
+    image: "${STAYHUB_IMAGE:?STAYHUB_IMAGE must be an immutable image reference}"
     environment:
       JAVA_TOOL_OPTIONS: "-Xms64m -Xmx384m"
     mem_limit: 512m
@@ -25,7 +25,7 @@ services:
   booking-app:
     container_name: !reset null
     build: !reset null
-    image: ${STAYHUB_IMAGE:?STAYHUB_IMAGE must be an immutable image reference}
+    image: "${STAYHUB_IMAGE:?STAYHUB_IMAGE must be an immutable image reference}"
     env_file: !override
       - ${STAYHUB_ENV_FILE:?STAYHUB_ENV_FILE must be set}
     ports: !override ["127.0.0.1:8080:8080"]
