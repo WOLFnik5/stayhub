@@ -101,3 +101,7 @@ kl exec deployment/booking -- curl -fsS 'http://booking:8080/accommodations?page
 ```
 
 Видалення всієї лабораторії разом із її даними та Secrets виконується командою `kind delete cluster --name stayhub`.
+
+## Етап 2. Публікація образу в GHCR
+
+Після push змін workflow відкрий **Actions → Java CI → Run workflow**, вибери `dev2/kubernetes-lab` і запусти workflow. Після успішних тестів завдання `publish` збирає образ для `linux/amd64` та публікує його в GHCR. Зі сторінки **Summary** скопіюй повне посилання `ghcr.io/<owner>/<repo>@sha256:...`. Цей digest потрібен для GitOps-маніфесту.
