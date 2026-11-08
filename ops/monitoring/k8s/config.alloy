@@ -1,0 +1,43 @@
+discovery.kubernetes "pods" {
+  role = "pod"
+
+  namespaces {
+    own_namespace = true
+  }
+}
+
+discovery.relabel "booking" {
+  targets = discovery.kubernetes.pods.targets
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app", "__meta_kubernetes_pod_container_name"]
+    regex         = "booking;booking"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app"]
+    target_label  = "app"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "namespace"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "pod"
+  }
+}
+
+loki.source.kubernetes "booking" {
+  targets    = discovery.relabel.booking.output
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

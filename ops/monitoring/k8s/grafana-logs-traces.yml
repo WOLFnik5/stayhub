@@ -1,0 +1,20 @@
+apiVersion: 1
+datasources:
+  - name: Loki
+    uid: stayhub-loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      derivedFields:
+        - name: TraceID
+          matcherRegex: '"traceId"\s*:\s*"([0-9a-f]{32})"'
+          datasourceUid: stayhub-jaeger
+          url: '$${__value.raw}'
+  - name: Jaeger
+    uid: stayhub-jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    editable: false

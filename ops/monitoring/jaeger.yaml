@@ -1,4 +1,4 @@
-# Local, ephemeral tracing backend. Based on Jaeger v2 configuration.
+# Ephemeral tracing backend for the local labs. Based on Jaeger v2 configuration.
 extensions:
   jaeger_storage:
     backends:

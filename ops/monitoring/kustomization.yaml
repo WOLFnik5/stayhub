@@ -1,0 +1,34 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - k8s/metrics.yaml
+  - k8s/grafana.yaml
+  - k8s/logs.yaml
+  - k8s/jaeger.yaml
+configMapGenerator:
+  - name: prometheus-config
+    files:
+      - prometheus.yml=k8s/prometheus.yml
+      - prometheus/alerts.yml
+  - name: alertmanager-config
+    files:
+      - alertmanager.yml
+  - name: grafana-datasources
+    files:
+      - grafana/provisioning/datasources/prometheus.yml
+      - k8s/grafana-logs-traces.yml
+  - name: grafana-dashboard-provider
+    files:
+      - grafana/provisioning/dashboards/stayhub.yml
+  - name: grafana-dashboards
+    files:
+      - grafana/dashboards/stayhub.json
+  - name: loki-config
+    files:
+      - k8s/loki.yml
+  - name: alloy-config
+    files:
+      - k8s/config.alloy
+  - name: jaeger-config
+    files:
+      - jaeger.yaml

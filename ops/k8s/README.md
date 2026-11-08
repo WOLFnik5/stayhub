@@ -161,3 +161,68 @@ kubectl --context kind-stayhub -n stayhub-lab exec statefulset/postgres -- psql 
 ```
 
 Очікуване значення PostgreSQL — `t`. Для окремої перевірки зворотної сумісності повтори замір, повернувши старий digest у Git. Перевір роботу старого API на вже мігрованій схемі та знову застосуй новий digest. Якщо перерваний `CREATE INDEX CONCURRENTLY` залишив невалідний індекс, Liquibase зупинить повторну міграцію. Власник схеми має виконати `DROP INDEX CONCURRENTLY public.idx_accommodations_available_id` перед повторним sync.
+
+## Етап 4. Observability
+
+Argo CD керує стеком разом із Booking Service. Prometheus відкриває окремий target для кожного Pod, Alloy читає JSON-логи Booking Service й надсилає їх до Loki, а Spring Boot експортує OTLP-траси в Jaeger. Grafana завантажує дашборд StayHub і підключає всі три джерела даних. Alertmanager має локальний приймач для перегляду стану алертів. Prometheus і Loki використовують окремі PVC по 2 ГіБ і зберігають дані 24 години. Jaeger тримає траси в пам’яті.
+
+### Перший запуск
+
+Перед push маніфестів створи Secret у кластері. На ПК із кластером або в SSH-сесії виконай у PowerShell:
+
+```powershell
+$kube = @('--context', 'kind-stayhub', '-n', 'stayhub-lab')
+$existing = kubectl @kube get secret monitoring-credentials --ignore-not-found -o name
+if ($LASTEXITCODE -ne 0) { throw 'Не вдалося перевірити Secret monitoring-credentials.' }
+if (-not $existing) {
+    $metricsBytes = [byte[]]::new(32)
+    $grafanaBytes = [byte[]]::new(32)
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try {
+        $rng.GetBytes($metricsBytes)
+        $rng.GetBytes($grafanaBytes)
+    } finally {
+        $rng.Dispose()
+    }
+    @{
+        apiVersion = 'v1'
+        kind = 'Secret'
+        metadata = @{ name = 'monitoring-credentials' }
+        type = 'Opaque'
+        stringData = @{
+            'metrics-password' = [Convert]::ToBase64String($metricsBytes)
+            'grafana-password' = [Convert]::ToBase64String($grafanaBytes)
+        }
+    } | ConvertTo-Json -Depth 4 | kubectl @kube create -f -
+}
+```
+
+Після push дочекайся `Synced` і `Healthy` для нового коміту. На ПК із кластером перевір стан Pod і Prometheus targets:
+
+```powershell
+$kube = @('--context', 'kind-stayhub', '-n', 'stayhub-lab')
+kubectl @kube get pods,pvc
+$targets = kubectl @kube exec deployment/prometheus -- wget -qO- http://127.0.0.1:9090/api/v1/targets | ConvertFrom-Json
+$targets.data.activeTargets | Select-Object @{Name='Pod'; Expression={$_.labels.pod}}, health, lastError
+```
+
+Для `booking` очікуємо два targets із `health = up`. Кількість targets змінюється разом із кількістю реплік. Для перевірки правил із синтетичними 503 і повільними запитами виконай `promtool test rules ops/monitoring/prometheus/rules-test.yml`.
+
+### Grafana, логи й трасування
+
+У робочому PowerShell відкрий SSH-з’єднання з локальним переадресуванням порту. Підстав Windows-користувача ПК із кластером:
+
+```powershell
+ssh -L 127.0.0.1:3000:127.0.0.1:3000 -l 'USER' 192.168.0.99
+```
+
+У цій SSH-сесії запусти `kubectl --context kind-stayhub -n stayhub-lab port-forward svc/grafana 3000:3000`. Залиш сесію відкритою і відкрий [Grafana](http://localhost:3000) на своєму ПК. Ім’я користувача `admin`. Пароль можна переглянути у своїй PowerShell-сесії на ПК із кластером:
+
+```powershell
+$encoded = kubectl --context kind-stayhub -n stayhub-lab get secret monitoring-credentials -o 'jsonpath={.data.grafana-password}'
+[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded))
+```
+
+- У дашборді **StayHub** перевір HTTP request rate, 5xx і p95.
+- В **Explore → Loki** виконай `{app="booking"} | json`. Для записів із `traceId` доступне посилання в Jaeger.
+- Виконай кілька запитів до [каталогу](http://192.168.0.99:18081/accommodations?page=0&size=1), потім в **Explore → Jaeger** знайди траси сервісу `booking-app`.

@@ -6,6 +6,7 @@ resources:
   - booking.yaml
   - booking-lan.yaml
   - migrate.yaml
+  - ../monitoring
 images:
   - name: stayhub-booking
     newName: ghcr.io/wolfnik5/stayhub
@@ -23,6 +24,16 @@ patches:
             containers:
               - name: booking
                 imagePullPolicy: IfNotPresent
+                env:
+                  - name: SPRING_PROFILES_ACTIVE
+                    value: monitoring,observability,tracing
+                  - name: TRACING_ENDPOINT
+                    value: http://jaeger:4318/v1/traces
+                  - name: METRICS_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: monitoring-credentials
+                        key: metrics-password
                 lifecycle:
                   preStop:
                     exec:
