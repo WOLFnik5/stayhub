@@ -13,7 +13,7 @@ resources:
 images:
   - name: stayhub-booking
     newName: ghcr.io/wolfnik5/stayhub
-    digest: sha256:aed108e6e0b3c09716a6b66e74e5d45ad607a3b60a533d964118e314b8dadb78
+    digest: sha256:00f4022a6e9e39a4e1da7030cc10c722422c14f77ce8f724856df5141790e695
 patches:
   - patch: |-
       apiVersion: v1
@@ -43,7 +43,7 @@ patches:
                 imagePullPolicy: IfNotPresent
                 env:
                   - name: SPRING_PROFILES_ACTIVE
-                    value: monitoring,observability,tracing
+                    value: monitoring,observability,tracing,rollout-fault
                   - name: TRACING_ENDPOINT
                     value: http://jaeger:4318/v1/traces
                   - name: METRICS_PASSWORD
