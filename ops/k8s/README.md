@@ -244,3 +244,19 @@ kubectl @kube get deployment/booking rollout/booking
 Після `Healthy` і двох готових реплік Rollout зафіксуй `replicas: 0` для Deployment в окремому коміті Kustomize. Deployment залишається джерелом Pod template. Наступна зміна digest у Git запускає новий Rollout.
 
 Перший крок оновлення виставляє вагу Canary на 50%. Звичайний Kubernetes Service розподіляє трафік за співвідношенням готових Pod. Після паузи у 60 секунд `AnalysisTemplate` бере три заміри з Prometheus з інтервалом 20 секунд. Він фільтрує лише Pod нової версії за `rollout_hash`. Перевищення 5% HTTP 5xx або p95 у 1 секунду зупиняє реліз. Для кожного заміру потрібно щонайменше 10 запитів за хвилину до Canary. За недостатньої кількості запитів аналіз повертає `Inconclusive`, а Rollout призупиняється.
+
+### Вправа з автоматичного abort
+
+Почни з двох готових реплік Rollout і Deployment з `replicas: 0`. Профіль `rollout-fault` для цієї вправи повертає HTTP `503` на `GET /accommodations`. Readiness залишається `UP`, тому новий Pod бере участь у Canary й Prometheus бачить його HTTP-помилки.
+
+1. Опублікуй образ із `RolloutFaultConfiguration` через ручний запуск **Java CI**. На ПК із кластером запиши хеш стабільного ReplicaSet командою `kubectl --context kind-stayhub -n stayhub-lab get rollout booking -o 'jsonpath={.status.stableRS}'`.
+2. Запусти `Measure-Rollout.ps1` на 480 секунд. Поки він працює, зміни digest у `ops/k8s/kustomization.yaml` і додай `rollout-fault` до `SPRING_PROFILES_ACTIVE`. Запуш обидві зміни одним комітом.
+3. На ПК із кластером перевір, що новий AnalysisRun отримав `Failed`, а `ABORT` у Rollout став `true`. Зістав `STABLE` з хешем, записаним до вправи.
+
+   ```powershell
+   $kube = @('--context', 'kind-stayhub', '-n', 'stayhub-lab')
+   kubectl @kube get analysisruns
+   kubectl @kube get rollout booking -o 'custom-columns=PHASE:.status.phase,ABORT:.status.abort,STABLE:.status.stableRS,NEW:.status.currentPodHash'
+   ```
+
+4. Після масштабування невдалого ReplicaSet до нуля повтори короткий замір. У першому замірі очікуємо `503` від Canary. У повторному всі запити мають повернути `200`. Потім віднови бажаний стан у Git, зробивши `git revert` коміту, що змінив digest і активував профіль.
