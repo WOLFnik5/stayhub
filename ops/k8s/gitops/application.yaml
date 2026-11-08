@@ -12,6 +12,19 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: stayhub-lab
+  ignoreDifferences:
+    - kind: Service
+      name: booking-lan
+      namespace: stayhub-lab
+      jsonPointers:
+        - /spec/selector/rollouts-pod-template-hash
+    - kind: Service
+      name: booking-preview
+      namespace: stayhub-lab
+      jsonPointers:
+        - /spec/selector/rollouts-pod-template-hash
   syncPolicy:
     automated:
       selfHeal: true
+    syncOptions:
+      - RespectIgnoreDifferences=true
