@@ -57,6 +57,7 @@ kubectl @kubeArgs apply -f (Join-Path $PSScriptRoot 'dependencies.yaml')
 kubectl @kubeArgs rollout status statefulset/postgres statefulset/kafka --timeout=300s
 
 $migration = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'migrate.yaml')
+$migration = $migration.Replace('  name: booking-migrate', '  generateName: booking-migrate-')
 $job = $migration.Replace($localTag, $image) | kubectl @kubeArgs create -f - -o name
 try {
     kubectl @kubeArgs wait --for=condition=complete $job --timeout=310s

@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  generateName: booking-migrate-
+  name: booking-migrate
 spec:
   backoffLimit: 0
   activeDeadlineSeconds: 300

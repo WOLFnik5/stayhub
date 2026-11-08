@@ -105,3 +105,31 @@ kl exec deployment/booking -- curl -fsS 'http://booking:8080/accommodations?page
 ## Етап 2. Публікація образу в GHCR
 
 Після push змін workflow відкрий **Actions → Java CI → Run workflow**, вибери `dev2/kubernetes-lab` і запусти workflow. Після успішних тестів завдання `publish` збирає образ для `linux/amd64` та публікує його в GHCR. Зі сторінки **Summary** скопіюй повне посилання `ghcr.io/<owner>/<repo>@sha256:...`. Цей digest потрібен для GitOps-маніфесту.
+
+### Перехід на Argo CD
+
+Почни з працюючої лабораторії етапу 1. Argo CD керуватиме Deployment, ConfigMap, обома Service та запуском Liquibase. PostgreSQL, Kafka та Secrets підготуй скриптом `Start-Lab.ps1` на етапі 1. Після переходу змінюй образ і кількість реплік у Git.
+
+Після push GitOps-маніфестів виконай на ПК із кластером:
+
+```powershell
+$labContext = 'kind-stayhub'
+$argoInstall = 'https://raw.githubusercontent.com/argoproj/argo-cd/v3.5.7/manifests/install.yaml'
+$labApplication = 'https://raw.githubusercontent.com/WOLFnik5/stayhub/refs/heads/dev2/kubernetes-lab/ops/k8s/gitops/application.yaml'
+
+kubectl --context $labContext create namespace argocd --dry-run=client -o yaml |
+    kubectl --context $labContext apply -f -
+kubectl --context $labContext -n argocd apply --server-side --force-conflicts -f $argoInstall
+kubectl --context $labContext wait --for=condition=Established crd/applications.argoproj.io --timeout=120s
+kubectl --context $labContext apply -f $labApplication
+kubectl --context $labContext -n argocd get application stayhub-lab -w
+```
+
+Argo CD читає `ops/k8s/kustomization.yaml` із `dev2/kubernetes-lab`. Kustomize підставляє той самий digest у Job міграції та Deployment. `PreSync` запускає Liquibase перед оновленням API. Після успіху очікуй `Synced` і `Healthy`, потім перевір образ у Deployment і readiness через LAN:
+
+```powershell
+kubectl --context kind-stayhub -n stayhub-lab get deployment booking -o 'jsonpath={.spec.template.spec.containers[0].image}'
+Invoke-RestMethod http://192.168.0.99:18081/actuator/health/readiness
+```
+
+Для наступного релізу опублікуй новий образ ручним запуском **Java CI**, зміни `images[0].digest` у `ops/k8s/kustomization.yaml` і запуш коміт. Для перевірки рендерингу перед push виконай `kubectl kustomize ops/k8s`.
