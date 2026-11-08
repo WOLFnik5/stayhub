@@ -2,6 +2,8 @@ apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
   name: booking-canary-http
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   args:
     - name: latest-hash
@@ -15,7 +17,7 @@ spec:
       failureCondition: len(result) == 1 && result[0] > 0.05
       provider:
         prometheus:
-          address: http://prometheus:9090
+          address: http://prometheus.stayhub-lab.svc.cluster.local:9090
           query: |-
             (
               (sum(increase(http_server_requests_seconds_count{job="stayhub",rollout_hash="{{args.latest-hash}}",uri!~"/actuator.*|/health",status=~"5.."}[1m])) or vector(0))
@@ -30,7 +32,7 @@ spec:
       failureCondition: len(result) == 1 && result[0] > 1
       provider:
         prometheus:
-          address: http://prometheus:9090
+          address: http://prometheus.stayhub-lab.svc.cluster.local:9090
           query: |-
             histogram_quantile(0.95,
               sum by (le) (rate(http_server_requests_seconds_bucket{job="stayhub",rollout_hash="{{args.latest-hash}}",uri!~"/actuator.*|/health"}[1m]))
