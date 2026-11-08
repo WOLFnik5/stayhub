@@ -9,7 +9,7 @@ resources:
 images:
   - name: stayhub-booking
     newName: ghcr.io/wolfnik5/stayhub
-    digest: sha256:2a943421aca15d010ffe8ea08a65dc93a1ad9c61c26e4c1a5b499330c087aa04
+    digest: sha256:aed108e6e0b3c09716a6b66e74e5d45ad607a3b60a533d964118e314b8dadb78
 patches:
   - patch: |-
       apiVersion: apps/v1
@@ -19,9 +19,14 @@ patches:
       spec:
         template:
           spec:
+            terminationGracePeriodSeconds: 60
             containers:
               - name: booking
                 imagePullPolicy: IfNotPresent
+                lifecycle:
+                  preStop:
+                    exec:
+                      command: [sleep, "5"]
   - patch: |-
       apiVersion: batch/v1
       kind: Job
