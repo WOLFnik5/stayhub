@@ -187,17 +187,19 @@ if (-not $existing) {
     @{
         apiVersion = 'v1'
         kind = 'Secret'
-        metadata = @{ name = 'monitoring-credentials' }
+        metadata = @{ name = 'monitoring-credentials'; namespace = 'stayhub-lab' }
         type = 'Opaque'
         stringData = @{
             'metrics-password' = [Convert]::ToBase64String($metricsBytes)
             'grafana-password' = [Convert]::ToBase64String($grafanaBytes)
         }
     } | ConvertTo-Json -Depth 4 | kubectl @kube create -f -
+    if ($LASTEXITCODE -ne 0) { throw 'Не вдалося створити Secret monitoring-credentials.' }
 }
+kubectl @kube get secret monitoring-credentials -o name
 ```
 
-Після push дочекайся `Synced` і `Healthy` для нового коміту. На ПК із кластером перевір стан Pod і Prometheus targets:
+Переконайся, що остання команда повернула `secret/monitoring-credentials`. Після push дочекайся `Synced` і `Healthy` для нового коміту. На ПК із кластером перевір стан Pod і Prometheus targets:
 
 ```powershell
 $kube = @('--context', 'kind-stayhub', '-n', 'stayhub-lab')
@@ -226,3 +228,19 @@ $encoded = kubectl --context kind-stayhub -n stayhub-lab get secret monitoring-c
 - У дашборді **StayHub** перевір HTTP request rate, 5xx і p95.
 - В **Explore → Loki** виконай `{app="booking"} | json`. Для записів із `traceId` доступне посилання в Jaeger.
 - Виконай кілька запитів до [каталогу](http://192.168.0.99:18081/accommodations?page=0&size=1), потім в **Explore → Jaeger** знайди траси сервісу `booking-app`.
+
+## Етап 5. Argo Rollouts
+
+Після встановлення контролера Argo Rollouts запуш маніфести першої фази. Rollout `booking` використовує Pod template існуючого Deployment `booking` через `workloadRef`. Спочатку обидва контролери тримають по дві репліки того самого образу, а `booking-lan` спрямовує запити на готові Pod.
+
+На ПК із кластером дочекайся готовності Rollout і переглянь обидва workloads:
+
+```powershell
+$kube = @('--context', 'kind-stayhub', '-n', 'stayhub-lab')
+kubectl @kube wait '--for=jsonpath={.status.phase}=Healthy' rollout/booking --timeout=300s
+kubectl @kube get deployment/booking rollout/booking
+```
+
+Після `Healthy` і двох готових реплік Rollout зафіксуй `replicas: 0` для Deployment в окремому коміті Kustomize. Deployment залишається джерелом Pod template. Наступна зміна digest у Git запускає новий Rollout.
+
+Перший крок оновлення виставляє вагу Canary на 50%. Звичайний Kubernetes Service розподіляє трафік за співвідношенням готових Pod. Після паузи у 60 секунд `AnalysisTemplate` бере три заміри з Prometheus з інтервалом 20 секунд. Він фільтрує лише Pod нової версії за `rollout_hash`. Перевищення 5% HTTP 5xx або p95 у 1 секунду зупиняє реліз. Для кожного заміру потрібно щонайменше 10 запитів за хвилину до Canary. За недостатньої кількості запитів аналіз повертає `Inconclusive`, а Rollout призупиняється.

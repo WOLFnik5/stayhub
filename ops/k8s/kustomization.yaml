@@ -6,6 +6,8 @@ resources:
   - booking.yaml
   - booking-lan.yaml
   - migrate.yaml
+  - rollouts/booking-rollout.yaml
+  - rollouts/booking-canary-analysis.yaml
   - ../monitoring
 images:
   - name: stayhub-booking
