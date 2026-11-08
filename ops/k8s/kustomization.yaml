@@ -20,6 +20,7 @@ patches:
       metadata:
         name: booking
       spec:
+        replicas: 0
         template:
           spec:
             terminationGracePeriodSeconds: 60
