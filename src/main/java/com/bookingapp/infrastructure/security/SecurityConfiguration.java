@@ -61,6 +61,8 @@ public class SecurityConfiguration {
                                 "/api-docs/**",
                                 "/v3/api-docs/**",
                                 "/actuator/health",
+                                "/actuator/health/liveness",
+                                "/actuator/health/readiness",
                                 "/error"
                         ).permitAll()
                         .requestMatchers("/actuator/metrics", "/actuator/metrics/**",

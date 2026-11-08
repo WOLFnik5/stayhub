@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: booking-migrate-
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: stayhub-booking:k8s-lab
+          imagePullPolicy: Never
+          command:
+            - java
+            - -Dloader.main=com.bookingapp.infrastructure.migration.DatabaseMigration
+            - -cp
+            - /app/app.jar
+            - org.springframework.boot.loader.launch.PropertiesLauncher
+          envFrom:
+            - secretRef:
+                name: booking-migration
+          env:
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: booking-config
+                  key: DB_NAME
+            - name: LIQUIBASE_URL
+              value: jdbc:postgresql://postgres:5432/$(DB_NAME)

@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: booking-config
+data:
+  DB_HOST: postgres
+  DB_NAME: booking_app
+  DB_PORT: "5432"
+  DB_USERNAME: booking_runtime
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  LIQUIBASE_ENABLED: "false"
+  SPRING_KAFKA_LISTENER_AUTO_STARTUP: "false"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: booking
+spec:
+  type: ClusterIP
+  selector:
+    app: booking
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

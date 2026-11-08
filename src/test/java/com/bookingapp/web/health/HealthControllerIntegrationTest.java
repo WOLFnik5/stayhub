@@ -37,4 +37,14 @@ class HealthControllerIntegrationTest extends AbstractControllerIntegrationTest 
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value("UP"));
     }
+
+    @Test
+    void kubernetesProbesShouldBeAccessibleWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/actuator/health/liveness"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
+        mockMvc.perform(get("/actuator/health/readiness"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
+    }
 }
