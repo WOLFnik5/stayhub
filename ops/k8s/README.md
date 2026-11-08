@@ -260,3 +260,40 @@ kubectl @kube get deployment/booking rollout/booking
    ```
 
 4. Після масштабування невдалого ReplicaSet до нуля повтори короткий замір. У першому замірі очікуємо `503` від Canary. У повторному всі запити мають повернути `200`. Потім віднови бажаний стан у Git, зробивши `git revert` коміту, що змінив digest і активував профіль.
+
+### Перехід на Blue-Green
+
+Почни зі стабільного `Synced / Healthy` після вправи Canary. `booking-lan` залишає адресу LAN і спрямовує трафік на активний ReplicaSet. Внутрішнє ім’я `booking:8080` веде до того самого Service через DNS. `booking-preview` дає окремий доступ до кандидата. Argo Rollouts змінює хеш ReplicaSet у селекторах двох Service, а Argo CD ігнорує саме це поле.
+
+1. Опублікуй зміну `ops/k8s/gitops/application.yaml` окремим комітом. На ПК із кластером онови Application до публікації зміни стратегії.
+
+   ```powershell
+   $ctx = 'kind-stayhub'
+   $appManifest = 'https://raw.githubusercontent.com/WOLFnik5/stayhub/refs/heads/dev2/kubernetes-lab/ops/k8s/gitops/application.yaml'
+   kubectl --context $ctx apply -f $appManifest
+   kubectl --context $ctx -n argocd get application stayhub-lab -o 'jsonpath={.spec.syncPolicy.syncOptions}'
+   ```
+
+2. Опублікуй решту маніфестів Blue-Green і дочекайся `Synced / Healthy`. Перед тестом порівняй `ACTIVE`, `PREVIEW` і `STABLE`. У стабільному стані вони мають збігатися.
+
+   ```powershell
+   $kube = @('--context', 'kind-stayhub', '-n', 'stayhub-lab')
+   kubectl @kube get rollout booking -o 'custom-columns=PHASE:.status.phase,ACTIVE:.status.blueGreen.activeSelector,PREVIEW:.status.blueGreen.previewSelector,STABLE:.status.stableRS'
+   ```
+
+3. Для успішного тесту запуш новий здоровий digest або зміну анотації в `.spec.template.metadata.annotations` Deployment `booking`. Argo Rollouts створить новий ReplicaSet і зупиниться на `Paused`. Перевір, що `PREVIEW` змінився, а `ACTIVE` досі збігається з попереднім `STABLE`. На ПК із кластером відкрий тунель до кандидата в окремому вікні PowerShell.
+
+   ```powershell
+   kubectl --context kind-stayhub -n stayhub-lab port-forward svc/booking-preview 18082:8080
+   ```
+
+   В іншому вікні виконай `Invoke-RestMethod 'http://127.0.0.1:18082/accommodations?page=0&size=1'`. На своєму ПК запусти `Measure-Rollout.ps1` з адресою `http://192.168.0.99:18081` щонайменше на 180 секунд. Поки йдуть запити до LAN, вручну переведи кандидата в активну версію.
+
+   ```powershell
+   kubectl argo rollouts promote booking @kube
+   kubectl @kube get analysisruns -w
+   ```
+
+   Для `promote` потрібен плагін kubectl Argo Rollouts. Очікуй `Successful` для нового AnalysisRun, `Healthy` для Rollout та HTTP `200` у LAN. Аналіз починає заміри через 45 секунд після перемикання і перевіряє 5xx та p95 тільки для нового ReplicaSet. [Встановлення плагіна](https://argo-rollouts.readthedocs.io/en/stable/installation/#kubectl-plugin-installation)
+
+4. Для тесту повернення трафіку повтори крок 3 із образом та профілем `rollout-fault` з вправи Canary. У preview очікуй HTTP `503`, у LAN до promotion — `200`. Після навмисного promotion частина LAN-запитів має отримати `503`, доки аналіз не позначить оновлення як `Failed` і Argo Rollouts не поверне `ACTIVE` на попередній `STABLE`. Перевір відновлення окремим коротким заміром у LAN і зроби `git revert` коміту з несправним кандидатом.

@@ -9,6 +9,7 @@ spec:
     - name: latest-hash
   metrics:
     - name: http-5xx-ratio
+      initialDelay: 45s
       interval: 20s
       count: 3
       failureLimit: 0
@@ -24,6 +25,7 @@ spec:
               / sum(increase(http_server_requests_seconds_count{job="stayhub",rollout_hash="{{args.latest-hash}}",uri!~"/actuator.*|/health"}[1m]))
             ) and (sum(increase(http_server_requests_seconds_count{job="stayhub",rollout_hash="{{args.latest-hash}}",uri!~"/actuator.*|/health"}[1m])) >= 10)
     - name: http-p95-seconds
+      initialDelay: 45s
       interval: 20s
       count: 3
       failureLimit: 0

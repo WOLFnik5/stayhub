@@ -7,6 +7,7 @@ resources:
   - booking-lan.yaml
   - migrate.yaml
   - rollouts/booking-rollout.yaml
+  - rollouts/booking-preview.yaml
   - rollouts/booking-canary-analysis.yaml
   - ../monitoring
 images:
@@ -14,6 +15,16 @@ images:
     newName: ghcr.io/wolfnik5/stayhub
     digest: sha256:aed108e6e0b3c09716a6b66e74e5d45ad607a3b60a533d964118e314b8dadb78
 patches:
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: booking
+      spec:
+        type: ExternalName
+        externalName: booking-lan.stayhub-lab.svc.cluster.local
+        selector: null
+        ports: null
   - patch: |-
       apiVersion: apps/v1
       kind: Deployment

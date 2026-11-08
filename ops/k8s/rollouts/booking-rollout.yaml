@@ -15,17 +15,14 @@ spec:
     name: booking
     scaleDown: never
   strategy:
-    canary:
-      maxUnavailable: 0
-      maxSurge: 1
-      steps:
-        - setWeight: 50
-        - pause:
-            duration: 60s
-        - analysis:
-            templates:
-              - templateName: booking-canary-http
-            args:
-              - name: latest-hash
-                valueFrom:
-                  podTemplateHashValue: Latest
+    blueGreen:
+      activeService: booking-lan
+      previewService: booking-preview
+      autoPromotionEnabled: false
+      postPromotionAnalysis:
+        templates:
+          - templateName: booking-canary-http
+        args:
+          - name: latest-hash
+            valueFrom:
+              podTemplateHashValue: Latest
