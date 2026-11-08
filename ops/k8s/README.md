@@ -133,3 +133,31 @@ Invoke-RestMethod http://192.168.0.99:18081/actuator/health/readiness
 ```
 
 Для наступного релізу опублікуй новий образ ручним запуском **Java CI**, зміни `images[0].digest` у `ops/k8s/kustomization.yaml` і запуш коміт. Для перевірки рендерингу перед push виконай `kubectl kustomize ops/k8s`.
+
+## Етап 3. Перевірка оновлення під навантаженням
+
+Спочатку опублікуй образ із міграцією `019` та налаштуванням graceful shutdown. Зміну `ops/k8s/kustomization.yaml` збережи для окремого коміту разом із новим digest. Так Argo CD застосує зміну Pod template під час вимірюваного оновлення.
+
+На своєму ПК запусти запити до каталогу через LAN. Скрипт створює нове HTTP-з'єднання для кожного запиту, рахує HTTP-статуси й транспортні помилки та показує p95 успішних запитів.
+
+```powershell
+.\ops\k8s\Measure-Rollout.ps1 -BaseUrl 'http://192.168.0.99:18081' -DurationSeconds 480
+```
+
+Поки скрипт працює, в іншому терміналі онови `images[0].digest` у `ops/k8s/kustomization.yaml` на digest нового образу, закоміть цей файл і зроби push. На ПК із кластером стеж за синхронізацією:
+
+```powershell
+kubectl --context kind-stayhub -n argocd get application stayhub-lab -w
+```
+
+Дочекайся `Synced` і `Healthy` для нового Git-коміту в межах заміру. `PreSync` додає частковий індекс каталогу через `CREATE INDEX CONCURRENTLY`, поки стара версія обслуговує запити. Потім Kubernetes оновлює репліки. `preStop` дає 5 секунд на оновлення маршрутизації перед `SIGTERM`, Spring має 20 секунд на завершення фази, а Pod отримує 60 секунд загалом.
+
+У звіті очікуємо лише `200`. Звір Git-коміт, digest Deployment та наявність валідного індексу:
+
+```powershell
+kubectl --context kind-stayhub -n argocd get application stayhub-lab -o 'jsonpath={.status.sync.revision}'
+kubectl --context kind-stayhub -n stayhub-lab get deployment booking -o 'jsonpath={.spec.template.spec.containers[0].image}'
+kubectl --context kind-stayhub -n stayhub-lab exec statefulset/postgres -- psql -U booking_admin -d booking_app -tAc "SELECT indisvalid FROM pg_index WHERE indexrelid = to_regclass('public.idx_accommodations_available_id')"
+```
+
+Очікуване значення PostgreSQL — `t`. Для окремої перевірки зворотної сумісності повтори замір, повернувши старий digest у Git. Перевір роботу старого API на вже мігрованій схемі та знову застосуй новий digest. Якщо перерваний `CREATE INDEX CONCURRENTLY` залишив невалідний індекс, Liquibase зупинить повторну міграцію. Власник схеми має виконати `DROP INDEX CONCURRENTLY public.idx_accommodations_available_id` перед повторним sync.

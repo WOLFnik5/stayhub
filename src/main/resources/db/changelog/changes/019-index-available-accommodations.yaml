@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 019-index-available-accommodations
+      author: bookingapp
+      runInTransaction: false
+      preConditions:
+        - onFail: HALT
+        - onFailMessage: Drop the invalid idx_accommodations_available_id concurrently before retrying.
+        - sqlCheck:
+            expectedResult: "0"
+            sql: >-
+              SELECT count(*) FROM pg_index
+              WHERE indexrelid = to_regclass('public.idx_accommodations_available_id')
+              AND NOT indisvalid
+      changes:
+        - sql:
+            sql: >-
+              CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_accommodations_available_id
+              ON public.accommodations (id) WHERE availability > 0
+      rollback:
+        - sql:
+            sql: DROP INDEX CONCURRENTLY IF EXISTS public.idx_accommodations_available_id

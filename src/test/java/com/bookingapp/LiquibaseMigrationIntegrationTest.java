@@ -80,6 +80,17 @@ class LiquibaseMigrationIntegrationTest extends PostgreSqlLiquibaseIntegrationTe
     }
 
     @Test
+    void shouldCreateValidPartialIndexForAvailableAccommodations() {
+        String definition = jdbcTemplate.queryForObject("""
+                SELECT pg_get_indexdef(indexrelid) FROM pg_index
+                WHERE indexrelid = 'public.idx_accommodations_available_id'::regclass
+                  AND indisvalid
+                """, String.class);
+        assertThat(definition).contains("ON public.accommodations USING btree (id)",
+                "WHERE (availability > 0)");
+    }
+
+    @Test
     void shouldCreateUsersAndPaymentsTables() {
         Integer usersTableCount = jdbcTemplate.queryForObject(
                 """
