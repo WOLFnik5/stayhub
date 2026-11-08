@@ -33,6 +33,9 @@ patches:
       spec:
         replicas: 0
         template:
+          metadata:
+            annotations:
+              stayhub.lab/revision: blue-green-healthy-1
           spec:
             terminationGracePeriodSeconds: 60
             containers:
